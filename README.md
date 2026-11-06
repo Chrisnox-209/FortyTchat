@@ -67,13 +67,36 @@ sh ./install.sh --use-current-python
 
 ## Mettre à jour
 
-Quitter **complètement** FortyTchat depuis son icône, puis lancer :
+Ce bloc **ferme proprement la copie installée de FortyTchat**, attend sa fermeture (jusqu’à dix secondes), puis récupère et installe la mise à jour. Copier le bloc entier dans le terminal :
 
 ```sh
-git -C "$HOME/.FortyTchat" pull --ff-only && sh "$HOME/.FortyTchat/install.sh"
+(
+  echec() { printf '%s\n' "$1" >&2; exit 1; }
+
+  cd "$HOME/.FortyTchat" || echec 'Dépôt introuvable : vérifie ~/.FortyTchat.'
+
+  python3 -c 'from tools.uninstall_user import data_home, stop_installed; stop_installed(data_home() / "fortytchat" / "app")' \
+    || echec 'Fermeture impossible : quitte FortyTchat depuis son icône puis réessaie.'
+
+  git pull --ff-only \
+    || echec 'Git a échoué : installation non lancée. Consulte le message ci-dessus.'
+
+  sh ./install.sh \
+    || echec 'Installation échouée : consulte le message ci-dessus avant de réessayer.'
+
+  printf '%s\n' 'Mise à jour terminée.'
+)
 ```
 
-Le profil, les amis, les modèles de notifications et les clés sont conservés. L’installation relance l’application réduite et respecte un démarrage automatique désactivé. Les conversations ne sont pas conservées après l’arrêt complet. Aucun script `update.sh` n’est nécessaire.
+La fonction de fermeture utilisée vient de l’outil de désinstallation, mais **aucune désinstallation n’est exécutée**. Elle cible seulement cette copie de l’application appartenant à ton utilisateur et respecte `XDG_DATA_HOME`. Les conversations en mémoire sont effacées à l’arrêt complet.
+
+**En cas d’échec, le bloc s’arrête avec un code d’erreur** et affiche l’étape concernée :
+
+- **Fermeture impossible** : aucune récupération ni installation n’est lancée. Quitter complètement depuis l’icône, puis recommencer.
+- **Échec Git** : l’installateur n’est pas lancé. Vérifier la connexion, l’accès GitHub ou les modifications locales indiquées par Git avant de réessayer. La copie déjà installée reste disponible avec `~/.local/bin/fortytchat`.
+- **Échec d’installation** : corriger l’erreur affichée, puis relancer `sh "$HOME/.FortyTchat/install.sh"`. Le message de réussite n’est pas affiché en cas d’erreur.
+
+Le profil, les amis, les modèles de notifications et les clés sont conservés. Une installation réussie relance l’application réduite et respecte un démarrage automatique désactivé. Aucun script `update.sh` n’est nécessaire.
 
 ## Aperçu
 
