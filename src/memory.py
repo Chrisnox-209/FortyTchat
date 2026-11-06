@@ -20,6 +20,8 @@ class Message:
     reply_name: str = ''
     reply_text: str = ''
     reactions: dict = field(default_factory=dict)
+    delivery_recipients: dict = field(default_factory=dict)
+    delivery_local: bool = False
 
 
 class Conversations:

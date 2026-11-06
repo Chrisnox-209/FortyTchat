@@ -1,11 +1,13 @@
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, Signal
+from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, Signal, QRect, QPoint
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QVBoxLayout, QScrollArea,
-                               QWidget, QGraphicsOpacityEffect)
+                               QWidget, QGraphicsOpacityEffect, QApplication)
 from .widgets import Avatar, label
 from .file_card import FileCard
 from .social import ElidedLabel, ReplyPreview, ReactionBar, TypingIndicator, reaction_menu
 from .widgets import button
 from ..features.emojis import emoji_fallback
+from ..features.receipts import delivery_label
+from .theme import colors
 
 
 class ChatView(QFrame):
@@ -30,6 +32,9 @@ class ChatView(QFrame):
         self.messages.setSpacing(14)
         self.messages.setContentsMargins(0, 8, 0, 12)
         self.scroll.setWidget(self.body)
+        self.follow_bottom = True
+        self.scroll.verticalScrollBar().valueChanged.connect(self.scroll_position_changed)
+        self.scroll.verticalScrollBar().rangeChanged.connect(self.scroll_range_changed)
         layout.addWidget(self.scroll, 1)
         self.typing = TypingIndicator()
         layout.addWidget(self.typing)
@@ -40,6 +45,7 @@ class ChatView(QFrame):
         self.file_cards = {}
         self.actor_id = ''
         self.message_rows, self.reaction_bars, self.quote_previews = {}, {}, {}
+        self.delivery_labels = {}
         self.reset([], 'private' if private else 'general')
 
     def reset(self, messages, chat):
@@ -52,6 +58,7 @@ class ChatView(QFrame):
         self.bubbles = []
         self.file_cards = {}
         self.message_rows, self.reaction_bars, self.quote_previews = {}, {}, {}
+        self.delivery_labels = {}
         self.empty = None
         if not messages:
             self.empty = QWidget()
@@ -81,7 +88,17 @@ class ChatView(QFrame):
         self.bottom()
 
     def bottom(self):
+        self.follow_bottom = True
         QTimer.singleShot(0, lambda: self.scroll.verticalScrollBar().setValue(self.scroll.verticalScrollBar().maximum()))
+
+    def scroll_position_changed(self, value):
+        self.follow_bottom = value >= self.scroll.verticalScrollBar().maximum() - 70
+
+    def scroll_range_changed(self, minimum, maximum):
+        # Qt can finish laying out a new bubble after bottom()'s single-shot.
+        # Follow late range changes only while the reader has stayed at the bottom.
+        if self.follow_bottom:
+            self.scroll.verticalScrollBar().setValue(maximum)
 
     def append(self, message, animate=True):
         bar = self.scroll.verticalScrollBar()
@@ -154,6 +171,12 @@ class ChatView(QFrame):
                 content.addWidget(reactions)
                 self.message_rows[message.id] = (row, bubble, message)
                 self.reaction_bars[message.id] = reactions
+                if message.outgoing and not message.attachment:
+                    status = label('', 'deliveryStatus', True)
+                    status.setAlignment(Qt.AlignmentFlag.AlignRight)
+                    content.addWidget(status)
+                    self.delivery_labels[message.id] = status
+                    self.update_delivery(message)
             self.bubbles.append((row, bubble))
             row_box.addWidget(bubble)
             if not message.outgoing:
@@ -170,6 +193,7 @@ class ChatView(QFrame):
             self.message_rows = {key: value for key, value in self.message_rows.items() if value[0] is not oldest}
             self.reaction_bars = {key: value for key, value in self.reaction_bars.items() if key in self.message_rows}
             self.quote_previews = {key: value for key, value in self.quote_previews.items() if key in self.message_rows}
+            self.delivery_labels = {key: value for key, value in self.delivery_labels.items() if key in self.message_rows}
         self.adjust_bubbles()
         if animate:
             effect = QGraphicsOpacityEffect(row)
@@ -198,6 +222,31 @@ class ChatView(QFrame):
         entry = self.file_cards.get(metadata['id'])
         if entry:
             entry[1].update_transfer(metadata)
+
+    def update_delivery(self, message):
+        status = self.delivery_labels.get(message.id)
+        if status:
+            text, blue, tooltip = delivery_label(message)
+            status.setText(text)
+            status.setToolTip(tooltip)
+            status.setAccessibleName(text + '. ' + tooltip)
+            blue_color = '#2868c7' if QApplication.instance().property('fortytchatTheme') == 'light' else '#69b6ff'
+            color = blue_color if blue else colors()['muted']
+            status.setStyleSheet(f'color: {color}; font-size: 11px; background: transparent;')
+            status.setVisible(bool(text))
+
+    def visible_incoming(self):
+        if not self.isVisible():
+            return []
+        viewport = self.scroll.viewport()
+        visible = []
+        for reference, (row, _, message) in self.message_rows.items():
+            if message.outgoing or message.system or message.attachment or not row.isVisible():
+                continue
+            bounds = QRect(row.mapTo(viewport, QPoint(0, 0)), row.size())
+            if bounds.intersected(viewport.rect()).height() >= min(24, row.height()):
+                visible.append(reference)
+        return visible
 
     def update_reactions(self, message):
         bar = self.reaction_bars.get(message.id)

@@ -68,6 +68,10 @@ class SettingsDialog(QDialog):
         self.dnd.setChecked(preferences.dnd)
         form.addWidget(self.dnd)
         form.addWidget(label('En mode Ne pas déranger, les messages restent silencieux ; Wizz et notifications personnalisées sont refusés. Les demandes de pause restent actives.', 'caption', True))
+        self.read_receipts = QCheckBox('Partager les confirmations de lecture')
+        self.read_receipts.setChecked(preferences.read_receipts)
+        form.addWidget(self.read_receipts)
+        form.addWidget(label('Deux coches grises : livré. Deux bleues : vu dans la conversation active. Désactive cette option pour ne pas envoyer « Vu » ; la livraison reste confirmée. Les confirmations déjà partagées restent visibles.', 'caption', True))
         theme_row = QHBoxLayout()
         theme_row.addWidget(label('Apparence'))
         self.theme = QComboBox()
@@ -107,6 +111,7 @@ class SettingsDialog(QDialog):
         privacy_box.addWidget(repository)
         for title, text in [
             ('Le cluster, en direct', 'Une messagerie locale pour discuter dans le salon général ou dans une fenêtre privée. Aucun compte à créer : les personnes présentes sur le réseau sont découvertes automatiquement.'),
+            ('Envoyé, livré, vu', 'Une coche grise : envoyé, réception en attente. Deux coches grises : livré à l’application du destinataire. Deux bleues : affiché dans sa conversation active. Les compteurs du général concernent les destinataires présents à l’envoi. Désactive le partage des confirmations de lecture dans Général si tu ne veux pas envoyer « Vu ». Les états restent en mémoire et leurs confirmations sont chiffrées.'),
             ('Répondre, réagir, discuter', 'Le bouton ↩ cite un message ; un clic sur la citation y ramène. Le bouton ☺ ajoute une réaction emoji, modifiable ou retirable. Trois points animés indiquent quand quelqu’un écrit, sans partager son brouillon.'),
             ('Des notifications à ton image', 'Le bouton ✦ ouvre un éditeur de titre, texte et emoji animé. Onze animations sont disponibles hors connexion. Réponds par Oui, Non ou une réponse personnalisée. Tes modèles enregistrés restent dans ton profil et sont accessibles depuis les paramètres.'),
             ('Tes amis, ton image, tes emojis', 'Les amis restent reconnus après un changement de pseudo. Choisis un avatar ou importe ta photo, puis exprime-toi parmi 3 781 emojis avec recherche et catégories.'),
@@ -129,6 +134,7 @@ class SettingsDialog(QDialog):
         self.autostart.toggled.connect(lambda value: self.preference_changed.emit('autostart', value))
         self.wizz.toggled.connect(lambda value: self.preference_changed.emit('wizz_enabled', value))
         self.dnd.toggled.connect(lambda value: self.preference_changed.emit('dnd', value))
+        self.read_receipts.toggled.connect(lambda value: self.preference_changed.emit('read_receipts', value))
         self.theme.currentIndexChanged.connect(lambda index: self.preference_changed.emit('theme', self.theme.itemData(index)))
 
     @staticmethod

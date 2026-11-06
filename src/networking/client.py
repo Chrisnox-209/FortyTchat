@@ -12,6 +12,7 @@ from ..features.break_request import Invitations, BreakRateLimit
 from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
 from ..features.social import SOCIAL_EVENTS, SocialOrder
 from ..features.cards import CARD_EVENTS
+from ..features.receipts import ReceiptLedger, READ_EVENTS, READ_BATCH
 from ..identity import session_id, unique_nickname, valid_nickname, contact_capability, contact_from_caps
 from ..avatar_data import avatar_hash, avatar_frame
 from ..security import CryptoIdentity, SecureSession, SecurityError, fingerprint as key_fingerprint
@@ -60,6 +61,8 @@ class ChatClient:
         self.seen, self.outgoing_invites, self.incoming_invites = SeenMessages(), Invitations(), Invitations()
         self.message_bucket = TokenBucket()
         self.social_bucket, self.typing_bucket = TokenBucket(12, 3), TokenBucket(4, 1)
+        self.receipts, self.receipt_bucket = ReceiptLedger(), TokenBucket(16, 4)
+        self.read_receipts = True
         self.social_order, self.social_sequence = SocialOrder(), 0
         self.wizz_cooldown = Cooldown(WIZZ_INTERVAL)
         self.outgoing_break_limit, self.incoming_break_limit = BreakRateLimit(), BreakRateLimit()
@@ -92,7 +95,7 @@ class ChatClient:
     def hello(self, kind='hello'):
         return self.crypto.sign_presence({'v': 1, 'type': kind, 'sid': self.sid, 'nick': self.nickname,
                 'status': self.status, 'port': self.port,
-                'caps': ['files', 'wizz', 'cards', 'probe', 'social', 'avatar_image', 'friends', contact_capability(self.contact_id)],
+                'caps': ['files', 'wizz', 'cards', 'probe', 'social', 'avatar_image', 'receipts', contact_capability(self.contact_id)],
                 'avatar': self.avatar, 'avatar_hash': self.avatar_hash})
 
     def network_state(self):
@@ -176,7 +179,7 @@ class ChatClient:
             if len(self.peers) >= MAX_PEERS:
                 return
             peer = Peer(sid, data['nick'], timeout=self.peer_timeout, bucket=TokenBucket(), wizz=Cooldown(WIZZ_INTERVAL),
-                        social_bucket=TokenBucket(12, 3), typing_bucket=TokenBucket(4, 1))
+                        social_bucket=TokenBucket(12, 3), typing_bucket=TokenBucket(4, 1), receipt_bucket=TokenBucket(16, 4))
             self.peers[sid] = peer
             new = True
         else:
@@ -278,7 +281,11 @@ class ChatClient:
         if self.relay_writer:
             self.relay_writer.write(encode(self.hello()))
 
-    def preferences(self, *, wizz_enabled, dnd, status='online', avatar=None, avatar_image=None):
+    def preferences(self, *, wizz_enabled, dnd, status='online', avatar=None, avatar_image=None, read_receipts=None):
+        if read_receipts is not None:
+            if type(read_receipts) is not bool:
+                raise ValueError('Préférence de lecture invalide')
+            self.read_receipts = read_receipts
         if avatar is not None:
             if type(avatar) is not int or not -1 <= avatar < 24:
                 raise ValueError('Avatar invalide')
@@ -373,6 +380,13 @@ class ChatClient:
         if frame['id'] in self.seen.ids:
             return True, ''
         kind = frame['type']
+        if kind in READ_EVENTS:
+            if 'receipts' not in peer.caps or not peer.receipt_bucket.allow():
+                return False, 'Confirmation de lecture indisponible'
+            self.seen.add(frame['id'])
+            for reference, target in self.receipts.read(sender, frame['messages']):
+                self.emit('message_read', id=reference, target=target, peer=sender)
+            return True, ''
         if kind in ('break_invite', 'card_invite') and self.incoming_break_limit.remaining(peer.contact_id or sender):
             return False, 'Demandes de pause bloquées pendant 5 minutes'
         if kind in CARD_EVENTS and 'cards' not in peer.caps:
@@ -401,6 +415,8 @@ class ChatClient:
         self.seen.add(frame['id'])
         if kind in SOCIAL_EVENTS:
             self.social_order.remember(frame)
+        if kind == 'message':
+            self.receipts.received(frame)
         # Keep only validated fields; never trust a network-provided display name.
         payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active', 'title') if k in frame}
         self.emit('event', frame=payload, nickname=peer.nick, avatar=peer.avatar, avatar_image=peer.avatar_image,
@@ -535,6 +551,8 @@ class ChatClient:
     async def _send(self, kind, target, **payload):
         if self._closing:
             return None
+        if kind in READ_EVENTS:
+            return None  # Only mark_read() may confirm messages actually received.
         if kind in SOCIAL_EVENTS:
             return await self._send_social(kind, target, **payload)
         if self._queued >= 16:
@@ -585,10 +603,12 @@ class ChatClient:
             self.emit('notice', text='Cette invitation a expiré.')
             return None
         self.seen.add(frame['id'])
-        self.emit('sent', frame=frame)
+        if kind == 'message':
+            self.receipts.sent(frame, peers)
+        self.emit('sent', frame=frame, recipients=[{'sid': p.sid, 'nick': p.nick, 'reads': 'receipts' in p.caps} for p in peers])
         self._queued += 1
         try:
-            routes = [self._send_to(peer, frame) for peer in peers]
+            routes = [self._deliver_message(peer, frame) if kind == 'message' else self._send_to(peer, frame) for peer in peers]
             results = await asyncio.gather(*routes, return_exceptions=True) if routes else []
             success = bool(results) and all(r is True for r in results)
             self.emit('delivery', id=frame['id'], target=target, ok=success,
@@ -596,6 +616,49 @@ class ChatClient:
             return frame['id']
         finally:
             self._queued -= 1
+
+    async def _deliver_message(self, peer, frame):
+        try:
+            ok = await self._send_to(peer, frame)
+        except Exception:
+            ok = False
+        self.emit('message_delivery', id=frame['id'], target=frame['to'], peer=peer.sid, ok=ok)
+        return ok
+
+    async def mark_read(self, references):
+        operation = asyncio.current_task()
+        self.operations.add(operation)
+        try:
+            if self._closing or not self.read_receipts:
+                return
+            groups = {}
+            for mid, item in self.receipts.eligible(references):
+                peer = self.peers.get(item['sender'])
+                if (peer and peer.secure and peer.sid not in self.blocked and 'receipts' in peer.caps
+                        and (peer.direct or peer.relay and self.relay_writer and self.relay_e2ee)):
+                    groups.setdefault(peer.sid, []).append(mid)
+            plans = []
+            for sid, ids in groups.items():
+                for offset in range(0, len(ids), READ_BATCH):
+                    if not self.receipt_bucket.allow():
+                        break
+                    batch = ids[offset:offset + READ_BATCH]
+                    for mid in batch:
+                        self.receipts.incoming[mid]['pending'] = True
+                    plans.append((sid, batch))
+            async def deliver(sid, batch):
+                ok = False
+                try:
+                    frame = event('read_receipt', self.sid, sid, messages=batch)
+                    ok = await self._send_to(self.peers[sid], frame)
+                except (OSError, ValueError, KeyError, ConnectionError):
+                    pass
+                finally:
+                    self.receipts.finish(batch, ok)
+            if plans:
+                await asyncio.gather(*(deliver(sid, batch) for sid, batch in plans))
+        finally:
+            self.operations.discard(operation)
 
     async def _send_social(self, kind, target, **payload):
         if self._queued >= 16:
@@ -880,4 +943,5 @@ class ChatClient:
         self.avatar_attempts.clear()
         self.incoming_invites.pending.clear()
         self.outgoing_invites.pending.clear()
+        self.receipts.clear()
         self.crypto.private = None

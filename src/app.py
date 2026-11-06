@@ -12,6 +12,7 @@ from .identity import valid_nickname, valid_contact_id
 from .features.friends import MAX_FRIENDS, contact_from_key, friend_key, online_contact
 from .features.social import TypingState, PendingReactions, preview
 from .features.cards import CardTemplates, answer_card
+from .features.receipts import update_recipient
 from .avatar_data import avatar_hash, AvatarError
 from .instance import SingleInstance
 from .memory import Conversations, Message
@@ -131,6 +132,7 @@ class Application(QObject):
         self.typing_timer = QTimer(self)
         self.typing_timer.setInterval(350)
         self.typing_timer.timeout.connect(self.refresh_typing)
+        self.typing_timer.timeout.connect(self.refresh_receipts)
         self.typing_timer.start()
         self.refresh_integration()
         self.worker.start()
@@ -332,6 +334,33 @@ class Application(QObject):
         for sid, view in self.private_windows.items():
             view.chat.typing.set_typers(self.typing_state.names(sid))
 
+    def refresh_receipts(self):
+        if self.stopping or not self.preferences.read_receipts:
+            return
+        view = self.qt.activeWindow()
+        if not view or (view is not self.window and view not in self.private_windows.values()):
+            return
+        if not view.isVisible() or view.isMinimized() or not view.isActiveWindow():
+            return
+        references = view.chat.visible_incoming()
+        if references:
+            self.worker.mark_read(references)
+
+    def message_receipt(self, data, state):
+        target = data['target']
+        message = self.history.find(target, data['id'])
+        if message is None:
+            # An open friend's conversation can move to a new SID during delivery.
+            for chat in self.history.chats:
+                message = self.history.find(chat, data['id'])
+                if message:
+                    target = chat
+                    break
+        if message and update_recipient(message, data['peer'], state):
+            view = self.view_for(target)
+            if view:
+                view.chat.update_delivery(message)
+
     def close_private(self, sid):
         dialog = self.security_dialogs.get(sid)
         if dialog:
@@ -517,6 +546,10 @@ class Application(QObject):
             if self.settings:
                 self.settings.update_network(data)
                 self.settings.diagnostic_result(data['rows'])
+        elif kind == 'message_delivery':
+            self.message_receipt(data, 'delivered' if data['ok'] else 'unconfirmed')
+        elif kind == 'message_read':
+            self.message_receipt(data, 'read')
         elif kind == 'delivery':
             view = self.view_for(data['target']) or self.window
             if data['id'] in self.card_deliveries:
@@ -540,7 +573,10 @@ class Application(QObject):
                         view.composer.clear_reply()
                 self.add_message(target, Message(self.worker.client.sid, self.preferences.nickname, frame['text'], outgoing=True,
                                                  id=frame['id'], avatar=self.preferences.avatar,
-                                                 avatar_image=self.preferences.avatar_image, reply_to=frame.get('reply_to', '')))
+                                                 avatar_image=self.preferences.avatar_image, reply_to=frame.get('reply_to', ''),
+                                                 delivery_recipients={peer['sid']: {'nick': peer['nick'], 'reads': peer['reads'], 'state': 'sent'}
+                                                                      for peer in data.get('recipients', [])},
+                                                 delivery_local=not data.get('recipients') and target == 'general'))
             elif frame['type'] == 'reaction':
                 self.apply_reaction(target, frame['message'], self.preferences.contact_id, frame['emoji'], self.preferences.nickname)
             elif frame['type'] == 'wizz':
@@ -806,16 +842,21 @@ class Application(QObject):
             self.settings.avatar_preview.image_data = self.preferences.avatar_image
             self.settings.avatar_preview.update()
         self.save_preferences()
-        apply_theme(self.qt, self.preferences.theme)
-        self.window.sidebar.list.setProperty('light', self.preferences.theme == 'light')
-        self.window.sidebar.list.viewport().update()
+        if key == 'theme':
+            apply_theme(self.qt, self.preferences.theme)
+            self.window.sidebar.list.setProperty('light', self.preferences.theme == 'light')
+            self.window.sidebar.list.viewport().update()
+            for view in [self.window, *self.private_windows.values()]:
+                for _, _, message in view.chat.message_rows.values():
+                    view.chat.update_delivery(message)
         self.apply_network_preferences()
         if self.settings:
             self.settings.feedback.setText('Préférences appliquées immédiatement.' )
 
     def apply_network_preferences(self):
         self.worker.call('preferences', wizz_enabled=self.preferences.wizz_enabled, dnd=self.preferences.dnd,
-                         status=self.status, avatar=self.preferences.avatar, avatar_image=self.preferences.avatar_image)
+                         status=self.status, avatar=self.preferences.avatar, avatar_image=self.preferences.avatar_image,
+                         read_receipts=self.preferences.read_receipts)
         shown = 'Ne pas déranger' if self.preferences.dnd else ('Absent·e' if self.status == 'away' else 'En ligne')
         self.window.sidebar.status_button.setText('●  ' + shown)
 
