@@ -1,93 +1,58 @@
-# Validation locale de FortyTchat
+# Validation locale de FortyTchat 1.5.0
 
-Validation initiale le **5 novembre 2026**, étendue à la version **1.4.0 le 6 novembre 2026** dans l’environnement de développement. Python 3.14.4 et Qt/PySide6 6.12.0 pour la validation 1.4.0. Les validations antérieures utilisaient aussi Qt 6.10.2. Le créateur signale un essai réussi d’une version précédente en cluster. Les résultats ci-dessous concernent les tests locaux, sans mesure indépendante des nouveautés 1.4.0 à l’école.
+Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.5.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
 
-## Résultats
+## Résultats automatisés
 
-- Suite automatisée actualisée : **114 tests réussis** en **39,16 s** le 6 novembre 2026, couvrant les fonctionnalités 1.4.0 et les régressions des versions précédentes.
-- Charge du relais sur loopback : **200 clients réels asyncio**, roster complet, **199 réceptions uniques** pour un message général, aucune réception en double, en **1,13 s** pour cette exécution. Le test ne mesure pas la charge de 200 utilisateurs envoyant continuellement en parallèle.
-- Découverte UDP multicast réelle entre deux clients locaux, puis livraison TCP et annonce de départ : réussies.
-- ACK direct supprimé après réception : une nouvelle tentative, un seul message affiché.
-- TCP : général, message privé, texte Unicode, trames segmentées, trames invalides, source inconnue et fermeture incomplète vérifiés.
-- Relais à 40 clients : diffusion, confidentialité du routage privé, refus d’expéditeur falsifié, limites Wizz et anti-spam vérifiés.
-- Redémarrage du relais : reconnexion automatique ; un nouveau client ne reçoit aucun ancien message. La limite Wizz survit à la reconnexion d’une même session tant que le relais reste actif.
-- Identités : session temporaire, collision de pseudo résolue sans changer l’ID, changement de pseudo propagé, avatar validé, choix conservé et numéro d’avatar transmis par UDP et par le handshake TCP.
-- Réception : masquage, DND, Wizz désactivé, invitations liées à un expéditeur et expiration vérifiés.
-- Configuration et XDG : premier lancement, sauvegarde atomique à permissions restreintes, état réel du fichier, désactivation conservée, entrée supprimée non recréée et configuration endommagée vérifiés.
-- Installation dans des chemins XDG temporaires avec espaces et caractère `$` : copie, lanceur `--version`, entrée de menu validée par `desktop-file-validate`, réinstallation sans réactiver un choix désactivé.
-- Interface Qt hors écran : envoi clavier, texte brut, emojis/recherche, thème clair, fermeture réduite, **clic sur une personne en ligne → fenêtre privée indépendante**, réponse TCP depuis cette fenêtre, fermeture/réouverture dans la même session et badge **1** puis effacement à la consultation. Le sélecteur propose 24 avatars, un mode automatique et l’import d’une image personnelle.
-- Non-persistance : aucune conversation dans les fichiers de configuration ; aucun stockage de conversation dans les services réseau ; pièces jointes enregistrées uniquement après consentement ; nouveau processus sans historique ; cache en mémoire abandonné à la fermeture complète.
+- **133 tests réussis en 22,64 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- Diffusion E2EE sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
+- Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
-Les tests d’images personnelles vérifient aussi : les trois formats annoncés (PNG, JPEG, WebP), l’aperçu et l’annulation, le zoom et le recadrage, le chargement hors du thread graphique, la fermeture pendant le chargement, la suppression des métadonnées, la sauvegarde de la seule miniature personnelle, le rendu chez un destinataire, l’absence de sauvegarde des images reçues, la découverte UDP suivie du transfert TCP, le relais et la reconnexion, le refus de l’usurpation d’une autre session, les tailles et empreintes invalides, le rejet des dimensions excessives avant décodage, le retrait de l’image et la compatibilité des messages avec un ancien relais sans cette capacité. Les fichiers d’entrée sont des images synthétiques de test.
+Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
 
-Les tests ont été exécutés avec une autorisation d’ouverture de sockets locales, le bac à sable par défaut interdisant TCP/UDP. Les installations de test utilisent uniquement des dossiers temporaires, sans modifier l’autostart du profil réel.
+## Chiffrement et frontières de confiance
 
-## Vérification visuelle
+Les tests vérifient :
 
-Les fichiers `preview.png` et `private-preview.png` montrent les widgets réellement rendus par Qt, avec la palette anthracite/gris/bleu de la référence fournie. Les personnages prédéfinis sont des illustrations vectorielles déterministes dessinées localement. L’import d’images personnelles est désormais disponible, mais aucune photo personnelle réelle n’a été utilisée pour les tests ou les captures. L’aperçu privé utilise un nom de démonstration et n’affirme pas la présence d’un utilisateur réel. `fortytchat-reference-v3.png` et `fortytchat-private-v3.png` présentent également des profils et textes explicitement marqués comme démonstration, pour illustrer le style en conversation ; ils ne peuplent jamais l’application au lancement.
+- Identité privée conservée entre lancements, clés de session renouvelées, permissions 600, association au bon UUID, fichiers corrompus ou non privés refusés, absence de réinitialisation lorsque le carnet disparaît.
+- Conservation des clés publiques et du statut vérifié, fusion entre copies concurrentes du profil sans écraser des clés plus récentes ; clé remplacée bloquée, mauvaise empreinte refusée, autorisation uniquement après correspondance complète. L’ancienne clé reste bloquée après remplacement explicite.
+- Signature de présence invalidée par une modification de pseudo, SID, port ou statut ; client sans signature et relais sans `e2ee` refusés.
+- Chiffrement authentifié du contenu, modification d’un octet refusée, identifiant/en-tête/destinataire modifiés refusés, autre destinataire incapable de déchiffrer, expéditeur intérieur falsifié refusé.
+- Anti-rejeu même après dépassement de la fenêtre de 4 096 compteurs ; réordonnancement légitime des connexions concurrentes accepté une seule fois.
+- ACK chiffrés : un autre participant ne peut pas confirmer la réception à la place du destinataire attendu. Le relais ne peut pas confirmer seul une livraison avec son ACK de transport.
+- Messages privés et généraux et fichiers réels transmis par TCP et relais, avec inspection de toutes les trames remises par le relais : aucun texte de conversation, nom de fichier ou bloc de contenu en clair. Le général remet une copie chiffrée individuelle à chaque destinataire.
+- Événement de chat en clair refusé par une vraie connexion TCP, même après un `hello` signé valide. Aucun retour automatique au protocole en clair.
+- Messages Unicode maximaux de 2 000 emojis, lettres accentuées et caractères nécessitant un échappement JSON : enveloppes valides et contenu identique après déchiffrement.
 
-`avatars-photo-import.png` montre le bouton d’import et `avatar-crop-preview.png` montre le recadrage sur une illustration synthétique.
+La vérification automatique de ces comportements ne constitue pas une preuve de sécurité globale. Le premier contact reste TOFU jusqu’à comparaison indépendante des empreintes. Les métadonnées et avatars restent publics, les membres du général peuvent lire ses messages, et une compromission des clés de session en mémoire expose cette session. Aucun Double Ratchet, audit externe ou authentification campus n’est revendiqué.
 
-## Correctif d’affichage 1.0.1 et mise à jour
+## Régressions fonctionnelles
 
-Le défaut des captures utilisateur a été reproduit à 150 % : champs de 25 pixels pour une hauteur attendue de 40, et paragraphes d’environ 22 pixels pour 48 nécessaires. Les pages de paramètres sont désormais défilables et conservent le calcul de hauteur du texte selon sa largeur. Les champs et boutons gardent leur hauteur naturelle.
+- TCP privé/général, découverte UDP multicast réelle, collision de pseudo, annonce de départ, ACK perdu et tentative de remplacement sans double affichage.
+- Relais à 40 clients, confidentialité du routage privé, reconnexion après redémarrage, absence d’historique chez les nouveaux arrivants et refus d’un expéditeur intérieur falsifié.
+- Amis reconnus après changement de pseudo et nouvelle session avec la même identité ; fenêtre encore ouverte rattachée au SID courant, sans récupérer d’anciens messages sur le réseau.
+- Anti-spam appliqué aux extrémités après déchiffrement : budgets de messages, réactions et saisie séparés, Wizz global côté émetteur et limites de réception, trois pauses puis blocage de cinq minutes conservé après reconnexion du même profil. Le relais, devenu opaque, limite les flux et files plutôt que les actions qu’il ne peut plus lire.
+- DND : messages silencieux, Wizz et nouvelles cartes refusés ; pauses classiques et réponses actives. Références d’invitation liées à l’expéditeur, expiration et réponse unique.
+- Fichiers privés/généraux : acceptation explicite, SHA-256, longueur et ordre des blocs, fichier vide, refus, annulation, quotas, suppression des temporaires, livraison générale partielle, absence d’écrasement même lors d’une course. Sources spéciales, trop grandes ou modifiées refusées ; écritures courtes et accès concurrents vérifiés.
+- Citations, accès au message source, réactions ajoutées/remplacées/retirées, réordonnancement, saisie transitoire sans brouillon, état conservé dans la RAM de la même session et absent des préférences.
+- Onze GIF animés, aperçu, réponses personnalisées, création/modification/suppression de douze modèles, gestion des fichiers invalides, fermeture des cartes et éditeurs sans double réponse.
+- Photos PNG/JPEG/WebP synthétiques : import asynchrone, annulation, recadrage, métadonnées retirées, miniature seulement sauvegardée, tailles/dimensions/empreintes validées et avatars reçus conservés uniquement en RAM.
+- Installation XDG temporaire avec espaces et `$`, lanceur, entrée de menu, mise à jour sans réactivation d’un autostart désactivé. Désinstallation de cette seule copie, profil conservé puis purge explicite. Aucun script de mise à jour ajouté.
 
-Trois tests en processus Qt séparés vérifient les facteurs **1, 1,5 et 2**, dans les deux thèmes et avec des fenêtres de **570 × 590** et **460 × 420** pixels logiques : pas de paragraphe comprimé, champs lisibles, accès au dernier contrôle par défilement, aucun défilement horizontal et aucune zone vide superflue. Les captures `settings-general-1.0.1.png` et `settings-about-1.0.1.png` montrent le rendu réel à 150 %.
+## Interface et captures
 
-L’icône a été remplacée par un SVG noir **FT** blanc, avec PNG dérivé. Le compteur de messages non lus est conservé et dessiné avec une taille de texte indépendante du DPI. Son rendu a été inspecté sur l’icône et avec le badge « 1 ».
+Les paramètres Général/À propos sont vérifiés à **100 %, 150 % et 200 %**, dans les deux thèmes et de petites fenêtres : paragraphes et champs non comprimés, derniers contrôles accessibles par défilement, aucun défilement horizontal. Le dialogue d’empreinte est également vérifié à ces trois facteurs, en **440 × 420** pixels logiques, dans les deux thèmes.
 
-La réinstallation est testée dans une installation XDG temporaire : code et icône actualisés, pseudo, thème, photo personnelle et autostart désactivé conservés. Le script de mise à jour a été retiré à la demande de l’utilisateur ; les scripts disponibles sont `install.sh` et `uninstall.sh`.
+Cadenas : empreinte incorrecte refusée, correspondance complète transmise au cœur réseau, statut vérifié uniquement après confirmation. Une clé modifiée désactive le composeur tout en laissant le cadenas accessible. Le parcours complet avec le cœur réseau vérifie aussi un ami, conserve la vérification après sa reconnexion et permet de vérifier une clé remplacée depuis sa ligne d’ami sans rattacher son ancienne conversation avant autorisation. Les autres essais UI couvrent les fenêtres privées, réponses et réactions, fichiers, cartes, badge rouge puis noir et fermeture réduite.
 
-## Version 1.1.0 : amis, emojis et désinstallation
+`friends-1.5.0.png`, `social-1.5.0.png`, `security-1.5.0.png` et `about-1.5.0.png` sont des rendus des widgets réels sous Qt 6.12, avec profils, clés publiques et messages de démonstration. Les captures des fonctions inchangées provenant des versions précédentes restent identifiées par leur nom. Les captures Ubuntu montrant le défaut historique de texte tronqué sont présentées comme anciennes dans le README.
 
-- Migration des anciens profils sans perdre le pseudo, le thème ou l’autostart désactivé ; création et conservation de l’ID de contact, liste de 256 amis bornée.
-- Étoile d’ajout/retrait, amis visibles hors ligne, reconnaissance après changement de pseudo et nouvelle session, rattachement de la même fenêtre privée et envoi au SID courant. Les messages restent absents des préférences.
-- Catalogue Unicode/CLDR embarqué de 3 781 emojis, neuf catégories, recherche française sans accents et anglaise, grille virtualisée ; remplacement d’un emoji composé manquant comme séquence entière.
-- Désinstallation d’une copie temporaire avec processus Python actif : arrêt de cette seule copie, application, lanceur, entrée de menu et autostart supprimés ; autres programmes laissés actifs. Profil conservé par défaut, puis suppression explicite par `--purge`.
+## Essais restant à faire sur place
 
-Pour le signalement persistant de texte tronqué, l’instance réelle observée avait été lancée avant le correctif, alors que les fichiers sur disque avaient été remplacés. Un rendu frais a aussi été vérifié avec **Qt 6.12.0 de l’interpréteur installé**, à 150 %, sans utiliser le profil personnel. Les fichiers `friends-1.1.0.png`, `emojis-1.1.0.png` et `settings-installed-qt-1.1.0.png` montrent ces widgets avec des données de démonstration. La désinstallation ferme la copie installée avant sa suppression ; une installation suivante charge réellement le nouveau code.
+- Détection et livraison E2EE entre deux postes physiques, VLAN, multicast/broadcast et politiques d’isolation du campus.
+- Relais autorisé avec son DNS et son certificat TLS réels ; charge soutenue avec plusieurs émetteurs.
+- Barre GNOME/AppIndicator, doubleclic, placement près de Discord, autostart après reconnexion Ubuntu, mise au premier plan sous Wayland et respect du silence par le serveur de notifications.
+- Disponibilité de Python, wheels et bibliothèques natives Qt sur une nouvelle machine.
+- Audit indépendant de la composition du protocole et des choix de stockage des clés ; garantie par étudiant physique sans authentification campus.
 
-## Version 1.2.0 : pauses, fichiers et barre supérieure
-
-- TCP et relais réels : les invitations et leurs réponses restent reçues en Ne pas déranger, les Wizz restent refusés. Trois demandes passent ; la quatrième bloque les pauses pendant cinq minutes. La protection reste liée au profil après un changement de pseudo ou de session. Les doublons réseau ne comptent qu’une fois et 20 tentatives bloquées laissent les messages disponibles.
-- Popups : cartes centrées, boutons Oui/Non, fermeture et expiration ; retour bleu pour une acceptation, rouge pour un refus. Le changement de DND ne ferme pas les invitations en cours.
-- Pièces jointes privées et générales : consentement, SHA-256, longueur et ordre des blocs, fichier vide, refus, quotas, annulation et suppression des temporaires. Une livraison partielle dans le général conserve l’offre pour les destinataires joints. Les fichiers existants, spéciaux, trop grands ou modifiés sont refusés. Les écritures courtes et les accès concurrents sont vérifiés.
-- Interface complète : envoi et réception via le bouton de pièce jointe et le choix de destination, conservation de l’état après fermeture/réouverture d’une fenêtre, refus d’une offre générale et retour de pause en DND. Le Wizz ouvre la conversation au bas des messages et anime ses deux axes pendant 2,8 secondes.
-- Barre et paramètres : icône rouge à réception d’un message non lu puis noire après lecture, ouverture par doubleclic, retrait des accès réseau. L’installateur crée `network.json` à la première installation et reprend une configuration existante lors de la suivante.
-- README : installation SSH ou HTTPS dans `~/.FortyTchat`, mise à jour par `git pull --ff-only` puis `install.sh`, profil et choix d’autostart conservés. Les messages de la session restent éphémères.
-
-Les aperçus `friends-1.2.0.png`, `files-1.2.0.png` et `pause-*-1.2.0.png` sont des rendus Qt 6.12.0 avec des données de démonstration. Les paramètres sont également vérifiés aux facteurs 100 %, 150 % et 200 % dans les deux thèmes. L’onglet À propos présente la version, l’auteur et le lien du dépôt, ainsi que les fonctions et données conservées.
-
-## Version 1.3.0 : réponses, réactions et saisie
-
-- TCP et relais réels avec trois clients actuels et un client annonçant les capacités précédentes : réponses liées au message, texte reçu par les anciens clients, réactions et saisie uniquement pour les clients compatibles, confidentialité du routage privé.
-- Réactions ajoutées, remplacées et retirées ; un état plus ancien ne rétablit pas une réaction supprimée. Une réaction arrivée avant son message est appliquée à sa réception, avec expiration et file bornée.
-- Trois points animés pendant la saisie, arrêt après réception du message, protection du budget des messages face au spam de saisie, expiration des états et absence de brouillon dans les trames.
-- Interface réelle : bouton Répondre, aperçu dans le composeur, envoi avec référence, citation cliquable et mise en évidence, texte HTML conservé littéralement et infobulle échappée, réaction retirée par sa pastille, conservation après fermeture/réouverture d’une fenêtre. Un message source reçu en retard actualise sa citation.
-- Aucun texte, citation ni réaction dans les préférences sauvegardées. Les nouveaux textes de pause conservent les callbacks et les couleurs d’acceptation/refus.
-- Captures avec Qt 6.12.0 : `friends-1.3.0.png`, `social-1.3.0.png`, `about-1.3.0.png` et `pause-*-1.3.0.png`, avec profils et messages de démonstration.
-
-## Version 1.4.0 : notifications animées et réponses personnalisées
-
-- Les onze GIF fournis sont décodables et animés avec QMovie, à taille réduite sans cache de toutes les images. Un changement de sélection change l’animation et cacher le widget arrête la lecture.
-- Modèles locaux privés : création, modification, suppression, rechargement, limite de douze modèles, fichier invalide traité et conservation à la désinstallation ordinaire. Le mode de préparation hors connexion n’émet aucun envoi.
-- TCP et relais réels : cartes privées, réponses Oui et personnalisées, référence liée au bon expéditeur, réponse unique, refus des références expirées, anti-spam commun aux pauses, DND et compatibilité des anciens clients. Une pause classique peut recevoir une réponse animée personnalisée.
-- Interface : création avec le bouton ✦, choix de GIF, aperçu, modèle réutilisable, carte reçue, annulation de l’éditeur puis réponse Oui, réponse personnalisée, fermeture et libération de la carte. Les textes reçus ne sont pas enregistrés dans les modèles ni dans les préférences.
-- Cartes et éditeur défilables avec les textes maximaux et des mots longs ; aperçu dans les deux thèmes. Les noms de fichiers et les libellés elliptiques sont recalculés à la largeur réelle et après changement de police.
-
-Un défaut intermittent a été reproduit avec Python 3.14 et Qt 6.10 dans une séquence de création et destruction de fenêtres. Qt indique que [la branche 6.10 ne prend pas en charge Python 3.14](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). La même séquence passe avec Qt 6.12 ; les dépendances et les contrôles de lancement imposent donc PySide6 6.12 minimum pour Python 3.14. L’environnement utilisateur déjà installé n’a pas été modifié pour ces essais.
-
-Les captures `notification-editor-1.4.0.png`, `notification-1.4.0.png`, `notification-reply-*-1.4.0.png` et les paramètres 1.4.0 sont rendus avec Qt 6.12.0 et des données de démonstration. Attribution et licence des GIF incluses dans `assets/animated/`.
-
-## Ce qui n’est pas validé par ces essais
-
-- Mesure indépendante des nouveautés 1.2.0 sur deux ordinateurs physiques à l’école ; le retour positif du créateur porte sur une version précédente.
-- Broadcast entre zones, filtrage multicast, VLAN, pare-feu ou politiques d’isolation du cluster.
-- Disponibilité d’une machine relais autorisée, de son DNS et de son certificat TLS de production.
-- Rendu de l’icône, de son compteur et des clics dans la session GNOME réelle de l’école ; l’ordre près de Discord reste contrôlé par l’environnement.
-- Autostart après une vraie fermeture/réouverture de session Ubuntu, règles institutionnelles et mise au premier plan Wayland.
-- Disponibilité de toutes les bibliothèques natives Qt sur une nouvelle installation Ubuntu. Le chemin de l’installateur testé réutilise le Python déjà équipé ; la création de venv et le téléchargement de wheels dépendent de la machine et de son accès réseau.
-- Respect du silence par le serveur de notifications propre au poste (le programme émet explicitement la demande `suppress-sound`).
-- Protection contre un acteur réseau hostile, identité campus, chiffrement de bout en bout ou garantie Wizz par personne physique sans authentification.
-
-La procédure à réaliser sur place est fournie dans `SCHOOL_CHECKLIST.md`.
+Procédure : [SCHOOL_CHECKLIST.md](SCHOOL_CHECKLIST.md). Protocole et limites : [NETWORK.md](NETWORK.md).

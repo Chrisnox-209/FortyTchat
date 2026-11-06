@@ -1,136 +1,94 @@
-# Architecture et protocole FortyTchat v1
+# Réseau et chiffrement de FortyTchat 1.5.0
 
-## Pourquoi UDP + TCP, avec relais facultatif
+## Découverte et routes
 
-UDP sert seulement à annoncer les présences sur le lien local. Les interfaces sont obtenues via les ioctls Linux en lecture seule ; l’interface physique active portant la route par défaut est prioritaire. Le masque effectif détermine le broadcast. Les interfaces connues de Docker, de virtualisation, les tunnels et loopback sont exclues ; l’unique interface active de conteneur peut servir de secours indiqué comme non physique.
+UDP **39741**, groupe multicast **239.42.42.42**, TTL 1 et broadcast calculé depuis l’interface IPv4 active. Annonce toutes les 25 ± 2 secondes ; expiration d’un pair après 90 secondes, plus au maximum une période de nettoyage. Une réponse de groupe au plus toutes les cinq secondes, avec temporisation aléatoire. Les annonces UDP restent sous 1 Kio.
 
-Chaque processus dispose d’un UUID v4 temporaire (32 caractères hexadécimaux), d’un pseudo d’affichage et d’un écouteur TCP. Le port direct standard est 39742, le port de découverte 39741. Les profils `--dev` utilisent un TCP dynamique annoncé aux autres instances. `network.json` contient les valeurs de déploiement, jamais les conversations.
+TCP direct **39742**, relais **39743**. Les profils `--dev` utilisent un port TCP dynamique. L’interface ne propose aucun réglage réseau : `network.json`, décrit par `network.example.json`, est un fichier de déploiement. L’installateur crée le fichier absent et conserve celui de la copie installée, sauf configuration fournie dans la source. Aucune IP ou infrastructure scolaire n’est présumée ; aucun scan ni contournement des politiques réseau.
 
-Les sockets et les temporisations vivent dans une boucle asyncio dédiée. Les signaux Qt mettent à jour l’interface dans son thread. Les sockets sont bornées (24 envois simultanés, 64 réceptions directes, 16 envois utilisateur en attente), fermées à l’arrêt et réessayées avec des délais bornés. Un changement d’interface invalide les routes directes et recrée l’écoute multicast sur la nouvelle interface.
+Une route relais connectée est préférée pour les pairs qu’elle connaît ; les autres restent joignables en direct. Reconnexion progressive de 2 à 60 secondes, sans renvoi des anciens messages. Le relais de production exige TLS et un certificat validé. `--insecure-local` est réservé à la boucle locale ; le client exige un profil `--dev` pour cette option. Même sur cette route de test sans TLS, les conversations restent chiffrées de bout en bout.
 
-Le général P2P est une diffusion TCP à chaque pair connu. Cela évite de confondre broadcast et fiabilité, mais le coût reste proportionnel au nombre de destinataires. Le relais effectue une seule réception et diffuse aux sessions connectées. Pour 200 utilisateurs, c’est le mode à préférer si une machine autorisée et un DNS sont disponibles.
+## Identité signée
 
-## Trames
+Le protocole de base garde `v: 1`, mais **la version applicative 1.5.0 exige les identités signées et les enveloppes chiffrées**. Les clients antérieurs ne sont pas compatibles ; aucun repli en clair n’existe. Le relais doit annoncer `e2ee` dans son premier `pong`, sinon la connexion est refusée.
 
-JSON UTF-8 avec un saut de ligne terminal, **16 384 octets maximum, délimiteur inclus**. `readline()` avec limite et timeout recompose les segments TCP ; les trames incomplètes à la déconnexion sont rejetées. Les annonces UDP sont limitées à 1 024 octets. Les textes sont limités à 2 000 caractères et 8 000 octets UTF-8 ; contrôles non imprimables et surrogates invalides sont rejetés.
-
-Exemple de présence (valeurs illustratives) :
+Chaque profil conserve son UUID de contact et une clé d’identité **Ed25519**. Chaque exécution crée une nouvelle paire de clés de chiffrement **Curve25519**, uniquement en mémoire. `hello`/`presence` publie les champs de profil habituels et :
 
 ```json
-{"v":1,"type":"hello","sid":"dbe8e2c83e144a78890e277489f1d07d3","nick":"CosmicOtter0042","status":"online","port":39742,"caps":["files","wizz","cards","probe","social","avatar_image","friends","c:AAAAAAAAAAAAAAAAAAAAAQ"],"avatar":5,"avatar_hash":""}
+{"crypto":{"scheme":"ft-box-1","identity":"clé publique Ed25519 base64","session":"clé publique Curve25519 base64","signature":"signature Ed25519 base64"}}
 ```
 
-| Type logique | Type sur le fil | Rôle |
-| --- | --- | --- |
-| DISCOVER / PRESENCE | `hello` (UDP), `presence` (relais) | Présence et mise à jour de pseudo/statut |
-| DISCONNECT | `bye` | Fin d’une route de présence |
-| GLOBAL_MESSAGE | `message`, `to="general"` | Salon général |
-| PRIVATE_MESSAGE | `message`, `to=ID` | Conversation privée |
-| WIZZ | `wizz` | Effet visuel privé |
-| BREAK_REQUEST | `break_invite` | Invitation, identifiant de la trame comme référence |
-| BREAK_ACCEPT / DECLINE | `break_reply` | `answer`: `accepted`, `declined` ou `dismissed`, `request`: ID de l’invitation |
-| ACK / ERROR | `ack` | `id`, `ok` booléen, raison technique bornée |
-| Sonde / heartbeat | `ping` / `pong` | Diagnostic consenti et maintien du relais |
+La signature porte sur le préfixe de domaine `FortyTchat signed presence v1\0` puis le JSON canonique de tous les champs, sauf `type` et `crypto.signature`. L’exclusion de `type` permet au relais de convertir `hello` en `presence`. Pseudo, SID, statut, port, capacités, référence d’avatar, contact et clés sont ainsi liés. Le relais et le client vérifient cette signature. Une session en cours ne peut pas changer sa clé de session ou son identifiant de contact.
 
-Un événement contient `v`, `type`, `id`, `from`, `to` et son contenu spécifique. Les messages contiennent `text`. Tous les identifiants sont validés, les pseudos ont 3–28 caractères ASCII alphanumériques, `_` ou `-` et le statut appartient à `online`, `away`, `dnd`. Le champ `avatar` est un entier de `-1` (automatique) à `23` (personnages prédéfinis). Le numéro détermine le personnage de remplacement. Pour une image personnelle, `avatar_hash` est un SHA-256 hexadécimal de 64 caractères ; la chaîne vide indique un personnage. Les annonces de présence ne transportent jamais le contenu de l’image.
+Les capacités restent limitées à huit : `files`, `wizz`, `cards`, `probe`, `social`, `avatar_image`, `friends`, `c:` suivi du UUID en base64url canonique. Le relais annonce `avatar_image`, `files`, `social`, `cards` et `e2ee`.
 
-Un envoi TCP direct commence par `hello`, puis l’événement. Cela évite qu’une présence UDP perdue empêche un destinataire d’identifier l’expéditeur. Le récepteur emploie l’adresse source de la socket, pas une IP fournie dans le JSON. Une route active reste liée à sa source observée ; ce mécanisme réduit certains abus mais ne fournit pas d’authentification cryptographique. Les métadonnées du relais ont priorité sur celles reçues par UDP.
+### Premier contact et changement de clé
 
-## Livraison, absence d’historique et déduplication
+La première clé publique d’un contact est mémorisée automatiquement (**TOFU**). Cette étape ne protège pas contre une substitution active au premier contact. Le cadenas permet de comparer l’empreinte SHA-256 complète de la clé d’identité, par groupes hexadécimaux, avec celle donnée en personne ou par un autre canal de confiance. La correspondance complète marque l’identité comme vérifiée.
 
-En direct, l’ACK indique que le récepteur a accepté l’événement dans sa session. En cas d’erreur de transport ou d’ACK perdu, une seule nouvelle tentative reprend le même ID. Le cache borné d’IDs évite un deuxième affichage. Un refus explicite (blocage, DND, limitation) n’est pas réessayé.
+Un UUID déjà connu présentant une autre clé reste visible avec **Clé modifiée**, mais ne peut ni envoyer ni recevoir de contenu. Sa nouvelle empreinte doit être comparée et saisie explicitement pour remplacer la clé mémorisée ; les autres sessions utilisant la clé remplacée sont alors bloquées. Le rattachement automatique d’une fenêtre d’ami ignore les sessions bloquées. Une modification de pseudo ou de SID avec la même identité n’annule pas la vérification.
 
-Au relais, l’ACK signifie **acceptation dans la file de transmission du relais**, pas lecture par le destinataire ni confirmation d’affichage. Une file trop lente est fermée ; le serveur ne conserve pas un message pour une reconnexion. Une interruption après acceptation peut donc perdre un message. Les erreurs de livraison sont affichées, sans conserver une boîte d’envoi durable.
+`identity.json` contient le UUID et la graine privée Ed25519 ; `trusted_contacts.json` contient les clés publiques et les vérifications. Fichiers privés **600**, écrits atomiquement, sans texte de conversation. Un fichier illisible, corrompu, non privé ou manquant après initialisation est refusé : aucune réinitialisation silencieuse. Le carnet est borné à 4 096 contacts. Un verrou court et une relecture avant remplacement empêchent une copie obsolète du profil d’effacer les clés et vérifications enregistrées par une autre copie, notamment sur un espace personnel partagé. Les clés restent à l’extérieur du dossier applicatif remplacé lors d’une mise à jour. La désinstallation ordinaire les conserve ; `--purge` supprime le profil.
 
-L’ACK n’est pas une garantie de livraison exactement une fois dans toutes les situations. Le cache d’IDs est borné ; les reconnexions et redémarrages ne rejouent rien. Les nouveaux arrivants reçoivent seulement la liste des sessions actuellement présentes. Aucun nouvel arrivant ne reçoit les événements des files d’autres sessions.
+## Enveloppes E2EE
 
-Le client conserve les préférences autorisées et les fichiers que le destinataire choisit explicitement d’enregistrer. Les files serveur, messages, caches d’IDs et invitations restent en RAM. Les files sortantes sont limitées à 576 trames par connexion ; les clients lents sont déconnectés. Limite de 512 sessions au relais.
+Le chiffrement utilise **`nacl.public.Box` de PyNaCl/libsodium**, Curve25519 + XSalsa20-Poly1305. Les nonces de 24 octets sont générés aléatoirement par la bibliothèque. Aucune primitive cryptographique n’est réimplémentée dans l’application. La composition du protocole FortyTchat n’a pas reçu d’audit indépendant.
 
-## Débit et protection
+Une enveloppe extérieure contient exclusivement :
 
-- Messages/actions : seau de 8 jetons, recharge de 0,75 jeton/seconde, côté émetteur, récepteur et relais.
-- Wizz : 2 520 secondes entre envois, tous destinataires confondus. Réservation du délai local sur disque avant l’envoi ; limite serveur par session retenue pendant les reconnexions, uniquement en RAM.
-- Réception Wizz : limite par expéditeur et garde globale de 10 secondes, préférence de désactivation et DND.
-- Invitations : trois demandes successives par destinataire, puis blocage des pauses pendant 300 secondes à la quatrième ; remise à zéro après 300 secondes sans demande. Vérification à l’envoi, à la réception et au relais, avec identifiant de contact si disponible. Référence liée au destinataire, expiration après 120 secondes, réponses uniques. Les pauses restent actives en DND.
-- Réponses de découverte : temporisation aléatoire, au plus une réponse de groupe toutes les 5 secondes par client. Heartbeat toutes les 25 ± 2 secondes, expiration par défaut à 90 secondes plus au maximum une période de nettoyage.
-- Aucun `pickle`, `eval`, commande réseau ou exécution de code reçu. Aucun texte de conversation dans les erreurs techniques.
+```json
+{"v":1,"type":"sealed","id":"UUID de transport","from":"SID source","to":"SID destinataire","channel":"event","data":"nonce et contenu authentifié en base64"}
+```
 
-Ce protocole n’est pas résistant à un adversaire contrôlant le réseau LAN ou à des clients modifiés créant de multiples sessions. Voir les limites de confiance dans le README.
+`channel` vaut `event`, `stream` ou `receipt`. Il indique une catégorie de flux ; aucun texte, emoji, nom de fichier ou résultat de notification ne figure dans cet en-tête. La trame entière est bornée à **32 Kio**, le contenu déchiffré à **16 Kio**. Le base64 doit être canonique.
 
-## Relais et reprise
+Le contenu chiffré contient `id`, `from`, `to`, `channel`, un compteur `seq` et la trame applicative complète `frame`. Les quatre champs d’en-tête doivent correspondre exactement à l’enveloppe extérieure. L’expéditeur de la trame doit correspondre à la session authentifiée ; le destinataire doit être le récepteur ou `general`. Les enveloppes altérées, réfléchies, réadressées ou déchiffrées avec une autre clé sont refusées.
 
-Le relais de production exige TLS avec validation du certificat côté client. `--insecure-local` ne peut écouter que sur loopback, et le client non chiffré exige un profil `--dev`. Le nom du relais est distribué dans `network.json` ; aucun DNS scolaire n’est présumé. Le DNS ne remplace pas l’autorisation d’hébergement et d’accès.
+Chaque direction et destinataire possède un compteur croissant. Une fenêtre anti-rejeu de **4 096 compteurs** autorise le réordonnancement des connexions concurrentes, mais refuse un compteur déjà reçu ou trop ancien. Son plus haut compteur est conservé tant que l’exécution vit, même après disparition temporaire du pair. Les cartes de sessions sont bornées à **8 192** ; atteindre cette limite impose de relancer l’application. Aucun compteur ou secret de session n’est écrit sur disque.
 
-En `auto`, un relais connecté est préféré pour les pairs qu’il connaît. Les autres pairs directs peuvent être joints par LAN. Le même événement a un seul ID sur les deux routes. Le relais n’interconnecte pas plusieurs sous-réseaux à lui seul s’il n’est pas accessible depuis ceux-ci ; aucun contournement de politique n’est tenté.
+Les messages du **général** sont chiffrés séparément pour chaque destinataire autorisé en ligne. Leur trame intérieure conserve `to: general` et son ID logique commun ; chaque enveloppe possède son propre ID de transport, nonce et compteur. Un contact dont la clé a changé est exclu de l’envoi et un avis l’indique. Ce mécanisme n’authentifie pas l’appartenance au campus : tout participant autorisé dans ce salon peut en lire et copier le contenu.
+
+Les clés de session changent à chaque démarrage. Il n’y a pas de Double Ratchet, de renouvellement par message, ni de garantie d’effacement physique de la mémoire Python. Une capture réseau seule ne donne pas le contenu ; une compromission des clés de session en mémoire expose les échanges de cette session. Une compromission de l’appareil ou des copies du destinataire reste hors de cette protection.
+
+Références primaires : [Box](https://pynacl.readthedocs.io/en/latest/public/), [signatures Ed25519](https://pynacl.readthedocs.io/en/latest/signing/).
+
+## Acheminement et confirmations
+
+En direct, le client envoie son `hello` signé, puis uniquement des enveloppes `sealed`. Les événements applicatifs en clair sont refusés même après un `hello` valide. Le récepteur déchiffre, valide, applique ses limites et renvoie un ACK dans une enveloppe chiffrée, liée à l’ID de transport. Une tentative TCP de remplacement emploie un nouvel ID, nonce et compteur, en gardant l’ID applicatif pour éviter un double affichage.
+
+Via le relais, chaque enveloppe vise un seul SID. Le relais contrôle la session de la connexion, la destination, les tailles, le débit et les files ; il ne voit pas les événements déchiffrés et ne conserve aucune clé privée. Son ACK non chiffré indique uniquement un refus ou une mise en file : **une mise en file ne confirme jamais la réception**. Seul l’ACK chiffré venant du destinataire attendu valide une livraison ; l’ACK d’un autre participant ne peut pas la confirmer.
+
+Pas de stockage ni de rattrapage. Les nouveaux arrivants reçoivent seulement les présences et avatars publics, aucun message ou fichier précédent. Cache applicatif borné d’IDs et invitations en RAM ; aucune garantie de livraison après arrêt. Le relais limite à 512 sessions et 576 trames sortantes par connexion, et déconnecte les clients lents. Le flux opaque est limité à 256 jetons, recharge 1 024 trames/seconde par connexion.
+
+## Contenus et protection des récepteurs
+
+Tous les événements ci-dessous sont des **trames intérieures chiffrées**. Leurs validateurs continuent à s’appliquer après déchiffrement. Le relais ne peut plus lire leur type ni appliquer leurs règles métier ; le récepteur constitue la limite de confiance.
+
+- `message` : 1 à 2 000 caractères, 8 000 octets UTF-8 maximum, texte brut. `reply_to` référence seulement l’ID d’un message ; la citation est reconstruite depuis la RAM locale, jamais téléchargée.
+- Messages/actions : seau de 8 jetons, recharge 0,75/s à l’envoi et par contact à la réception. Aucun texte reçu dans les erreurs techniques ; aucun `pickle`, `eval` ou exécution de contenu reçu.
+- `wizz` : délai global local de 2 520 secondes, réservé sur disque avant envoi. Chaque récepteur limite le contact et impose une garde globale de 10 secondes, la préférence et DND. Un client modifié peut contourner son propre délai global vers des destinataires distincts ; aucun compte campus ne garantit une personne physique.
+- `break_invite`, `card_invite` : trois demandes successives par destinataire ; la quatrième bloque pendant 300 secondes, sans prolonger le blocage à chaque tentative. Protection à l’envoi et à la réception, liée au contact dont la clé est mémorisée ; elle survit à sa reconnexion. Invitations bornées, liées au bon expéditeur, valables 120 secondes, réponse unique.
+- `break_reply`, `card_reply` : référence de demande et réponse validées ; les pauses classiques et réponses restent actives en DND. Les nouvelles cartes personnalisées sont refusées en DND.
+- `card_invite`/`card_reply` : titre 1–80 caractères, texte 0–400, identifiant d’un des onze GIF embarqués. Aucune URL ou image distante envoyée. Réponse acceptée/refusée/personnalisée/fermée ; les animations sont lues localement, une par carte visible. Seuls les douze modèles explicitement enregistrés vont dans `notification_templates.json`.
+- `reaction` : référence de message, emoji du catalogue ou chaîne vide pour retrait, compteur d’état. Une réaction par profil et message ; cache de réordonnancement borné, 256 réactions en attente pendant dix secondes maximum.
+- `typing` : booléen et compteur d’état, aucun brouillon. Rappel au plus toutes les deux secondes ; arrêt après 2,5 secondes d’inactivité/perte de focus, expiration distante après cinq secondes. Les réactions et la saisie utilisent des seaux indépendants des messages ; l’ordre empêche de rétablir un ancien état.
+
+## Fichiers chiffrés
+
+`file_offer` contient nom simple, taille 0–20 Mio et SHA-256, tous à l’intérieur de l’enveloppe chiffrée. Aucun chemin source ne quitte l’appareil. L’offre générale est chiffrée individuellement et chaque destinataire décide séparément. Expiration après dix minutes, huit offres sortantes et 32 entrantes maximum.
+
+Le destinataire doit cliquer sur **Enregistrer…** et choisir un chemin libre. `file_accept` autorise alors les blocs `file_chunk`, chacun de 6 Kio maximum avec référence et offset exacts. Les blocs et contrôles sont chiffrés, y compris quand une connexion TCP directe est réutilisée pour le flux. Quatre transferts simultanés par sens ; lectures, SHA-256 et écritures hors de la boucle réseau et du thread graphique. Les accès concurrents à un même transfert sont sérialisés.
+
+Les données sont écrites dans un temporaire privé `.fortytchat-*.part`, au côté du chemin choisi, sans utiliser le nom distant pour construire la destination. `file_end` déclenche la vérification de longueur et SHA-256 ; seul un fichier complet est publié par lien atomique refusant tout écrasement, même lors d’une course. `file_done` confirme la vérification au client émetteur. Aucun fichier n’est ouvert ou exécuté automatiquement.
+
+Refus, annulation, expiration (60 secondes sans bloc, plus au maximum un nettoyage) et arrêt normal suppriment le temporaire ; un arrêt brutal peut laisser un `.part` jamais publié. Les fichiers volontairement enregistrés restent sur disque. Pas de reprise après redémarrage. Le relais ne voit ni nom, ni SHA-256, ni consentement ni contenu : il limite uniquement le trafic et les files ; le récepteur vérifie consentement, quotas, offsets et intégrité.
+
+## Métadonnées et avatars publics
+
+Pseudos, statut, UUID de contact, SID, capacités, clés publiques, IP, ports, destinataires, tailles, catégories de flux et horaires restent observables. Le chiffrement n’empêche pas de capturer ou bloquer le trafic. Les départs et connexions peuvent être perturbés ; la protection ne garantit pas la disponibilité face à un réseau hostile.
+
+Les miniatures de profil sont **publiques** : import PNG/JPEG/WebP de 10 Mo/50 MP maximum, recadrage puis JPEG 128 × 128 sans métadonnées, au plus 8 Kio. La présence signée lie leur SHA-256 au profil, puis `avatar_get`/`avatar_image` les distribue via TCP ou relais. La cohérence, la taille et les dimensions sont vérifiées avant décodage Qt. L’original, son nom et ses métadonnées ne sont jamais transmis. Seule la miniature personnelle est sauvegardée ; les avatars reçus et le cache de décodage restent bornés en RAM.
 
 ## Diagnostic
 
-Aucun bouton ni onglet de diagnostic réseau n’est exposé dans l’interface. Les commandes `python3 main.py --diagnose` et `python3 tools/network_probe.py` inspectent les interfaces et la disponibilité locale des ports. Elles ne valident pas la communication entre deux postes. Le cœur réseau conserve aussi une méthode de diagnostic interne pour la maintenance ; si le relais est actif, son handshake et ses heartbeats attestent la connexion. Un résultat « aucun pair » peut simplement signifier qu’aucun autre client ne tourne.
-
-## Images de profil personnelles
-
-L’interface importe PNG, JPEG ou WebP (10 Mo et 50 mégapixels maximum), charge et décode hors du thread graphique, applique l’orientation, propose un recadrage déplaçable et un zoom. Fermer le sélecteur pendant le chargement abandonne le résultat sans appliquer de photo. Une nouvelle image JPEG 128 × 128 est peinte à partir des pixels, sans copie des métadonnées du fichier, puis compressée à 8 192 octets maximum. Elle seule est conservée dans les préférences personnelles (fichier de configuration limité à 32 Kio). Les avatars reçus ne sont jamais écrits sur disque.
-
-La capacité `avatar_image` active deux trames TCP, toujours sous la limite de 16 Kio :
-
-- `avatar_get` : `v`, `type`, `from` (session demandeuse), `sid` (propriétaire), `hash` attendu.
-- `avatar_image` : `v`, `type`, `sid` (propriétaire), `hash`, `data` (JPEG encodé en base64, au plus 10 924 caractères).
-
-Le contenu est vérifié par taille, base64 strict, marqueurs JPEG et SHA-256. Avant le décodage graphique, le lecteur Qt vérifie que les dimensions sont exactement 128 × 128 ; une image corrompue donne le personnage de remplacement. Le cache de décodage est borné et reste en RAM. Aucun SVG, URL distante ou image dans un message de conversation n’est introduit par cette fonction.
-
-En LAN, la présence annonce seulement l’empreinte. Le client récupère ensuite la miniature auprès de la session découverte, sur son port TCP annoncé, avec au plus quatre récupérations simultanées. Une réponse ne peut remplacer que l’image correspondant à la session et à l’empreinte actuellement annoncées ; une ancienne réponse est ignorée. Le retrait de l’image est annoncé immédiatement.
-
-Le relais annonce sa capacité dans le premier `pong`. Une connexion peut charger uniquement sa propre miniature, correspondant à son dernier `hello`. Le relais la garde avec la présence en RAM, la transmet aux clients compatibles et la sert aux nouveaux arrivants. Une déconnexion ou un changement d’empreinte abandonne la copie serveur ; il n’existe aucun stockage durable. Les chargements et demandes sont limités séparément des messages de chat. Un ancien relais sans cette capacité continue de fonctionner pour les messages, mais ne reçoit pas ces trames nouvelles.
-
-Les images de profil sont visibles des participants, selon les mêmes limites de confidentialité que le reste du réseau : LAN en clair ou relais TLS sans chiffrement de bout en bout. L’empreinte assure la cohérence du fichier, pas l’authenticité de la personne.
-
-Le contrôle des dimensions et de l’allocation utilise [QImageReader](https://doc.qt.io/qt-6/qimagereader.html), puis le rendu et le réencodage utilisent [QImage](https://doc.qt.io/qt-6/qimage.html).
-
-## Contacts et amis (1.1.0)
-
-Le profil conserve un identifiant de contact aléatoire de 128 bits, indépendant du pseudo, de l’IP et de l’UUID temporaire de session. La liste locale d’amis associe ce contact au dernier pseudo observé ; elle ne contient ni messages ni photos reçues. Une présence met à jour le nom d’un ami et une reconnexion rattache une fenêtre encore ouverte à la nouvelle session. Les échanges locaux encore en RAM peuvent suivre cette fenêtre, sans aucun historique téléchargé ou restauré depuis le disque.
-
-Pour conserver la compatibilité avec les anciennes annonces v1, l’identifiant est publié dans une extension de capacité `c:` suivie des 22 caractères base64url de ses 16 octets (sans padding). La capacité `friends` annonce la fonction. Une seule extension de contact canonique est acceptée, sous les limites de taille existantes. Les anciens clients ignorent ces capacités supplémentaires et continuent à échanger des messages.
-
-Le relais transmet cette métadonnée avec la présence. Le routage reste fondé exclusivement sur le SID temporaire de la session actuellement en ligne. L’identifiant de profil est public et ne constitue pas une authentification ; un client modifié peut en revendiquer un autre. Les risques d’usurpation du LAN restent donc applicables aux contacts. Conserver le profil conserve cette identité ; `uninstall.sh --purge` la supprime.
-
-## Pièces jointes (1.2.0)
-
-La capacité `files` est annoncée dans la présence et négociée avec le relais dans son premier `pong`. Les anciens clients restent compatibles pour les messages et les avatars ; aucune trame de fichier n’est adressée à un client ou un relais qui n’annonce pas cette capacité. Le marqueur historique `chat`, qui n’était pas interrogé par le routage, laisse sa place à `files` pour conserver la limite de huit capacités.
-
-Une offre `file_offer` contient un nom simple, une taille de 0 à 20 Mio et un SHA-256. Aucun chemin du système de l’expéditeur n’est transmis. L’offre peut viser une conversation privée ou le salon général ; dans ce dernier cas, chaque destinataire décide séparément de la télécharger. Les offres expirent après dix minutes. Le calcul de l’empreinte et les lectures/écritures de contenu se font hors du thread graphique et de la boucle réseau.
-
-Le destinataire doit accepter et choisir un chemin de sauvegarde. Un fichier existant est refusé. L’acceptation crée alors un fichier temporaire personnel `.fortytchat-*.part`, à côté de la destination choisie. Le nom distant n’intervient jamais dans la construction du chemin local. Après `file_accept`, l’expéditeur transmet des `file_chunk` privés de 6 Kio maximum, encodés en base64 strict, avec une référence d’offre et un offset exact. Une connexion TCP directe est réutilisée pour le flux ; le relais garde seulement les trames dans ses files bornées et les métadonnées de consentement en mémoire.
-
-`file_end` déclenche la vérification de la longueur exacte et de l’empreinte du contenu reçu. Seul un fichier complet et conforme est publié au chemin demandé, par lien atomique qui refuse aussi un fichier apparu à cet emplacement pendant le transfert. `file_done` confirme la vérification au client expéditeur ; la simple acceptation par la file du relais ne suffit donc pas à afficher une réussite. Le téléchargement n’ouvre et n’exécute aucun fichier.
-
-`file_decline` et `file_cancel` permettent le refus ou l’annulation. Un échec, une expiration ou un arrêt normal supprime le temporaire. Une coupure sans nouveau bloc expire après 60 secondes, plus au maximum une période de nettoyage réseau. Un arrêt brutal du système peut laisser un `.part` incomplet, jamais publié sous le nom final. Aucun transfert ni offre ne reprend automatiquement après un redémarrage.
-
-Limites locales : huit offres sortantes, 32 offres entrantes et quatre flux actifs dans chaque sens ; progression graphique regroupée au plus toutes les 150 ms (plus l’état final). Le relais limite aussi les offres (256 globalement, huit par session), les blocs, les tailles cumulées et les files. Les fichiers gardent les mêmes limites de confidentialité que le texte : réseau LAN en clair ou relais TLS, sans chiffrement de bout en bout. Les fichiers enregistrés volontairement restent sur disque après la fermeture de l’application.
-
-## Réponses, réactions et saisie (1.3.0)
-
-Un `message` peut ajouter `reply_to`, un identifiant de message valide. Le texte cité n’est jamais joint à la trame : chaque destinataire construit l’aperçu depuis sa conversation en mémoire. Une référence absente affiche un aperçu indisponible ; si le message arrive ensuite, l’aperçu est actualisé. Les citations restent du texte brut, y compris dans leur infobulle. Aucun historique n’est demandé ni enregistré.
-
-La capacité `social` remplace le marqueur historique `avatar` pour conserver les huit capacités de présence ; les avatars continuent à être annoncés dans leur champ habituel. Le relais annonce aussi `social` dans son `pong`. Les nouveaux événements ne sont routés que vers les clients compatibles, en direct ou via un relais actualisé. Un ancien client continue à afficher le texte des réponses et ignore leur référence.
-
-- `reaction` : champs de base `v`, `type`, `id`, `from`, `to`, plus `message` (référence), `emoji` et `seq`. L’emoji doit appartenir au catalogue embarqué ; une chaîne vide retire la réaction. Une seule réaction par profil et par message, avec remplacement et compteur côté interface. La référence est résolue uniquement dans la conversation visée.
-- `typing` : mêmes champs de base, plus `active` (booléen strict) et `seq`. Aucun texte de brouillon n’est accepté. Le client émet un début puis, si la frappe continue, au plus un rappel toutes les deux secondes. L’arrêt survient après 2,5 secondes sans frappe ou à la perte de focus. Le récepteur expire l’indicateur au bout de cinq secondes sans nouvelles.
-
-`seq` est un entier croissant de session. Un cache borné ignore les anciens états arrivant après un état plus récent, pour éviter de réafficher une réaction retirée ou une saisie arrêtée. Les réactions et la saisie ont leurs propres seaux de débit et n’épuisent pas le budget des messages. Blocage, destinataire et identité de session sont vérifiés comme pour le reste du protocole.
-
-Les réactions reçues avant leur message sont gardées au plus dix secondes, dans une file de 256 états maximum. L’ensemble des indicateurs de saisie est limité à 512 états et chaque message à 512 auteurs de réaction. Toutes ces données restent en mémoire ; une reconnexion ou un nouveau client n’en reçoit aucun historique.
-
-## Notifications animées (1.4.0)
-
-La capacité `cards` remplace le marqueur historique `pause` pour conserver les huit capacités de présence. Le fonctionnement des pauses classiques ne dépendait pas de ce marqueur. Un relais actualisé annonce également `cards` dans son premier `pong`. Les clients vérifient la capacité du destinataire et de la route avant d’envoyer une carte ; un ancien relais ne reçoit aucune de ces nouvelles trames.
-
-`card_invite` est un événement privé avec `title` (1 à 80 caractères), `text` (0 à 400 caractères) et `emoji`. `emoji` est exclusivement un identifiant de la liste locale des onze GIF. Les trames n’acceptent ni URL, ni chemin, ni données binaires d’image. Le titre et le texte sont affichés comme texte brut. Les mots longs peuvent être coupés à l’affichage et les cartes défilent si le contenu dépasse l’écran.
-
-`card_reply` ajoute `request`, lié à une demande en attente de cet expéditeur, et `answer` : `accepted`, `declined`, `custom` ou `dismissed`. La réponse inclut le même trio titre/texte/animation. Elle peut répondre à une carte personnalisée ou, entre clients compatibles, à une pause classique. Une référence inconnue, consommée ou expirée est refusée. L’interface ne clôture la demande qu’une fois et libère son emplacement après réponse ou expiration.
-
-Les cartes partagent les compteurs anti-spam des pauses : trois demandes par destinataire dans une série, blocage de cinq minutes à la quatrième, expiration après deux minutes. Les nouvelles cartes personnalisées respectent DND ; les pauses classiques et les réponses restent actives. Le relais refuse une carte à une session annonçant DND ; le client vérifie aussi sa préférence réelle à réception.
-
-Les animations sont des GIF locaux du paquet d’installation. QMovie lit une seule animation sélectionnée dans l’éditeur et une par carte visible, redimensionnées à 100–112 pixels, avec `CacheNone`. Les onze vignettes du sélecteur sont statiques. Les envois et réponses restent en mémoire comme les autres conversations.
-
-Seuls les modèles explicitement enregistrés sont écrits dans `notification_templates.json` sous le dossier de profil. Le fichier est borné à douze modèles, validé à la lecture et remplacé atomiquement avec des permissions privées. Il ne contient aucun journal des notifications reçues. La désinstallation ordinaire conserve ces modèles ; `--purge` supprime le profil complet.
+`python3 main.py --diagnose` et `python3 tools/network_probe.py` inspectent interfaces et écoute locale sans scanner le réseau ni modifier le pare-feu. Une écoute locale ne prouve pas la communication entre deux postes. Le relais n’interconnecte pas des sous-réseaux s’il n’est pas accessible depuis eux ; sa machine, son DNS et son certificat exigent un déploiement autorisé.

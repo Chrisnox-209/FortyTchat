@@ -1,10 +1,10 @@
 # Retour à l’École 42 : essais sur place
 
-Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.4.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.5.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
 ## Préparer deux postes
 
-1. Copier le projet sur deux PC Ubuntu distincts et lancer `sh ./install.sh`, ou `python3 main.py` si PySide6 est disponible.
+1. Copier le projet sur deux PC Ubuntu distincts et lancer `sh ./install.sh`, ou `python3 main.py` si PySide6 et PyNaCl sont disponibles.
 2. Vérifier l’apparition discrète de l’icône. Si elle est absente, récupérer la fenêtre réduite dans le dock ou depuis le menu. Ne pas installer d’extension système ni modifier GNOME sans autorisation.
 3. Relever IPv4, interface, masque, broadcast et ports avec les commandes ci-dessous. Les réglages réseau restent hors de l’interface de FortyTchat ; aucune IP n’est à renseigner dans l’application.
 4. Vérifier que Docker et `virbr0` n’ont pas été choisis à la place de l’Ethernet physique active.
@@ -47,6 +47,14 @@ Ne pas scanner le `/16`, modifier le pare-feu ou réutiliser un port de service 
 - Envoyer un fichier en privé puis dans le général : refuser, accepter, choisir un emplacement et annuler pendant le transfert. Vérifier le contenu reçu, l’absence d’écrasement et de téléchargement automatique.
 - Vérifier l’absence de son de notification dans l’environnement Ubuntu concerné, y compris si le serveur de notifications ignore des options.
 
+## Chiffrement et identité
+
+- Mettre à jour les deux clients et le relais éventuel en 1.5.0 minimum. Comparer les empreintes en personne via le cadenas, puis vérifier le statut **Identité vérifiée** sur chacun des postes.
+- Quitter puis relancer l’un des clients : conserver son pseudo, ses amis, sa clé d’identité et la vérification, avec un nouveau SID et une nouvelle clé de session. Aucun historique réseau ne doit arriver.
+- Vérifier les messages privés, le général, les fichiers et les cartes via les deux routes autorisées. Le général reste lisible par tous ses participants.
+- Pour un essai de remplacement de clé, employer uniquement des profils de développement jetables : la session modifiée doit rester bloquée jusqu’à comparaison de sa nouvelle empreinte. Ne pas supprimer les clés du profil personnel.
+- Une capture réseau autorisée peut voir les présences, avatars, IP et enveloppes chiffrées ; elle ne doit pas révéler le texte des messages, les noms ou le contenu des pièces jointes. Un essai local ne remplace pas un audit indépendant du protocole.
+
 ## Démarrage de session
 
 1. Vérifier la case activée et l’existence de l’entrée XDG personnelle, avec le bon Python absolu.
@@ -65,11 +73,13 @@ Un test réussi sur deux machines ne valide pas à lui seul 200 postes ni plusie
 
 | Vérification | Date / postes | Résultat réel |
 | --- | --- | --- |
-| IPv4/interface/masque | À compléter | À vérifier en 1.4.0 |
-| Découverte même zone | À compléter | À vérifier en 1.4.0 |
-| Découverte entre zones | À compléter | À vérifier en 1.4.0 |
-| TCP général et privé | À compléter | À vérifier en 1.4.0 |
+| IPv4/interface/masque | À compléter | À vérifier en 1.5.0 |
+| Découverte même zone | À compléter | À vérifier en 1.5.0 |
+| Découverte entre zones | À compléter | À vérifier en 1.5.0 |
+| TCP général et privé | À compléter | À vérifier en 1.5.0 |
+| Empreintes comparées, identité conservée | À compléter | À vérifier en 1.5.0 |
+| Contenu chiffré TCP et relais | À compléter | À vérifier en 1.5.0 |
 | TLS/relais autorisé | À compléter | Aucun déploiement présumé |
-| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.4.0 |
-| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.4.0 |
-| Autostart après connexion | À compléter | À vérifier sur la session école en 1.4.0 |
+| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.5.0 |
+| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.5.0 |
+| Autostart après connexion | À compléter | À vérifier sur la session école en 1.5.0 |

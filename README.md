@@ -5,26 +5,27 @@
 <h1 align="center">FortyTchat</h1>
 
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center"><strong>Version 1.4.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center"><strong>Version 1.5.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> &nbsp;·&nbsp;
   <a href="#mettre-à-jour">Mettre à jour</a> &nbsp;·&nbsp;
   <a href="#aperçu">Découvrir l’application</a> &nbsp;·&nbsp;
+  <a href="#chiffrement-de-bout-en-bout">Chiffrement</a> &nbsp;·&nbsp;
   <a href="#amis">Amis</a> &nbsp;·&nbsp;
   <a href="#désinstaller">Désinstaller</a>
 </p>
 
 **FortyTchat** est une messagerie locale pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées dans leurs propres fenêtres, des amis, des emojis et des avatars personnalisés. Son interface native adopte un thème anthracite et bleu, avec une apparence claire également disponible.
 
-**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.4.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
+**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.5.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
 
-Dans cette version : **crée tes notifications avec un titre, un texte et un emoji animé**, puis réponds par **Oui**, **Non** ou avec une **réponse personnalisée**. Les **11 GIF intégrés** fonctionnent hors connexion et tes modèles sont réutilisables. Les citations, réactions, trois points de saisie, amis, photos personnelles, fichiers de 20 Mio et Wizz silencieux restent disponibles.
+Dans cette version : **le chiffrement de bout en bout est automatique**, pour les messages privés, le général, les fichiers et les interactions. Le **cadenas** permet de comparer les empreintes des contacts ; un changement de clé bloque les échanges. Les notifications et réponses personnalisées avec **11 emojis animés hors connexion**, les citations, réactions, trois points de saisie, amis, photos et Wizz restent disponibles. **Les clients et le relais doivent tous être mis à jour en 1.5.0 ou plus récent.**
 
 ## Aperçu
 
 <p align="center">
-  <a href="docs/friends-1.4.0.png"><img src="docs/friends-1.4.0.png" width="980" alt="FortyTchat 1.4.0 : salon général, citations, réactions et indicateur de saisie"></a>
+  <a href="docs/friends-1.5.0.png"><img src="docs/friends-1.5.0.png" width="980" alt="FortyTchat 1.5.0 : salon général, citations, réactions et indicateur de saisie"></a>
 </p>
 
 <p align="center"><em>Le salon général et les amis, réunis dans une interface sombre. Profils de démonstration.</em></p>
@@ -33,7 +34,7 @@ Dans cette version : **crée tes notifications avec un titre, un texte et un emo
   <tr>
     <td align="center" width="50%" valign="top">
       <h3>Messages privés</h3>
-      <a href="docs/social-1.4.0.png"><img src="docs/social-1.4.0.png" height="320" alt="Conversation privée avec réponse citée, réactions emoji et trois points animés"></a>
+      <a href="docs/social-1.5.0.png"><img src="docs/social-1.5.0.png" height="320" alt="Conversation privée avec réponse citée, réactions emoji et trois points animés"></a>
       <p>Réponds à un message précis, réagis avec un emoji et vois quand ton ami écrit.</p>
     </td>
     <td align="center" width="50%" valign="top">
@@ -88,6 +89,7 @@ Les aperçus utilisent des profils, des textes et une illustration de démonstra
 - [Installer et démarrer](#installer-et-démarrer)
 - [Mettre à jour](#mettre-à-jour)
 - [Désinstaller](#désinstaller)
+- [Chiffrement de bout en bout](#chiffrement-de-bout-en-bout)
 - [Amis](#amis)
 - [Utilisation](#utilisation)
 - [Répondre et réagir](#répondre-et-réagir)
@@ -139,7 +141,7 @@ L’application apparaît dans le menu des applications sous **FortyTchat**. On 
 ~/.local/bin/fortytchat
 ```
 
-Si PySide6 est déjà disponible dans votre Python, une installation sans téléchargement est possible :
+Si PySide6 et PyNaCl sont déjà disponibles dans votre Python, une installation sans téléchargement est possible :
 
 ```sh
 sh ./install.sh --use-current-python
@@ -147,7 +149,7 @@ sh ./install.sh --use-current-python
 
 `--no-launch` installe sans lancer immédiatement ; `--bin-dir DOSSIER` choisit l’emplacement du petit lanceur. Sans `--use-current-python`, le script utilise un venv dédié et ne modifie aucun paquet système.
 
-Si `python3 -m venv` ou les bibliothèques natives nécessaires à Qt sont absents, le script explique l’échec. Il n’installe pas de composants système et ne contourne pas une restriction de l’école. Il faut alors un Python utilisateur déjà équipé ou un environnement fourni par l’établissement. Les wheels Qt restent plus volumineuses qu’une interface Tkinter ; la dépendance est limitée à **PySide6 Essentials**. Avec Python 3.14, l’installateur utilise PySide6 6.12 ou plus récent ; `--use-current-python` vérifie aussi cette compatibilité.
+Si `python3 -m venv` ou les bibliothèques natives nécessaires à Qt sont absents, le script explique l’échec. Il n’installe pas de composants système et ne contourne pas une restriction de l’école. Il faut alors un Python utilisateur déjà équipé ou un environnement fourni par l’établissement. Les wheels Qt restent plus volumineuses qu’une interface Tkinter ; l’interface utilise **PySide6 Essentials** et le chiffrement utilise **PyNaCl/libsodium**. Avec Python 3.14, l’installateur utilise PySide6 6.12 ou plus récent ; `--use-current-python` vérifie aussi cette compatibilité.
 
 ## Mettre à jour
 
@@ -160,7 +162,7 @@ Une fois la nouvelle version publiée sur GitHub :
 git -C "$HOME/.FortyTchat" pull --ff-only && sh "$HOME/.FortyTchat/install.sh"
 ```
 
-Le dépôt caché est actualisé, puis l’installateur réutilise l’environnement Python et relance FortyTchat réduit. **Le pseudo, les amis, la photo, les modèles de notification, les préférences et le choix de démarrage automatique sont conservés.** La configuration réseau déjà installée est également reprise, sauf si le dossier source fournit son propre `network.json` de déploiement.
+Le dépôt caché est actualisé, puis l’installateur réutilise l’environnement Python et relance FortyTchat réduit. **Le pseudo, les amis, la photo, les modèles, les clés d’identité et de contacts, les préférences et le choix de démarrage automatique sont conservés.** La configuration réseau déjà installée est également reprise, sauf si le dossier source fournit son propre `network.json` de déploiement.
 
 Les messages de la session sont éphémères : quitter l’application les abandonne. Les fichiers déjà enregistrés restent à leur emplacement. Le script signale une instance encore ouverte : la quitter complètement puis relancer le lanceur charge le nouveau code.
 
@@ -188,7 +190,7 @@ sh "$HOME/.FortyTchat/uninstall.sh"
 
 Depuis une autre copie du projet, utiliser `sh ./uninstall.sh` dans son dossier.
 
-Le script arrête uniquement les processus appartenant à cet utilisateur et exécutant le `main.py` de la copie installée. Il supprime l’application, son environnement Python dédié, son lanceur, son entrée de menu et son autostart, sans sudo et sans toucher aux autres applications. Le profil, les amis, la photo et les modèles de notification restent dans l’espace de configuration personnel.
+Le script arrête uniquement les processus appartenant à cet utilisateur et exécutant le `main.py` de la copie installée. Il supprime l’application, son environnement Python dédié, son lanceur, son entrée de menu et son autostart, sans sudo et sans toucher aux autres applications. Le profil, les amis, la photo, les modèles et les clés de chiffrement restent dans l’espace de configuration personnel.
 
 Pour supprimer aussi ces données :
 
@@ -196,7 +198,7 @@ Pour supprimer aussi ces données :
 sh "$HOME/.FortyTchat/uninstall.sh" --purge
 ```
 
-`--purge` efface également les profils de développement. Une réinstallation créera alors une nouvelle identité de profil et les anciens contacts ne pourront plus la reconnaître automatiquement. Si un autre dossier de lanceur a été choisi à l’installation, préciser le même avec `--bin-dir DOSSIER`.
+`--purge` efface également les profils de développement. Cette suppression inclut les clés et leurs vérifications. Une réinstallation créera alors une nouvelle identité de profil et les anciens contacts ne pourront plus la reconnaître automatiquement. Si un autre dossier de lanceur a été choisi à l’installation, préciser le même avec `--bin-dir DOSSIER`.
 
 ## Lancer depuis les sources
 
@@ -229,6 +231,8 @@ Valeurs par défaut, avec respect de `XDG_CONFIG_HOME` et `XDG_DATA_HOME` lorsqu
 | `~/.local/share/applications/fr.fortytchat.FortyTchat.desktop` | Entrée du menu |
 | `~/.local/bin/fortytchat` | Lanceur |
 | `~/.config/fortytchat/notification_templates.json` | Modèles de notification et de réponse enregistrés volontairement |
+| `~/.config/fortytchat/identity.json` | Clé privée d’identité du profil (permissions 600), jamais envoyée sur le réseau |
+| `~/.config/fortytchat/trusted_contacts.json` | Clés publiques mémorisées et état des vérifications (permissions 600), aucun message |
 | `~/.config/fortytchat/config.json` | Pseudo, identifiant de profil, amis, miniature personnelle, thème, préférences et date du dernier Wizz |
 | `~/.local/share/fortytchat/app/network.json` | Paramètres réseau de déploiement, sans accès depuis l’interface |
 | `~/.config/autostart/fr.fortytchat.FortyTchat.desktop` | Démarrage personnel, avec chemins absolus et `--background` |
@@ -259,7 +263,7 @@ Dans **Paramètres → À propos**, retrouve la version installée, le lien GitH
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-1.4.0.png"><img src="docs/about-1.4.0.png" width="600" alt="Onglet À propos de FortyTchat 1.4.0 avec le logo FT, l’auteur et le lien GitHub"></a>
+  <a href="docs/about-1.5.0.png"><img src="docs/about-1.5.0.png" width="600" alt="Onglet À propos de FortyTchat 1.5.0 avec le logo FT, l’auteur et le lien GitHub"></a>
 </p>
 
 Le contenu est défilable pour rester lisible sur les petits écrans.
@@ -276,7 +280,7 @@ Les messages sont affichés en texte brut, jamais comme du HTML exécutable. La 
 
 Ces interactions restent en mémoire avec les messages et disparaissent à l’arrêt complet. Une citation dont le message d’origine est inconnu ou a quitté la mémoire du destinataire affiche **Message plus disponible** ; aucun ancien message n’est téléchargé pour la reconstituer.
 
-Les réactions et les indicateurs de saisie demandent **FortyTchat 1.3.0** chez les participants et, s’il est utilisé, sur le relais. Les anciennes versions continuent à recevoir le texte des messages ; les nouveautés s’activent entre les clients compatibles.
+Les réactions et la saisie passent dans les enveloppes chiffrées, comme les messages. Les participants et le relais doivent utiliser **FortyTchat 1.5.0 ou plus récent** ; il n’existe aucun repli en clair.
 
 ## Notifications personnalisées
 
@@ -300,11 +304,33 @@ Animations disponibles : **👍 😭 🤣 😘 👎 😛 💩 ❌ ✅ 🤯 💪*
 
 Une demande reste valable **2 minutes**. Pauses et notifications personnalisées partagent la limite de **3 demandes successives par destinataire** ; la quatrième bloque leurs nouveaux envois pendant **5 minutes**, en laissant les messages disponibles. **Ne pas déranger** refuse les nouvelles notifications personnalisées ; les pauses classiques et les réponses aux demandes déjà reçues restent actives.
 
-Ces cartes et leurs réponses personnalisées demandent **FortyTchat 1.4.0** chez les deux participants et sur le relais s’il est utilisé. Les messages, fichiers et pauses classiques restent compatibles avec les versions précédentes.
+Ces cartes et leurs réponses sont chiffrées entre les appareils. Les deux participants et le relais doivent utiliser **FortyTchat 1.5.0 ou plus récent**.
 
 ## Envoyer un fichier
 
-Le bouton **＋** joint un fichier dans le salon général ou une conversation privée. Le destinataire clique sur **Enregistrer…**, choisit un emplacement, ou refuse. La progression et l’annulation apparaissent dans le chat. Limite : **20 Mio par fichier**, offre valable **10 minutes**, clients et relais compatibles 1.2.0 requis. Aucun téléchargement automatique, aucune ouverture automatique ; un fichier existant n’est jamais écrasé. Les fichiers acceptés et enregistrés restent sur le disque après fermeture de l’application.
+Le bouton **＋** joint un fichier dans le salon général ou une conversation privée. Le destinataire clique sur **Enregistrer…**, choisit un emplacement, ou refuse. La progression et l’annulation apparaissent dans le chat. Limite : **20 Mio par fichier**, offre valable **10 minutes**, clients et relais **1.5.0 ou plus récent** requis. Le nom, l’empreinte et les blocs du fichier sont chiffrés de bout en bout. Aucun téléchargement automatique, aucune ouverture automatique ; un fichier existant n’est jamais écrasé. Les fichiers acceptés et enregistrés restent sur le disque après fermeture de l’application.
+
+## Chiffrement de bout en bout
+
+Le chiffrement est **toujours actif** : messages privés et généraux, citations, réactions, indicateurs de saisie, Wizz, pauses, notifications et pièces jointes sont chiffrés sur l’appareil de l’expéditeur et déchiffrés sur celui du destinataire. Le relais transporte des enveloppes opaques et ne possède aucune clé de déchiffrement. Le général envoie une copie chiffrée distincte à chaque participant autorisé en ligne ; ce salon reste ouvert aux personnes présentes dans le cluster.
+
+<p align="center">
+  <a href="docs/security-1.5.0.png"><img src="docs/security-1.5.0.png" width="480" alt="Cadenas de sécurité : empreintes du profil et du contact, vérification de l’identité"></a>
+</p>
+
+Pour vérifier un contact :
+
+1. Ouvrir sa conversation et cliquer sur le **cadenas 🔒**.
+2. Comparer vos empreintes **en personne ou par un autre canal de confiance**. Ton empreinte est aussi disponible dans **Paramètres → Mon identité de chiffrement**.
+3. Coller l’empreinte donnée par le contact et cliquer sur **Vérifier cette empreinte**. Le statut passe à **Identité vérifiée** après correspondance complète.
+
+La première clé reçue est mémorisée automatiquement (*TOFU*). Une modification ultérieure affiche **Clé modifiée** et bloque les échanges, y compris les fichiers et les envois du général vers ce contact. Si le changement est légitime, comparer sa nouvelle empreinte avant de l’autoriser. Ne pas valider une empreinte reçue seulement dans la conversation dont l’identité est en question.
+
+L’application utilise les primitives de **PyNaCl/libsodium** : `Box` (Curve25519, XSalsa20-Poly1305), nonces aléatoires, signatures **Ed25519** liant l’identité aux clés de session et aux annonces de présence. Les enveloppes authentifient aussi l’expéditeur, le destinataire, leur identifiant et leur compteur ; les modifications et les rejeux sont refusés. Les confirmations de réception sont chiffrées et liées au bon destinataire. Références : [chiffrement Box](https://pynacl.readthedocs.io/en/latest/public/), [signatures Ed25519](https://pynacl.readthedocs.io/en/latest/signing/).
+
+La clé d’identité reste dans `identity.json` et le carnet de clés publiques dans `trusted_contacts.json`, avec permissions **600**. Les clés de chiffrement de session sont créées en mémoire à chaque démarrage et ne sont pas archivées. Une mise à jour conserve ces fichiers. Sauvegarder le profil exige de protéger aussi ces clés privées ; conserver `config.json`, `identity.json` et `trusted_contacts.json` ensemble. Un fichier de sécurité corrompu, manquant dans un profil déjà initialisé ou non privé arrête le démarrage au lieu de réinitialiser silencieusement les clés.
+
+**Tous les clients et le relais doivent être actualisés en 1.5.0 ou plus récent.** Les trames de conversation en clair et les relais sans prise en charge E2EE sont refusés. Le chiffrement n’empêche pas de capturer le trafic chiffré, ne cache pas les métadonnées et ne protège pas un appareil compromis ni les copies faites par un destinataire. Cette intégration n’a pas fait l’objet d’un audit indépendant ; elle n’implémente pas le Double Ratchet ni le renouvellement des clés après chaque message. Une compromission des clés de session en mémoire expose les échanges de cette session.
 
 ## Amis
 
@@ -314,13 +340,13 @@ Chaque profil possède un identifiant persistant, distinct du pseudo, de l’adr
 
 La liste est personnelle et enregistrée uniquement dans les préférences ; **aucun message n’est conservé sur disque**. Choisir **Retirer des amis** dans le menu ou cliquer de nouveau sur l’étoile retire le contact. Jusqu’à 256 amis peuvent être conservés. Garder le dossier de configuration conserve cette identité lors d’une réinstallation ou avec un espace personnel partagé entre postes.
 
-Cet identifiant ne constitue pas une authentification : les limites d’usurpation du protocole LAN restent applicables. Les anciens clients continuent à échanger des messages ; ils doivent être actualisés pour exposer une identité d’ami.
+L’identifiant de profil est maintenant lié à une clé d’identité mémorisée. Le **cadenas** permet de vérifier son empreinte ; le pseudo seul ne prouve pas qui est la personne. Un contact dont la clé a changé affiche **Clé modifiée · vérifier** dans les amis : cliquer dessus ouvre la comparaison des empreintes. Sa session ne récupère pas automatiquement la conversation d’un ami tant que sa nouvelle empreinte n’est pas vérifiée.
 
 ## Avatars et images personnelles
 
 Cliquer sur son avatar en bas à gauche, puis sur **Importer mon image…**. Choisir un PNG, JPEG ou WebP de moins de 10 Mo, déplacer l’image pour cadrer le sujet, ajuster le zoom et cliquer sur **Utiliser cette image**. L’import se fait sans bloquer l’interface ; annuler n’applique aucun changement.
 
-Les images personnelles sont réduites en JPEG 128 × 128, au plus 8 Kio. Le fichier original, son nom et ses métadonnées ne sont pas transmis. Seule ta propre miniature est conservée dans les préférences ; celles reçues des autres restent en mémoire. Elles passent par TCP ou par le relais mis à jour, jamais dans les annonces UDP. Les anciennes versions peuvent continuer à afficher le personnage de remplacement ; mettre à jour les clients et le relais active le partage de photos.
+Les images personnelles sont réduites en JPEG 128 × 128, au plus 8 Kio. Le fichier original, son nom et ses métadonnées ne sont pas transmis. Seule ta propre miniature est conservée dans les préférences ; celles reçues des autres restent en mémoire. Elles passent par TCP ou par le relais mis à jour, jamais dans les annonces UDP. Les avatars servent de profil public : leur miniature reste visible sur le réseau, à la différence du contenu des conversations.
 
 Pour enlever sa photo, choisir **Retirer mon image** ou sélectionner un personnage. Les 24 personnages et le mode automatique restent disponibles.
 
@@ -328,8 +354,11 @@ Pour enlever sa photo, choisir **Retirer mon image** ou sélectionner un personn
 
 | Problème | Vérification ou solution |
 | --- | --- |
-| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.4.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
+| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.5.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
 | Ancienne icône violette « 42 » | L’ancienne application tourne peut-être encore. La quitter depuis son menu, puis relancer `sh ./install.sh` depuis le projet actualisé. La nouvelle icône est noire avec **FT** en blanc. |
+| Contact absent après mise à jour | Actualiser les deux clients et le relais en 1.5.0 minimum ; les clients sans identité signée sont refusés. |
+| Clé du contact modifiée | Échanges bloqués : ouvrir son cadenas, comparer la nouvelle empreinte par un canal de confiance puis la vérifier. |
+| Identité de chiffrement inaccessible | Restaurer les fichiers du profil et leurs permissions 600 ; ne pas supprimer les clés pour contourner l’erreur. |
 | Aucune personne en ligne à la maison | C’est normal si aucun autre client ne tourne sur le réseau. Pour tester sur un seul PC, ouvrir les deux profils de développement décrits plus bas. |
 | Personnes non détectées sur deux PC | Vérifier que les deux machines sont autorisées à communiquer. Le diagnostic est réservé aux commandes de la section réseau ; aucun réglage réseau n’est accessible dans l’interface. Le Wi-Fi invité, les VLAN ou des politiques d’isolation peuvent empêcher les échanges. |
 | Port déjà occupé | Vérifier qu’une autre instance ou un autre service écoute avec `ss -tuln`. Pour plusieurs clients sur le même PC, utiliser `--dev alice` et `--dev bob`, sans changer de ports système. |
@@ -451,7 +480,7 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest -q
 python3 tools/stress_test.py --clients 200
 ```
 
-La suite locale comprend **114 tests réussis** pour la version 1.4.0. Exécuter les tests dans l’environnement Python équipé des dépendances du projet. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, compatibilité des anciens clients, notifications animées, modèles enregistrables, réponses personnalisées, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface et absence de persistance. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
+La suite locale comprend **133 tests** pour la version 1.5.0. Exécuter les tests dans l’environnement Python équipé des dépendances du projet. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, refus des clients et relais non chiffrés, notifications animées, modèles enregistrables, réponses personnalisées, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface, absence de persistance des messages, clés privées à permissions restreintes, signatures, anti-rejeu, changements de clé bloqués et confidentialité du contenu vis-à-vis du relais. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
 
 Les résultats locaux et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
 
@@ -469,8 +498,8 @@ Les fichiers explicitement enregistrés par leur destinataire sont conservés à
 
 Aucune base, aucun fichier de conversation, aucun historique serveur ni journal contenant le texte des messages. Le cache est borné à 200 messages par conversation, 64 conversations et 4 000 messages en tout ; chaque fenêtre dessine au plus les 180 derniers messages. L’arrêt complet abandonne ces données. Les messages déjà reçus restent en mémoire chez les autres participants jusqu’à leur propre arrêt.
 
-Les pseudos ne sont pas authentifiés. Le LAN direct est en clair et vulnérable à l’observation et à l’usurpation par un acteur du réseau. Le relais chiffre le transport avec TLS et empêche un client de choisir l’ID d’un autre expéditeur sur sa connexion ; il peut néanmoins lire les messages, puisqu’il n’y a pas de chiffrement de bout en bout ni d’authentification campus.
+Le contenu des conversations est chiffré de bout en bout en LAN et via le relais. **La vérification du premier contact demande de comparer les empreintes par un canal de confiance** : la mémorisation automatique de la première clé ne suffit pas contre une interception active à ce premier échange. Pseudos, présence, avatars, IP, destinataires, tailles et horaires de trafic restent observables. Il n’y a pas d’authentification campus et les participants du général peuvent en lire les messages.
 
-Le délai Wizz est conservé dans les préférences locales et dans la RAM du relais par session, y compris lors d’une reconnexion de cette session. Sans compte ni attestation campus, il est impossible de garantir « une personne physique » face à quelqu’un qui modifie le client, supprime sa configuration ou recrée des identités. Le redémarrage du relais efface ses compteurs en mémoire. Pour une garantie forte par étudiant, il faudrait une authentification autorisée par l’école.
+Le délai global Wizz est conservé dans les préférences de l’émetteur ; chaque récepteur applique ses propres limites par contact et sa garde globale. Le relais ne déchiffre pas les actions et limite seulement les flux chiffrés. Sans compte ni attestation campus, il est impossible de garantir « une personne physique » face à quelqu’un qui modifie le client, supprime sa configuration ou recrée des identités. Le redémarrage du relais efface ses compteurs en mémoire. Pour une garantie forte par étudiant, il faudrait une authentification autorisée par l’école.
 
 La non-persistance concerne l’application. Le système peut utiliser du swap, un outil externe peut capturer l’écran et un destinataire peut copier les textes. Les dumps mémoire du client et du relais lancé en CLI sont désactivés ; l’application ne prétend pas contrôler les sauvegardes système ou la mémoire du noyau.
