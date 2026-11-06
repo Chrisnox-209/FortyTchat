@@ -1,4 +1,10 @@
-# Réseau et chiffrement de FortyTchat 1.7.0
+# Réseau et chiffrement de FortyTchat 1.8.0
+
+## Amis et alertes de présence (1.8.0)
+
+Le menu d’amis de l’icône et les alertes Ubuntu utilisent le carnet local et les présences signées déjà reçues. Aucune nouvelle trame ni donnée de présence supplémentaire n’est envoyée. Les actions du menu sont liées à l’identifiant persistant du contact et retrouvent sa session courante au moment du clic. La popup utilise ensuite le mécanisme chiffré `card_invite` existant et ses limites habituelles.
+
+Les alertes sont locales, désactivables, silencieuses en DND et regroupées lors d’arrivées simultanées. Les changements de pseudo/statut, nouvelles sessions d’un contact toujours présent, ajouts d’amis connectés, clés modifiées et sessions masquées ne déclenchent pas de bannière. Un délai initial de cinq secondes, cinq secondes minimales d’absence et un intervalle minimal d’une minute par ami limitent les répétitions. Ce suivi reste en mémoire et n’ajoute aucun historique au profil.
 
 ## Découverte et routes
 

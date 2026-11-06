@@ -1,14 +1,24 @@
-# Validation locale de FortyTchat 1.7.0
+# Validation locale de FortyTchat 1.8.0
 
-Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.7.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
+Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.8.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
 
 ## Résultats automatisés
 
-- **154 tests réussis en 27,96 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- **168 tests réussis en 30,48 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
 - Mesure de diffusion E2EE réalisée en 1.5.0 sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
 - Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
 Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
+
+## Amis depuis l’icône et alertes Ubuntu (1.8.0)
+
+- Groupes en ligne/hors ligne, effectifs, pseudo courant, actions liées à l’identifiant du profil et popup désactivée hors ligne, sans route compatible ou pour une session masquée/clé modifiée. Même action disponible au clic droit dans la liste d’amis.
+- Menu déjà ouvert : mise à jour de sa structure différée pour ne pas interrompre la navigation, désactivation immédiate d’une popup devenue indisponible et retour à l’état initial correctement pris en compte. Naviguer dans les sous-menus ne déclenche pas le secours doubleclic GNOME.
+- Contrôleur Qt et clients TCP réels : ajouter un ami reste silencieux, son départ désactive l’action, sa reconnexion avec la même clé et un nouveau pseudo produit une seule alerte. L’éditeur ouvert depuis l’icône cible le nouveau SID et envoie effectivement la carte à cette session, sans créer de fenêtre de conversation.
+- Suivi déterministe avec horloge contrôlée : silence initial, changements de pseudo/statut, plusieurs sessions, ajout/retrait d’amis, coupures brèves, délai d’une minute, contacts masqués, clés modifiées et non-amis. Les préférences et DND consomment les transitions sans alerte tardive lors de leur réactivation. Plusieurs arrivées sont regroupées dans une seule bannière de taille bornée.
+- Préférence activée par défaut, booléen validé et sauvegarde/rechargement vérifiés. Commande native vérifiée par capture des arguments de `QProcess` : priorité normale pour les connexions, `suppress-sound=true`, icône FT, texte de présence uniquement et séparation des arguments. Les essais hors écran n’appellent pas le serveur de notifications personnel.
+
+`tray-friends-1.8.0.png`, `settings-1.8.0.png` et `about-1.8.0.png` sont des captures des widgets Qt avec données de démonstration. Le menu est capturé avec ses vrais sous-menus ouverts. Ce rendu ne représente pas une capture de l’extension GNOME de l’école ; l’affichage d’une vraie bannière, sa position et son silence restent à vérifier sur ce bureau.
 
 ## Réponses et compatibilité de barre (1.7.0)
 

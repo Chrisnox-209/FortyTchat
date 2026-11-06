@@ -1,6 +1,6 @@
 # Retour à l’École 42 : essais sur place
 
-Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.7.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.8.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
 ## Préparer deux postes
 
@@ -71,6 +71,14 @@ Ne pas scanner le `/16`, modifier le pare-feu ou réutiliser un port de service 
 - Fermer rapidement le menu avec Échap : si cela ouvre le tchat involontairement, désactiver la compatibilité doubleclic GNOME dans Général. Noter le nom/version de l’extension et les événements observés ; les tests locaux des signaux Qt ne garantissent pas son comportement.
 - Vérifier la mise au premier plan sur X11/Wayland, sans modifier les extensions de l’école.
 
+## Amis depuis la barre et notifications Ubuntu
+
+- Ajouter un ami, puis fermer la fenêtre principale. Clic droit sur l’icône FT : vérifier les groupes en ligne et hors ligne, leur effectif et le pseudo courant.
+- Ouvrir le sous-menu d’un ami connecté, puis **Envoyer une popup…**. Préparer texte, emoji et réponses ; vérifier la réception sans ouverture préalable du tchat. Essayer aussi le clic droit sur l’ami dans la liste du tchat et **Discuter…** dans le menu de barre.
+- Quitter sur le poste ami : la popup devient indisponible. Relancer après plus de cinq secondes d’absence, et plus d’une minute depuis la dernière alerte : vérifier une seule bannière Ubuntu avec le pseudo actuel, sans son. Renommer l’ami ne doit pas produire une nouvelle alerte.
+- Désactiver **Notifier la connexion de mes amis**, puis tester DND séparément : pas de bannière ni de rattrapage en réactivant. Au démarrage de l’application, les cinq premières secondes de découverte restent silencieuses.
+- Relever la version de GNOME/AppIndicator, l’apparence des sous-menus, le placement de la bannière et le mode Ne pas déranger d’Ubuntu. Aucun placement n’est imposé au bureau.
+
 ## Démarrage de session
 
 1. Vérifier la case activée et l’existence de l’entrée XDG personnelle, avec le bon Python absolu.
@@ -89,13 +97,14 @@ Un test réussi sur deux machines ne valide pas à lui seul 200 postes ni plusie
 
 | Vérification | Date / postes | Résultat réel |
 | --- | --- | --- |
-| IPv4/interface/masque | À compléter | À vérifier en 1.7.0 |
-| Découverte même zone | À compléter | À vérifier en 1.7.0 |
-| Découverte entre zones | À compléter | À vérifier en 1.7.0 |
-| TCP général et privé | À compléter | À vérifier en 1.7.0 |
-| Empreintes comparées, identité conservée | À compléter | À vérifier en 1.7.0 |
-| Contenu chiffré TCP et relais | À compléter | À vérifier en 1.7.0 |
+| IPv4/interface/masque | À compléter | À vérifier en 1.8.0 |
+| Découverte même zone | À compléter | À vérifier en 1.8.0 |
+| Découverte entre zones | À compléter | À vérifier en 1.8.0 |
+| TCP général et privé | À compléter | À vérifier en 1.8.0 |
+| Empreintes comparées, identité conservée | À compléter | À vérifier en 1.8.0 |
+| Contenu chiffré TCP et relais | À compléter | À vérifier en 1.8.0 |
 | TLS/relais autorisé | À compléter | Aucun déploiement présumé |
-| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.7.0 |
-| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.7.0 |
-| Autostart après connexion | À compléter | À vérifier sur la session école en 1.7.0 |
+| Amis de barre et alertes de connexion | À compléter | À vérifier sur la session école en 1.8.0 |
+| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.8.0 |
+| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.8.0 |
+| Autostart après connexion | À compléter | À vérifier sur la session école en 1.8.0 |

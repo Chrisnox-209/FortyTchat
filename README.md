@@ -5,7 +5,7 @@
 <h1 align="center">FortyTchat</h1>
 
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center"><strong>Version 1.7.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center"><strong>Version 1.8.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> &nbsp;·&nbsp;
@@ -18,9 +18,9 @@
 
 **FortyTchat** est une messagerie locale pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées dans leurs propres fenêtres, des amis, des emojis et des avatars personnalisés. Son interface native adopte un thème anthracite et bleu, avec une apparence claire également disponible.
 
-**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.7.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
+**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.8.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
 
-Dans cette version : **tu choisis les réponses proposées dans tes notifications** — Oui, Non, une autre réponse préparée avec ton texte et ton emoji, ou **Fermer uniquement**. La compatibilité du doubleclic avec les menus de barre GNOME est renforcée et désactivable dans les paramètres. Messages chiffrés, coches envoyé/livré/vu, amis et fichiers restent disponibles.
+Dans cette version : **tes amis en ligne et hors ligne sont accessibles au clic droit sur l’icône FT**. Ouvre le sous-menu d’un ami connecté pour **envoyer une popup**, directement depuis la barre Ubuntu. Une **notification Ubuntu silencieuse** t’avertit lorsqu’un ami se connecte ; elle est désactivable dans les paramètres. Les réponses personnalisables, les messages chiffrés et les coches envoyé/livré/vu restent disponibles.
 
 ## Aperçu
 
@@ -268,7 +268,7 @@ Dans **Paramètres → À propos**, retrouve la version installée, le lien GitH
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-1.7.0.png"><img src="docs/about-1.7.0.png" width="600" alt="Onglet À propos de FortyTchat 1.7.0 avec le logo FT, l’auteur et le lien GitHub"></a>
+  <a href="docs/about-1.8.0.png"><img src="docs/about-1.8.0.png" width="600" alt="Onglet À propos de FortyTchat 1.8.0 avec le logo FT et le lien GitHub"></a>
 </p>
 
 Le contenu est défilable pour rester lisible sur les petits écrans.
@@ -372,6 +372,28 @@ La clé d’identité reste dans `identity.json` et le carnet de clés publiques
 
 Dans une conversation privée, cliquer sur **☆** pour ajouter la personne aux amis. Un clic droit sur une personne dans la liste propose aussi **Ajouter aux amis**. La section **AMIS** apparaît au-dessus des autres utilisateurs et conserve les contacts hors ligne.
 
+### Depuis l’icône FT
+
+**Clic droit sur l’icône → Amis en ligne → nom de l’ami → Envoyer une popup…** ouvre directement l’éditeur : titre, texte, emoji animé et réponses proposées. La fenêtre de tchat peut rester fermée. Le clic droit sur un ami dans la liste du tchat propose aussi **Envoyer une popup…**.
+
+Les sous-menus **Amis en ligne** et **Amis hors ligne** affichent leurs effectifs. Chaque ami propose **Discuter…** et **Envoyer une popup…**. L’envoi de popup est désactivé hors ligne, pour une session masquée, une clé modifiée ou une connexion incompatible. Aucun envoi hors ligne n’est mis en attente. L’action retrouve la session actuelle de l’ami, même après une reconnexion ou un changement de pseudo.
+
+<p align="center">
+  <a href="docs/tray-friends-1.8.0.png"><img src="docs/tray-friends-1.8.0.png" width="640" alt="Menu de l’icône FT : amis en ligne et hors ligne, sous-menu d’un ami avec Discuter et Envoyer une popup"></a>
+</p>
+
+<p align="center"><em>Menus Qt réels avec des amis de démonstration ; l’apparence du menu exporté dans la barre dépend de la session Ubuntu.</em></p>
+
+### Quand un ami se connecte
+
+Une bannière native **« Pseudo est en ligne »** apparaît via le service de notifications Ubuntu, avec l’icône FortyTchat et sans son demandé. Plusieurs arrivées dans la même mise à jour sont regroupées. [**Paramètres → Général → Notifier la connexion de mes amis**](docs/settings-1.8.0.png) permet de désactiver ces alertes ; **Ne pas déranger** les masque aussi, sans les réafficher ensuite.
+
+Les cinq premières secondes du démarrage restent silencieuses pour éviter une rafale liée à la découverte initiale. Changer de pseudo ou de statut, utiliser une deuxième session et ajouter un ami déjà connecté ne produit pas d’alerte. Les reconnexions après moins de cinq secondes d’absence sont ignorées et un même ami ne déclenche pas plus d’une alerte par minute. Une clé modifiée ou une session masquée ne déclenche pas d’alerte.
+
+Ces bannières utilisent `notify-send` lorsqu’il est disponible. Leur apparence, leur emplacement — généralement en haut au centre sous Ubuntu/GNOME — et leur affichage dépendent du bureau et de son propre mode Ne pas déranger ; voir [l’aide GNOME sur les notifications](https://help.gnome.org/gnome-help/shell-notifications.html.en). Le fonctionnement suit le [service de notifications freedesktop](https://specifications.freedesktop.org/notification/latest-single/). Il ne faut pas les confondre avec les cartes animées envoyées volontairement à un ami.
+
+### Reconnaissance des amis
+
 Chaque profil possède un identifiant persistant, distinct du pseudo, de l’adresse IP et de l’identifiant temporaire de session. Une personne qui change son pseudo ou relance l’application est reconnue dès qu’elle se reconnecte avec le même profil. Le nouveau pseudo remplace automatiquement le précédent dans la liste. La conversation encore ouverte se rattache à sa nouvelle session, sans récupérer d’historique sur le réseau.
 
 La liste est personnelle et enregistrée uniquement dans les préférences ; **aucun message n’est conservé sur disque**. Choisir **Retirer des amis** dans le menu ou cliquer de nouveau sur l’étoile retire le contact. Jusqu’à 256 amis peuvent être conservés. Garder le dossier de configuration conserve cette identité lors d’une réinstallation ou avec un espace personnel partagé entre postes.
@@ -390,7 +412,7 @@ Pour enlever sa photo, choisir **Retirer mon image** ou sélectionner un personn
 
 | Problème | Vérification ou solution |
 | --- | --- |
-| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.7.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
+| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.8.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
 | Ancienne icône violette « 42 » | L’ancienne application tourne peut-être encore. La quitter depuis son menu, puis relancer `sh ./install.sh` depuis le projet actualisé. La nouvelle icône est noire avec **FT** en blanc. |
 | Contact absent après mise à jour | Actualiser les deux clients et le relais en 1.5.0 minimum ; les clients sans identité signée sont refusés. |
 | Clé du contact modifiée | Échanges bloqués : ouvrir son cadenas, comparer la nouvelle empreinte par un canal de confiance puis la vérifier. |
@@ -399,6 +421,8 @@ Pour enlever sa photo, choisir **Retirer mon image** ou sélectionner un personn
 | Personnes non détectées sur deux PC | Vérifier que les deux machines sont autorisées à communiquer. Le diagnostic est réservé aux commandes de la section réseau ; aucun réglage réseau n’est accessible dans l’interface. Le Wi-Fi invité, les VLAN ou des politiques d’isolation peuvent empêcher les échanges. |
 | Port déjà occupé | Vérifier qu’une autre instance ou un autre service écoute avec `ss -tuln`. Pour plusieurs clients sur le même PC, utiliser `--dev alice` et `--dev bob`, sans changer de ports système. |
 | Icône de barre absente | Le support GNOME/AppIndicator dépend de la session. FortyTchat reste accessible dans le dock ou le menu des applications. |
+| Aucune alerte de connexion d’un ami | Vérifier l’option dans Général, le mode Ne pas déranger de FortyTchat et celui d’Ubuntu, ainsi que la disponibilité de `notify-send`. La découverte initiale, les petites coupures et les reconnexions trop rapprochées restent silencieuses. |
+| Envoyer une popup grisé dans les amis | L’ami doit être connecté avec une clé autorisée, non masqué et compatible avec les notifications animées. Le relais doit les prendre en charge si aucune route directe n’est disponible. |
 | Application absente au début de session | Vérifier **Lancer FortyTchat au démarrage** et la politique XDG Autostart de la session. Le programme ne contourne pas une politique qui le désactive. |
 
 <details>
@@ -516,7 +540,7 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest -q
 python3 tools/stress_test.py --clients 200
 ```
 
-La suite locale comprend **154 tests** pour la version 1.7.0. Exécuter les tests dans l’environnement Python équipé des dépendances du projet. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, refus des clients et relais non chiffrés, notifications animées, modèles enregistrables, réponses personnalisées, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface, absence de persistance des messages, clés privées à permissions restreintes, signatures, anti-rejeu, changements de clé bloqués confidentialité du contenu vis-à-vis du relais, livraisons authentifiées, confirmations de lecture, visibilité réelle et préférence de lecture. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
+La suite locale comprend **168 tests** pour la version 1.8.0. Exécuter les tests dans l’environnement Python équipé des dépendances du projet. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, refus des clients et relais non chiffrés, notifications animées, modèles enregistrables, réponses personnalisées, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface, absence de persistance des messages, clés privées à permissions restreintes, signatures, anti-rejeu, changements de clé bloqués, confidentialité du contenu vis-à-vis du relais, livraisons authentifiées, confirmations de lecture, visibilité réelle et préférence de lecture. Les nouveaux essais couvrent aussi les menus d’amis, l’éditeur ciblé après reconnexion, les alertes regroupées et silencieuses et leur désactivation. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
 
 Les résultats locaux et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
 
