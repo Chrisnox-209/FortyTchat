@@ -73,6 +73,14 @@ Les aperçus utilisent des profils, des textes et une illustration de démonstra
 
 ## Installer et démarrer
 
+Installation en une ligne, dans le dossier caché `~/.FortyTchat` :
+
+```sh
+git clone https://github.com/Chrisnox-209/FortyTchat.git "$HOME/.FortyTchat" && sh "$HOME/.FortyTchat/install.sh""
+```
+
+Le dépôt reste dans ton dossier personnel sans encombrer les dossiers visibles. Pour l’ouvrir dans le gestionnaire de fichiers, utilise `Ctrl+H` pour afficher les fichiers cachés.
+
 Depuis le dossier du projet, sur Ubuntu avec Python 3.10 ou plus récent :
 
 ```sh
