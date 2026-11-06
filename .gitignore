@@ -22,6 +22,7 @@ dist/
 # Configuration propre au poste et secrets
 /network.json
 /config.json
+/notification_templates.json
 .env
 .env.*
 !.env.example

@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 from src.config import ConfigStore
+from src.features.cards import CardTemplates
 from src.identity import session_id
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,8 @@ def test_uninstall_stops_only_installed_app_preserves_profile_then_purges(tmp_pa
     store.preferences.friends[cid] = 'RememberedFriend42'
     store.preferences.nickname = 'KeptNick42'
     store.save()
+    templates = CardTemplates(config/'fortytchat')
+    templates.save({'title': 'Modèle conservé', 'text': 'On bouge ?', 'emoji': '1f44d'}, 'invite')
     unrelated = config/'autostart/unrelated.desktop'
     unrelated.write_text('keep me')
     outside = tmp_path/'other-app'
@@ -43,6 +46,7 @@ def test_uninstall_stops_only_installed_app_preserves_profile_then_purges(tmp_pa
         restored = ConfigStore(config/'fortytchat')
         assert restored.preferences.friends[cid] == 'RememberedFriend42'
         assert restored.preferences.nickname == 'KeptNick42' and not restored.preferences.autostart
+        assert CardTemplates(config/'fortytchat').items[0]['title'] == 'Modèle conservé'
         assert unrelated.read_text() == 'keep me'
         purged = subprocess.run(['sh',str(ROOT/'uninstall.sh'),'--purge','--bin-dir',str(bindir)],
                                 env=env,capture_output=True,text=True,timeout=20)

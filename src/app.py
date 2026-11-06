@@ -11,12 +11,14 @@ from .config import ConfigStore, config_home
 from .identity import valid_nickname, valid_contact_id
 from .features.friends import MAX_FRIENDS, contact_from_key, friend_key, online_contact
 from .features.social import TypingState, PendingReactions, preview
+from .features.cards import CardTemplates, answer_card
 from .avatar_data import avatar_hash, AvatarError
 from .instance import SingleInstance
 from .memory import Conversations, Message
 from .networking.settings import NetworkConfig
 from .networking.worker import NetworkWorker
-from .ui.break_popup import BreakPopup, BreakReplyPopup
+from .ui.break_popup import BreakPopup, BreakReplyPopup, CardPopup
+from .ui.card_editor import CardEditor
 from .ui.avatar_picker import AvatarPicker
 from .ui.main_window import MainWindow
 from .ui.private_window import PrivateWindow
@@ -44,6 +46,7 @@ class Application(QObject):
         self.history, self.popups = Conversations(), {}
         self.reply_popups = {}
         self.file_transfers = {}
+        self.card_editors, self.card_deliveries = {}, set()
         self.typing_state, self.pending_reactions = TypingState(), PendingReactions()
         self.private_windows = {}
         self.peer_avatars = {}
@@ -53,6 +56,7 @@ class Application(QObject):
         root = config_home() / 'fortytchat-dev' / args.dev if args.dev else None
         self.store = ConfigStore(root)
         self.preferences = self.store.preferences
+        self.card_templates = CardTemplates(self.store.root)
         remaining = min(2520, max(0, 2520 - (time.time() - self.preferences.last_wizz_at))) if self.preferences.last_wizz_at else 0
         self.wizz_deadline = time.monotonic() + remaining
         self.autostart = Autostart(self.root)
@@ -205,6 +209,63 @@ class Application(QObject):
         view.chat.reaction_requested.connect(lambda reference, emoji: self.react(view.current, reference, emoji))
         view.chat.quote_missing.connect(lambda: view.show_notice('Le message cité n’est plus disponible dans cette session.'))
         view.composer.typing_changed.connect(lambda active: self.send_typing(view.current, active))
+        view.composer.card_requested.connect(lambda: self.show_card_editor(view.current))
+
+    def show_card_editor(self, target, request='', popup=None):
+        view = self.view_for(target) or self.window
+        peer = self.window.peers.get(target) or next((item for item in self.latest_peers if item['sid'] == target), None)
+        if not self.cards_available(peer):
+            view.show_notice('Les notifications animées nécessitent des clients et un relais compatibles 1.4.0, ou une connexion directe.')
+            return None
+        key = (target, request)
+        if key in self.card_editors:
+            self.card_editors[key].raise_()
+            self.card_editors[key].activateWindow()
+            return self.card_editors[key]
+        editor = CardEditor(peer['nick'], self.card_templates, reply=bool(request), parent=self.window)
+        self.card_editors[key] = editor
+        if popup:
+            editor.submitted.connect(lambda payload: popup.answer(payload) if not popup.answered else None)
+            popup.finished.connect(editor.close)
+        else:
+            editor.submitted.connect(lambda payload: self.worker.send('card_invite', target, **payload))
+        def done(result):
+            self.card_editors.pop(key, None)
+            editor.deleteLater()
+        editor.finished.connect(done)
+        editor.show()
+        return editor
+
+    def cards_available(self, peer):
+        return bool(peer and 'cards' in peer.get('caps', ())
+                    and (peer.get('direct') or (peer.get('relay') and self.worker.client.relay_cards)))
+
+    def send_card_answer(self, target, request, original_kind, value):
+        if isinstance(value, dict):
+            return self.worker.send('card_reply', target, request=request, answer='custom', **value)
+        if original_kind == 'card_invite':
+            return self.worker.send('card_reply', target, request=request, answer=value, **answer_card(value))
+        return self.worker.send('break_reply', target, request=request, answer=value)
+
+    def show_card_templates(self):
+        key = ('templates', '')
+        if key in self.card_editors:
+            self.card_editors[key].raise_()
+            self.card_editors[key].activateWindow()
+            return self.card_editors[key]
+        editor = CardEditor('', self.card_templates, parent=self.window, manage=True)
+        self.card_editors[key] = editor
+        def done(result):
+            self.card_editors.pop(key, None)
+            editor.deleteLater()
+        editor.finished.connect(done)
+        editor.show()
+        return editor
+
+    def close_card_editors(self, target=None, request=None):
+        for (peer, reference), editor in list(self.card_editors.items()):
+            if (target is None or peer == target) and (request is None or reference == request):
+                editor.close()
 
     def send_message(self, target, text):
         view = self.view_for(target)
@@ -244,6 +305,7 @@ class Application(QObject):
             view.chat.typing.set_typers(self.typing_state.names(sid))
 
     def close_private(self, sid):
+        self.close_card_editors(target=sid)
         view = self.private_windows.pop(sid, None)
         if view:
             view.deleteLater()
@@ -419,7 +481,11 @@ class Application(QObject):
                 self.settings.diagnostic_result(data['rows'])
         elif kind == 'delivery':
             view = self.view_for(data['target']) or self.window
-            if data.get('local_only'):
+            if data['id'] in self.card_deliveries:
+                self.card_deliveries.discard(data['id'])
+                if not data['ok']:
+                    view.show_notice('Notification non confirmée : le contact peut être en Ne pas déranger ou utiliser une ancienne version.')
+            elif data.get('local_only'):
                 self.window.show_notice('Aucun autre utilisateur détecté : ce message est visible uniquement ici.')
             elif not data['ok']:
                 view.show_notice('Livraison non confirmée pour au moins un destinataire. Le message ne sera pas renvoyé à une reconnexion.')
@@ -445,6 +511,10 @@ class Application(QObject):
                 self.system_message(target, '☕ Tu as proposé une pause. Invitation valable 2 minutes.')
             elif frame['type'] == 'break_reply':
                 self.system_message(target, '☕ Tu as accepté la pause.' if frame['answer'] == 'accepted' else '☕ Tu as décliné la pause.')
+            elif frame['type'] in ('card_invite', 'card_reply'):
+                self.card_deliveries.add(frame['id'])
+                prefix = '✦ Notification envoyée : ' if frame['type'] == 'card_invite' else '✦ Ta réponse : '
+                self.system_message(target, prefix + frame['title'] + ('\n' + frame['text'] if frame['text'] else ''))
         elif kind == 'event':
             self.receive_event(data['frame'], data['nickname'], data.get('avatar', -1), data.get('avatar_image', ''), data.get('contact_id', ''))
 
@@ -472,22 +542,27 @@ class Application(QObject):
             view.chat.wizz()
             view.show_notice(f'ϟ Wizz de {nickname} !')
             self.notifications.show(f'{nickname} t’a envoyé un Wizz !')
-        elif kind == 'break_invite':
+        elif kind in ('break_invite', 'card_invite'):
             if len(self.popups) >= 3:
-                self.worker.send('break_reply', frame['from'], request=frame['id'], answer='dismissed')
+                self.send_card_answer(frame['from'], frame['id'], kind, 'dismissed')
                 return
-            self.system_message(target, f'☕ {nickname} te propose une pause.')
+            self.system_message(target, ('✦ ' + nickname + ' : ' + frame['title'] + ('\n' + frame['text'] if frame['text'] else ''))
+                                if kind == 'card_invite' else f'☕ {nickname} te propose une pause.')
             def answer(value):
-                self.worker.send('break_reply', frame['from'], request=frame['id'], answer=value)
-            popup = BreakPopup(nickname, answer, self.window)
+                self.send_card_answer(frame['from'], frame['id'], kind, value)
+            peer = self.window.peers.get(target) or next((item for item in self.latest_peers if item['sid'] == target), {})
+            popup = (CardPopup(nickname, frame, answer, self.window) if kind == 'card_invite'
+                     else BreakPopup(nickname, answer, self.window, allow_custom=self.cards_available(peer)))
+            popup.custom_requested.connect(lambda: self.show_card_editor(target, frame['id'], popup))
             self.popups[frame['id']] = (target, popup)
             popup.finished.connect(lambda result, key=frame['id']: self.remove_popup(key))
             popup.show()
-            self.notifications.show(f'{nickname} : on fait une pause ?')
-        elif kind == 'break_reply':
-            text = f'{nickname} a accepté ta proposition de pause.' if frame['answer'] == 'accepted' else f'{nickname} n’est pas disponible pour le moment.'
+            self.notifications.show(f'{nickname} · notification personnalisée' if kind == 'card_invite' else f'{nickname} : on fait une pause ?')
+        elif kind in ('break_reply', 'card_reply'):
+            text = (f'{nickname} : {frame["title"]}' + ('\n' + frame['text'] if frame['text'] else '')) if kind == 'card_reply' else (
+                f'{nickname} a accepté ta proposition de pause.' if frame['answer'] == 'accepted' else f'{nickname} n’est pas disponible pour le moment.')
             self.system_message(target, '☕ ' + text)
-            popup = BreakReplyPopup(nickname, frame['answer'], self.window)
+            popup = BreakReplyPopup(nickname, frame['answer'], self.window, card=frame if kind == 'card_reply' else None)
             self.reply_popups[frame['id']] = popup
             popup.finished.connect(lambda result, key=frame['id']: self.remove_reply_popup(key))
             if len(self.reply_popups) > 8:
@@ -597,6 +672,7 @@ class Application(QObject):
         self.refresh_file_card(metadata)
 
     def remove_popup(self, key):
+        self.close_card_editors(request=key)
         value = self.popups.pop(key, None)
         if value:
             value[1].deleteLater()
@@ -627,6 +703,7 @@ class Application(QObject):
         dialog.tabs.setCurrentIndex(tab)
         dialog.nickname_requested.connect(self.rename)
         dialog.avatar_requested.connect(self.show_avatar_picker)
+        dialog.cards_requested.connect(self.show_card_templates)
         dialog.preference_changed.connect(self.change_preference)
         dialog.finished.connect(self.close_settings)
         dialog.show()
@@ -748,11 +825,13 @@ class Application(QObject):
             popup.expire()
         for popup in list(self.reply_popups.values()):
             popup.close()
+        self.close_card_editors()
         for view in list(self.private_windows.values()):
             view.close()
         self.worker.stop()
         self.history.clear()
         self.file_transfers.clear()
+        self.card_deliveries.clear()
         self.typing_state.peers.clear()
         self.pending_reactions.items.clear()
         self.instance.close()

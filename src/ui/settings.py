@@ -14,6 +14,7 @@ class SettingsDialog(QDialog):
     preference_changed = Signal(str, object)
     diagnostic_requested = Signal()
     avatar_requested = Signal()
+    cards_requested = Signal()
 
     def __init__(self, preferences, autostart_enabled, network, dev=False, parent=None):
         super().__init__(parent)
@@ -65,7 +66,7 @@ class SettingsDialog(QDialog):
         self.dnd = QCheckBox('Ne pas déranger')
         self.dnd.setChecked(preferences.dnd)
         form.addWidget(self.dnd)
-        form.addWidget(label('En mode Ne pas déranger, les messages restent silencieux et les Wizz sont refusés. Les demandes de pause restent actives.', 'caption', True))
+        form.addWidget(label('En mode Ne pas déranger, les messages restent silencieux ; Wizz et notifications personnalisées sont refusés. Les demandes de pause restent actives.', 'caption', True))
         theme_row = QHBoxLayout()
         theme_row.addWidget(label('Apparence'))
         self.theme = QComboBox()
@@ -75,6 +76,9 @@ class SettingsDialog(QDialog):
         self.theme.setCurrentIndex(0 if preferences.theme == 'dark' else 1)
         theme_row.addWidget(self.theme, 1)
         form.addLayout(theme_row)
+        self.cards_button = button('Mes notifications animées', 'soft', 'Créer tes modèles de notification et de réponse')
+        self.cards_button.clicked.connect(self.cards_requested)
+        form.addWidget(self.cards_button)
         form.addStretch()
         self.tabs.addTab(self.scroll_page(general), 'Général')
         privacy = QWidget()
@@ -100,6 +104,7 @@ class SettingsDialog(QDialog):
         for title, text in [
             ('Le cluster, en direct', 'Une messagerie locale pour discuter dans le salon général ou dans une fenêtre privée. Aucun compte à créer : les personnes présentes sur le réseau sont découvertes automatiquement.'),
             ('Répondre, réagir, discuter', 'Le bouton ↩ cite un message ; un clic sur la citation y ramène. Le bouton ☺ ajoute une réaction emoji, modifiable ou retirable. Trois points animés indiquent quand quelqu’un écrit, sans partager son brouillon.'),
+            ('Des notifications à ton image', 'Le bouton ✦ ouvre un éditeur de titre, texte et emoji animé. Onze animations sont disponibles hors connexion. Réponds par Oui, Non ou une réponse personnalisée. Tes modèles enregistrés restent dans ton profil et sont accessibles depuis les paramètres.'),
             ('Tes amis, ton image, tes emojis', 'Les amis restent reconnus après un changement de pseudo. Choisis un avatar ou importe ta photo, puis exprime-toi parmi 3 781 emojis avec recherche et catégories.'),
             ('Des fichiers à partager', 'Envoie un fichier de 20 Mio maximum dans le général ou en privé. Le destinataire choisit de l’enregistrer ou de le refuser. Les fichiers enregistrés restent à l’emplacement choisi.'),
             ('Un Wizz, une pause', 'Le Wizz fait vibrer la conversation pendant 2,8 secondes et montre les derniers messages, sans son. Un envoi toutes les 42 minutes. Les pauses restent actives en Ne pas déranger : trois demandes successives, puis cinq minutes de blocage à la quatrième. La réponse apparaît en bleu pour oui et en rouge pour non.'),

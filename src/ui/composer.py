@@ -34,6 +34,7 @@ class Composer(QFrame):
     wizz_requested = Signal()
     break_requested = Signal()
     file_requested = Signal()
+    card_requested = Signal()
     typing_changed = Signal(bool)
 
     def __init__(self, private=False, parent=None):
@@ -78,6 +79,10 @@ class Composer(QFrame):
         self.break_button = button('On fait une pause ?', 'break', 'Envoyer une invitation de pause')
         self.break_button.clicked.connect(self.break_requested)
         actions.addWidget(self.break_button)
+        self.card_button = button('✦', 'flat', 'Créer une notification animée', 34)
+        self.card_button.setStyleSheet('font-size: 22px; padding: 0;')
+        self.card_button.clicked.connect(self.card_requested)
+        actions.addWidget(self.card_button)
         actions.addStretch()
         self.counter = label('', 'caption')
         actions.addWidget(self.counter)
@@ -87,6 +92,7 @@ class Composer(QFrame):
         box.addLayout(actions)
         self.wizz_button.setVisible(private)
         self.break_button.setVisible(private)
+        self.card_button.setVisible(private)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_actions)
         self.timer.start(1000)
@@ -159,8 +165,9 @@ class Composer(QFrame):
         self.wizz_button.setToolTip(full + ' · sans son')
         self.wizz_button.setEnabled(self.available and remaining <= 0)
         self.break_button.setEnabled(self.available)
-        self.break_button.setText('Pause' if self.width() < 520 else 'On fait une pause ?')
+        self.break_button.setText('Pause' if self.width() < 520 or self.counter.text() else 'On fait une pause ?')
         self.file_button.setEnabled(self.available)
+        self.card_button.setEnabled(self.available)
         if not self.available:
             self.stop_typing()
 

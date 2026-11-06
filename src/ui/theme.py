@@ -86,6 +86,9 @@ QTabWidget::pane { border: 1px solid $border; border-radius: 12px; }
 QTabBar::tab { background: $surface; padding: 11px 15px; color: $muted; }
 QTabBar::tab:selected { background: $selected; color: $text; }
 QToolTip { background: $surface; color: $text; border: 1px solid $border; padding: 8px; }
+QToolButton#animatedChoice { background: $surface; border: 1px solid $border; border-radius: 12px; }
+QToolButton#animatedChoice:hover { background: $hover; }
+QToolButton#animatedChoice:checked { background: $accentSoft; border: 2px solid $accent; }
 QMenu { background: $surface; border: 1px solid $border; border-radius: 10px; padding: 6px; }
 QMenu::item { padding: 8px 19px; border-radius: 6px; }
 QMenu::item:selected { background: $hover; }

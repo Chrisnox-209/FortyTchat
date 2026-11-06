@@ -38,7 +38,11 @@ def install(args):
     destination.mkdir(parents=True, exist_ok=True, mode=0o700)
     interpreter = Path(sys.executable).absolute()
     if args.use_current_python:
-        subprocess.run([str(interpreter), '-c', 'import PySide6.QtWidgets'], check=True)
+        subprocess.run([str(interpreter), '-c',
+                        'import sys, PySide6, PySide6.QtWidgets; '
+                        'version=tuple(map(int, PySide6.__version__.split(".")[:2])); '
+                        'sys.exit("Python 3.14 nécessite PySide6 6.12 ou plus récent. Relancez install.sh sans --use-current-python.") '
+                        'if sys.version_info >= (3,14) and version < (6,12) else None'], check=True)
     else:
         venv = destination / 'venv'
         if not (venv / 'bin' / 'python').exists():

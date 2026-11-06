@@ -11,6 +11,7 @@ from ..features.file_transfer import FILE_EVENTS, OFFER_LIFETIME
 from ..features.break_request import Invitations, BreakRateLimit
 from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
 from ..features.social import SOCIAL_EVENTS, SocialOrder
+from ..features.cards import CARD_EVENTS
 from ..identity import contact_from_caps
 from .protocol import MAX_FRAME, MAX_PEERS, EVENTS, ProtocolError, ack, encode, read_frame
 
@@ -76,6 +77,10 @@ class RelayServer:
         if target != 'general' and (recipient is None or target == sid):
             return ack(mid, False, 'Utilisateur hors ligne')
         kind = data['type']
+        if kind in CARD_EVENTS and ('cards' not in connection.hello.get('caps', ()) or 'cards' not in recipient.hello.get('caps', ())):
+            return ack(mid, False, 'Notifications personnalisées incompatibles')
+        if kind == 'card_invite' and recipient.hello.get('status') == 'dnd':
+            return ack(mid, False, 'Ne pas déranger')
         if kind in SOCIAL_EVENTS:
             if 'social' not in connection.hello.get('caps', ()):
                 return ack(mid, False, 'Interaction incompatible')
@@ -94,7 +99,7 @@ class RelayServer:
             connection.seen.add(mid)
             connection.social_order.remember(data)
             return ack(mid, success, '')
-        if kind == 'break_invite':
+        if kind in ('break_invite', 'card_invite'):
             sender_contact = contact_from_caps(connection.hello.get('caps', ())) or sid
             target_contact = contact_from_caps(recipient.hello.get('caps', ())) or target
             if self.break_limit.remaining((sender_contact, target_contact)):
@@ -105,13 +110,14 @@ class RelayServer:
             if not connection.wizz.take():
                 return ack(mid, False, 'Un Wizz toutes les 42 minutes')
             self.wizz_sessions[sid] = (time.monotonic(), connection.wizz)
-        if kind == 'break_invite':
+        if kind in ('break_invite', 'card_invite'):
             sender_contact = contact_from_caps(connection.hello.get('caps', ())) or sid
             target_contact = contact_from_caps(recipient.hello.get('caps', ())) or target
             if not self.break_limit.allow((sender_contact, target_contact)):
                 return ack(mid, False, 'Demandes de pause bloquées pendant 5 minutes')
-            connection.invitations.add(mid, target)
-        if kind == 'break_reply' and not recipient.invitations.consume(data['request'], sid):
+            if not connection.invitations.add(mid, target):
+                return ack(mid, False, 'Trop de demandes sans réponse')
+        if kind in ('break_reply', 'card_reply') and not recipient.invitations.consume(data['request'], sid):
             return ack(mid, False, 'Invitation expirée')
         connection.seen.add(mid)
         if target == 'general':
@@ -216,7 +222,7 @@ class RelayServer:
             self.wizz_sessions[hello['sid']] = (now, gate)
             connection = Connection(dict(hello), writer, wizz=gate)
             # Roster contains identities only, never previous messages.
-            self.put(connection, {'v': 1, 'type': 'pong', 'caps': ['avatar_image', 'files', 'social']})
+            self.put(connection, {'v': 1, 'type': 'pong', 'caps': ['avatar_image', 'files', 'social', 'cards']})
             for other in self.clients.values():
                 self.put(connection, {**other.hello, 'type': 'presence'})
             sid = hello['sid']

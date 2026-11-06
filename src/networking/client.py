@@ -11,6 +11,7 @@ from ..features.file_transfer import FileTransfers, FILE_EVENTS, CHUNK_SIZE, dis
 from ..features.break_request import Invitations, BreakRateLimit
 from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
 from ..features.social import SOCIAL_EVENTS, SocialOrder
+from ..features.cards import CARD_EVENTS
 from ..identity import session_id, unique_nickname, valid_nickname, contact_capability, contact_from_caps
 from ..avatar_data import avatar_hash, avatar_frame
 from .discovery import Discovery, PORT
@@ -37,6 +38,7 @@ class ChatClient:
         self.relay_images = False
         self.relay_files = False
         self.relay_social = False
+        self.relay_cards = False
         self.callback = callback or (lambda kind, data: None)
         self.discovery_enabled, self.discovery_port = discovery, discovery_port
         self.relay_host, self.relay_port, self.tls = relay_host, relay_port, tls
@@ -81,7 +83,7 @@ class ChatClient:
     def hello(self, kind='hello'):
         return {'v': 1, 'type': kind, 'sid': self.sid, 'nick': self.nickname,
                 'status': self.status, 'port': self.port,
-                'caps': ['files', 'wizz', 'pause', 'probe', 'social', 'avatar_image', 'friends', contact_capability(self.contact_id)],
+                'caps': ['files', 'wizz', 'cards', 'probe', 'social', 'avatar_image', 'friends', contact_capability(self.contact_id)],
                 'avatar': self.avatar, 'avatar_hash': self.avatar_hash}
 
     def network_state(self):
@@ -326,8 +328,12 @@ class ChatClient:
         if frame['id'] in self.seen.ids:
             return True, ''
         kind = frame['type']
-        if kind == 'break_invite' and self.incoming_break_limit.remaining(peer.contact_id or sender):
+        if kind in ('break_invite', 'card_invite') and self.incoming_break_limit.remaining(peer.contact_id or sender):
             return False, 'Demandes de pause bloquées pendant 5 minutes'
+        if kind in CARD_EVENTS and 'cards' not in peer.caps:
+            return False, 'Notifications personnalisées incompatibles'
+        if kind == 'card_invite' and self.dnd:
+            return False, 'Ne pas déranger'
         if kind in SOCIAL_EVENTS and 'social' not in peer.caps:
             return False, 'Interaction incompatible'
         if kind in SOCIAL_EVENTS and not self.social_order.newer(frame):
@@ -340,18 +346,18 @@ class ChatClient:
                 return False, 'Wizz indisponible'
             peer.wizz.take()
             self.receive_wizz.take()
-        if kind == 'break_invite':
+        if kind in ('break_invite', 'card_invite'):
             if not self.incoming_break_limit.allow(peer.contact_id or sender):
                 return False, 'Demandes de pause bloquées pendant 5 minutes'
             if not self.incoming_invites.add(frame['id'], sender):
                 return False, 'Invitation indisponible'
-        if kind == 'break_reply' and not self.outgoing_invites.consume(frame['request'], sender):
+        if kind in ('break_reply', 'card_reply') and not self.outgoing_invites.consume(frame['request'], sender):
             return False, 'Invitation expirée'
         self.seen.add(frame['id'])
         if kind in SOCIAL_EVENTS:
             self.social_order.remember(frame)
         # Keep only validated fields; never trust a network-provided display name.
-        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active') if k in frame}
+        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active', 'title') if k in frame}
         self.emit('event', frame=payload, nickname=peer.nick, avatar=peer.avatar, avatar_image=peer.avatar_image,
                   contact_id=peer.contact_id)
         return True, ''
@@ -468,10 +474,13 @@ class ChatClient:
             self.emit('notice', text=str(exc))
             return None
         peers = [p for p in self.peers.values() if p.sid not in self.blocked and (target == 'general' or p.sid == target)]
+        if kind in CARD_EVENTS:
+            peers = [p for p in peers if 'cards' in p.caps and (p.direct or (p.relay and self.relay_writer and self.relay_cards))]
         if target != 'general' and not peers:
-            self.emit('notice', text='Cet utilisateur est hors ligne.')
+            self.emit('notice', text='Notifications animées indisponibles : actualise les clients et le relais en 1.4.0.'
+                      if kind in CARD_EVENTS else 'Cet utilisateur est hors ligne.')
             return None
-        if kind == 'break_invite' and self.outgoing_break_limit.remaining(peers[0].contact_id or target):
+        if kind in ('break_invite', 'card_invite') and self.outgoing_break_limit.remaining(peers[0].contact_id or target):
             self.emit('notice', text='Pauses bloquées vers cette personne pendant 5 minutes. Les messages restent disponibles.')
             return None
         if not self.message_bucket.allow():
@@ -490,12 +499,14 @@ class ChatClient:
                 return None
             self.wizz_cooldown.take()
             self.emit('wizz_used', timestamp=stamp)
-        if kind == 'break_invite':
+        if kind in ('break_invite', 'card_invite'):
             if not self.outgoing_break_limit.allow(peers[0].contact_id or target):
                 self.emit('notice', text='Trois demandes successives maximum : pauses bloquées vers cette personne pendant 5 minutes.')
                 return None
-            self.outgoing_invites.add(frame['id'], target)
-        if kind == 'break_reply' and not self.incoming_invites.consume(payload.get('request'), target):
+            if not self.outgoing_invites.add(frame['id'], target):
+                self.emit('notice', text='Trop de demandes sans réponse. Patiente un instant.')
+                return None
+        if kind in ('break_reply', 'card_reply') and not self.incoming_invites.consume(payload.get('request'), target):
             self.emit('notice', text='Cette invitation a expiré.')
             return None
         self.seen.add(frame['id'])
@@ -504,10 +515,11 @@ class ChatClient:
         try:
             routes = []
             # One relay fanout + direct peers absent from the relay, deduplicated by frame ID.
-            if self.relay_writer and (target == 'general' or any(p.relay for p in peers)):
+            can_relay = kind not in CARD_EVENTS or self.relay_cards
+            if can_relay and self.relay_writer and (target == 'general' or any(p.relay for p in peers)):
                 routes.append(self._send_relay(frame))
             for peer in peers:
-                if not (self.relay_writer and peer.relay) and peer.direct:
+                if not (can_relay and self.relay_writer and peer.relay) and peer.direct:
                     routes.append(self._send_direct(peer, frame))
             results = await asyncio.gather(*routes, return_exceptions=True) if routes else []
             success = bool(results) and all(r is True for r in results)
@@ -688,6 +700,7 @@ class ChatClient:
                 self.relay_images = isinstance(welcome.get('caps'), list) and 'avatar_image' in welcome['caps']
                 self.relay_files = isinstance(welcome.get('caps'), list) and 'files' in welcome['caps']
                 self.relay_social = isinstance(welcome.get('caps'), list) and 'social' in welcome['caps']
+                self.relay_cards = isinstance(welcome.get('caps'), list) and 'cards' in welcome['caps']
                 self._publish_avatar()
                 self.emit('network', **self.network_state())
                 delay = 2
@@ -716,6 +729,7 @@ class ChatClient:
                 self.relay_images = False
                 self.relay_files = False
                 self.relay_social = False
+                self.relay_cards = False
                 if writer:
                     writer.close()
                     with contextlib.suppress(OSError):

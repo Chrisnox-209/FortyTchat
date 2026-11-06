@@ -10,13 +10,14 @@ from ..avatar_data import avatar_hash, valid_avatar_hash, AvatarError
 
 from ..features.file_transfer import FILE_EVENTS, CHUNK_SIZE, MAX_FILE_SIZE, valid_filename
 from ..features.social import SOCIAL_EVENTS, valid_reaction
+from ..features.cards import CARD_EVENTS, valid_card
 
 VERSION = 1
 MAX_FRAME = 16384
 MAX_MESSAGE = 2000
 MAX_PEERS = 512
 ID = re.compile(r'[a-f0-9]{32}\Z')
-EVENTS = {'message', 'wizz', 'break_invite', 'break_reply'} | SOCIAL_EVENTS
+EVENTS = {'message', 'wizz', 'break_invite', 'break_reply'} | SOCIAL_EVENTS | CARD_EVENTS
 
 
 class ProtocolError(ValueError):
@@ -111,6 +112,14 @@ def validate(data):
             raise ProtocolError('Destinataire invalide')
         if kind not in {'message'} | SOCIAL_EVENTS and data['to'] == 'general':
             raise ProtocolError('Action privée uniquement')
+        if kind in CARD_EVENTS:
+            fields = {'title', 'text', 'emoji'} | ({'request', 'answer'} if kind == 'card_reply' else set())
+            if set(data) != {'v', 'type', 'id', 'from', 'to'} | fields:
+                raise ProtocolError('Notification invalide')
+            if not valid_card({key: data[key] for key in ('title', 'text', 'emoji')}):
+                raise ProtocolError('Titre, texte ou animation de notification invalide')
+            if kind == 'card_reply' and (not valid_id(data['request']) or data['answer'] not in ('accepted', 'declined', 'custom', 'dismissed')):
+                raise ProtocolError('Réponse de notification invalide')
         if kind in SOCIAL_EVENTS:
             fields = {'message', 'emoji', 'seq'} if kind == 'reaction' else {'active', 'seq'}
             if set(data) != {'v', 'type', 'id', 'from', 'to'} | fields:

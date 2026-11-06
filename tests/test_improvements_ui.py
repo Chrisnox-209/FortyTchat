@@ -66,7 +66,7 @@ def test_files_pause_replies_and_wizz_from_actual_ui(qt, tmp_path, monkeypatch):
         until(qt, lambda: incoming_id in view.chat.file_cards)
         card = view.chat.file_cards[incoming_id][1]
         assert card.accept.isVisible() and not saved.exists()
-        assert card.name.toolTip() == source.name
+        assert card.name.accessibleName() == source.name and source.name in card.name.toolTip()
         assert card.name.fontMetrics().horizontalAdvance(card.name.text()) <= card.name.width()
         monkeypatch.setattr(QFileDialog, 'getSaveFileName', lambda *a, **k: (str(saved), ''))
         card.accept.click()

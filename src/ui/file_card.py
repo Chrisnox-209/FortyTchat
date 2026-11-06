@@ -1,8 +1,9 @@
 """A transfer lives in RAM; only an explicitly accepted download reaches disk."""
-from PySide6.QtCore import Signal, Qt, QTimer
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QProgressBar, QSizePolicy
+from PySide6.QtCore import Signal, Qt
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QProgressBar
 
 from .widgets import label, button
+from .social import ElidedLabel
 
 
 def file_size(size):
@@ -22,9 +23,7 @@ class FileCard(QFrame):
         box = QVBoxLayout(self)
         box.setContentsMargins(0, 3, 0, 2)
         box.setSpacing(9)
-        self.name = label('', 'messageText')
-        self.name.setMinimumWidth(0)
-        self.name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self.name = ElidedLabel('', 'messageText', mode=Qt.TextElideMode.ElideMiddle)
         self.name.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         box.addWidget(self.name)
         self.details = label('', 'caption', True)
@@ -51,9 +50,8 @@ class FileCard(QFrame):
         self.metadata = metadata
         status = metadata.get('status', 'offered')
         outgoing = metadata.get('outgoing', False)
-        self.name.setToolTip(metadata['name'])
+        self.name.set_full_text('↧  ' + metadata['name'])
         self.name.setAccessibleName(metadata['name'])
-        self.elide_name()
         received = metadata.get('received', 0)
         total = metadata.get('size', 0)
         descriptions = {
@@ -70,12 +68,3 @@ class FileCard(QFrame):
         self.accept.setVisible(not outgoing and status == 'offered')
         self.decline.setVisible(not outgoing and status == 'offered')
         self.cancel.setVisible(status == 'transferring' or (outgoing and status == 'offered'))
-
-    def elide_name(self):
-        self.name.setText(self.name.fontMetrics().elidedText('↧  ' + self.metadata['name'],
-                          Qt.TextElideMode.ElideMiddle, max(40, self.name.width())))
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if hasattr(self, 'metadata'):
-            QTimer.singleShot(0, self.elide_name)

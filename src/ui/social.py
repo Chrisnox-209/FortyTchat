@@ -2,7 +2,7 @@
 import math
 from html import escape
 
-from PySide6.QtCore import Qt, Signal, QTimer, QRectF
+from PySide6.QtCore import Qt, Signal, QTimer, QRectF, QEvent
 from PySide6.QtGui import QColor, QCursor, QPainter
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QLabel, QMenu, QSizePolicy, QWidget
 
@@ -16,8 +16,9 @@ QUICK_REACTIONS = [('👍', 'J’aime'), ('❤️', 'J’adore'), ('😂', 'Haha
 
 
 class ElidedLabel(QLabel):
-    def __init__(self, text='', name='', parent=None):
+    def __init__(self, text='', name='', parent=None, mode=Qt.TextElideMode.ElideRight):
         super().__init__(parent)
+        self.elide_mode = mode
         self.setObjectName(name)
         self.setTextFormat(Qt.TextFormat.PlainText)
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
@@ -31,11 +32,16 @@ class ElidedLabel(QLabel):
         self.elide()
 
     def elide(self):
-        self.setText(self.fontMetrics().elidedText(self.full_text, Qt.TextElideMode.ElideRight, max(20, self.width())))
+        self.setText(self.fontMetrics().elidedText(self.full_text, self.elide_mode, max(20, self.width())))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.elide()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if hasattr(self, 'full_text') and event.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange):
+            self.elide()
 
 
 class ReplyPreview(QFrame):
