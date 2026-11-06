@@ -76,7 +76,7 @@ Les aperçus utilisent des profils, des textes et une illustration de démonstra
 Installation en une ligne, dans le dossier caché `~/.FortyTchat` :
 
 ```sh
-git clone https://github.com/Chrisnox-209/FortyTchat.git "$HOME/.FortyTchat" && sh "$HOME/.FortyTchat/install.sh"
+git clone git@github.com:Chrisnox-209/FortyTchat.git "$HOME/.FortyTchat" && sh "$HOME/.FortyTchat/install.sh"
 ```
 
 Le dépôt reste dans ton dossier personnel sans encombrer les dossiers visibles. Pour l’ouvrir dans le gestionnaire de fichiers, utilise `Ctrl+H` pour afficher les fichiers cachés.
