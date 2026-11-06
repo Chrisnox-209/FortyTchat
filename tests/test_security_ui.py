@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel, QLineEdit
 from src.networking.client import ChatClient
 from src.security import fingerprint
 from src.ui.security import SecurityDialog
@@ -20,6 +20,12 @@ def test_fingerprint_comparison_and_changed_key_disable_composer():
     view = PrivateWindow(other.sid, peer['nick'], [], '')
     try:
         dialog.show(); qt.processEvents()
+        displayed = [''.join(item.text().split()) for item in dialog.findChildren(QLabel)]
+        assert ''.join(fingerprint(own.identity.public).split()) in displayed
+        assert ''.join(fingerprint(other.identity.public).split()) in displayed
+        assert dialog.expected.echoMode() == QLineEdit.EchoMode.Normal
+        assert any('Un pseudo ou un avatar connu ne suffit pas à le prouver.' in item.text()
+                   for item in dialog.findChildren(QLabel))
         dialog.expected.setText('0000'); dialog.compare()
         assert not values and 'correspondent pas' in dialog.feedback.text()
         dialog.expected.setText(fingerprint(other.identity.public).lower())

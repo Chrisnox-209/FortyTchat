@@ -111,7 +111,6 @@ class SettingsDialog(QDialog):
         identity = QVBoxLayout()
         identity.setSpacing(5)
         identity.addWidget(label(f'FortyTchat {__version__}', 'title', True))
-        identity.addWidget(label('Par Chrisnox-209 · pour le cluster 42', 'caption', True))
         brand.addLayout(identity, 1)
         privacy_box.addLayout(brand)
         repository = button('Voir le dépôt GitHub ↗', 'soft', 'Code source, installation et mises à jour')
@@ -128,7 +127,7 @@ class SettingsDialog(QDialog):
             ('Des fichiers à partager', 'Envoie un fichier de 20 Mio maximum dans le général ou en privé. Le destinataire choisit de l’enregistrer ou de le refuser. Les fichiers enregistrés restent à l’emplacement choisi.'),
             ('Un Wizz, une pause', 'Le Wizz fait vibrer la conversation pendant 2,8 secondes et montre les derniers messages, sans son. Un envoi toutes les 42 minutes. Les pauses restent actives en Ne pas déranger : trois demandes successives, puis cinq minutes de blocage à la quatrième. La réponse apparaît en bleu pour oui et en rouge pour non.'),
             ('Ton profil reste, les messages s’effacent', 'Pseudo, amis, photo et préférences restent sur ton espace utilisateur. Les messages restent en mémoire : Quitter complètement les efface de ce processus. Fermer la fenêtre garde l’application active.'),
-            ('Chiffré de bout en bout', 'Messages, fichiers, réactions, saisie, Wizz et notifications sont chiffrés entre les appareils, en direct et via le relais. Chaque démarrage renouvelle les clés de session. Compare les empreintes depuis le cadenas pour vérifier le premier contact ; un changement de clé bloque les échanges. Les anciennes versions doivent être mises à jour.'),
+            ('Chiffré de bout en bout', 'Messages, fichiers, réactions, saisie, Wizz et notifications sont chiffrés entre les appareils, en direct et via le relais. Chaque démarrage renouvelle les clés de session. Le cadenas affiche les empreintes publiques : leur comparaison confirme l’identité d’un contact. Les messages restent chiffrés même sans cette comparaison. Un changement de clé bloque les échanges. Les anciennes versions doivent être mises à jour.'),
             ('Une identité à vérifier', 'La clé de ton profil et les clés publiques de tes contacts restent sur ton espace utilisateur, sans historique de messages. Le pseudo ne prouve pas l’identité d’un étudiant. Le général reste lisible par ses participants ; pseudos, présence, avatars et métadonnées de trafic restent publics. Un appareil compromis peut lire ses conversations.'),
             ('Ubuntu et la barre supérieure', 'L’icône FT devient rouge quand des messages sont non lus. Doubleclic, activation principale ou clic milieu ouvrent le tchat. La compatibilité GNOME reconnaît aussi l’ouverture puis la fermeture rapide du menu, sans sélectionner une action ; elle peut être désactivée dans Général. Le menu propose toujours Ouvrir FortyTchat. Le bureau garde le contrôle du placement et de la mise au premier plan ; le comportement doit être vérifié sur les postes de l’école.'),
         ]:

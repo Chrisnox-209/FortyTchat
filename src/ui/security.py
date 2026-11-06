@@ -29,6 +29,8 @@ class SecurityDialog(QDialog):
         content.setContentsMargins(0, 0, 10, 0)
         content.setSpacing(14)
         content.addWidget(label('Messages, fichiers et interactions sont chiffrés avant de quitter ton appareil. Le relais ne reçoit que leur contenu chiffré.', 'muted', True))
+        content.addWidget(label('Les messages restent chiffrés même sans comparaison manuelle. Les empreintes sont publiques et ne permettent pas de déchiffrer les messages. Tes clés privées ne sont jamais affichées ici.', 'caption', True))
+        content.addWidget(label('La comparaison sert à confirmer que la clé appartient bien à ton ami, pour éviter une usurpation d’identité. Un pseudo ou un avatar connu ne suffit pas à le prouver.', 'muted', True))
         self.add_fingerprint(content, 'TON EMPREINTE', own_public)
         if peer:
             state = peer.get('security', 'unverified')
@@ -62,7 +64,8 @@ class SecurityDialog(QDialog):
         groups = fingerprint(public).split()
         text = '\n'.join(' '.join(groups[i:i + 4]) for i in range(0, len(groups), 4))
         value = label(text, 'chip', True)
-        value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse
+                                      | Qt.TextInteractionFlag.TextSelectableByKeyboard)
         value.setStyleSheet('font-family: monospace; padding: 12px;')
         layout.addWidget(value)
 
