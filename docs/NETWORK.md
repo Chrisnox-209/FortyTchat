@@ -1,4 +1,4 @@
-# Réseau et chiffrement de FortyTchat 1.6.0
+# Réseau et chiffrement de FortyTchat 1.7.0
 
 ## Découverte et routes
 
@@ -20,7 +20,7 @@ Chaque profil conserve son UUID de contact et une clé d’identité **Ed25519**
 
 La signature porte sur le préfixe de domaine `FortyTchat signed presence v1\0` puis le JSON canonique de tous les champs, sauf `type` et `crypto.signature`. L’exclusion de `type` permet au relais de convertir `hello` en `presence`. Pseudo, SID, statut, port, capacités, référence d’avatar, contact et clés sont ainsi liés. Le relais et le client vérifient cette signature. Une session en cours ne peut pas changer sa clé de session ou son identifiant de contact.
 
-Les capacités restent limitées à huit : `files`, `wizz`, `cards`, `probe`, `social`, `avatar_image`, `receipts`, `c:` suivi du UUID en base64url canonique. Le relais annonce `avatar_image`, `files`, `social`, `cards` et `e2ee`.
+Les capacités restent limitées à huit : `files`, `choices`, `cards`, `probe`, `social`, `avatar_image`, `receipts`, `c:` suivi du UUID en base64url canonique. Le relais annonce `avatar_image`, `files`, `social`, `cards` et `e2ee`.
 
 ### Premier contact et changement de clé
 
@@ -106,3 +106,15 @@ L’interface inspecte la zone visible toutes les 350 ms uniquement dans sa fen�
 Débit séparé des messages, réactions et saisie : **16 confirmations**, recharge **4/s**, à l’envoi et par contact à la réception ; chaque trame peut confirmer 32 messages. Aucun événement de confirmation ne crée de notification ou de badge. Le choix `read_receipts` est une préférence locale booléenne, activée par défaut, contrôlant uniquement les confirmations envoyées. Il n’est pas annoncé publiquement. Aucun état de lecture n’est ajouté aux fichiers de configuration.
 
 Le suivi du bas du tchat accompagne les changements différés de hauteur des bulles Qt, tout en restant désactivé quand le lecteur remonte volontairement la conversation. L’état « Vu » rapporte un affichage par le client, pas une attestation qu’une personne a compris le texte ; un client modifié peut mentir sur sa propre lecture.
+
+## Réponses proposées par l’auteur (1.7.0)
+
+La capacité `choices` remplace le marqueur `wizz`, qui n’était pas consulté pour acheminer les Wizz ; leur fonctionnement reste identique. Les annonces signées restent limitées à huit capacités. Le marqueur `cards` est conservé : les anciennes cartes chiffrées restent compatibles. Seuls des clients annonçant `choices` reçoivent les nouveaux champs. Le relais opaque 1.5.0 convient sans modification.
+
+`card_invite` peut ajouter `responses` : objet strict `{buttons: [...], free: bool}`. La liste comporte de zéro à trois éléments, chacun avec `label` (1–32 caractères, une ligne, distinct des autres libellés), `answer` (`accepted`, `declined` ou `custom`), et une carte de réponse `title`, `text`, `emoji`, avec les limites habituelles de 80/400 caractères et l’emoji de la liste locale. Aucun chemin, URL, action système ou code exécutable n’est accepté.
+
+Une liste vide et `free: false` définit une information à fermer. Fermer, Échap et l’expiration ne renvoient aucune réponse pour ces cartes. La fermeture des anciennes cartes et pauses sans politique explicite garde son comportement antérieur.
+
+Un bouton renvoie `card_reply` avec `choice` (indice entier 0–2) et la carte exactement définie par l’auteur. Les extrémités contrôlent le choix, le type et le contenu avant de consommer l’invitation. Sans `choice`, seule une réponse `custom` est admise quand `free` l’autorise. Une réponse interdite, un autre expéditeur, un index ou un texte modifié ne consomment pas la demande valide. Une fermeture informative ne peut pas être transformée en acceptation ou refus. Les politiques sont bornées par les invitations (100 par registre, TTL 120 secondes), nettoyées avec elles et effacées à l’arrêt.
+
+Les modèles acceptent ces options uniquement pour les notifications. Les anciennes données restent lisibles. Le fichier conserve les limites de douze modèles et 64 Kio ; la taille est contrôlée avant remplacement atomique à permissions privées, avec synchronisation des données. Une sauvegarde trop grande ne remplace pas le fichier valide. Aucune notification reçue n’est ajoutée automatiquement aux modèles.

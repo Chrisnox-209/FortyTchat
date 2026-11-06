@@ -5,7 +5,7 @@
 <h1 align="center">FortyTchat</h1>
 
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center"><strong>Version 1.6.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center"><strong>Version 1.7.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> &nbsp;·&nbsp;
@@ -18,9 +18,9 @@
 
 **FortyTchat** est une messagerie locale pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées dans leurs propres fenêtres, des amis, des emojis et des avatars personnalisés. Son interface native adopte un thème anthracite et bleu, avec une apparence claire également disponible.
 
-**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.6.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
+**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.7.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
 
-Dans cette version : **des coches pour suivre tes messages** — une grise pour **envoyé**, deux grises pour **livré**, deux bleues pour **vu**. Les confirmations sont chiffrées et le partage de lecture peut être désactivé dans les paramètres. Le **chiffrement de bout en bout automatique**, les amis, fichiers, réactions et notifications animées restent disponibles. Pour « Vu », les deux participants doivent être en **1.6.0 minimum** ; un client chiffré 1.5.0 conserve les messages et la confirmation de livraison.
+Dans cette version : **tu choisis les réponses proposées dans tes notifications** — Oui, Non, une autre réponse préparée avec ton texte et ton emoji, ou **Fermer uniquement**. La compatibilité du doubleclic avec les menus de barre GNOME est renforcée et désactivable dans les paramètres. Messages chiffrés, coches envoyé/livré/vu, amis et fichiers restent disponibles.
 
 ## Aperçu
 
@@ -70,13 +70,13 @@ Dans cette version : **des coches pour suivre tes messages** — une grise pour 
   <tr>
     <td align="center" width="50%" valign="top">
       <h3>Ta notification, ton style</h3>
-      <a href="docs/notification-editor-1.4.0.png"><img src="docs/notification-editor-1.4.0.png" height="360" alt="Éditeur de notification avec titre, texte, onze emojis animés et modèles"></a>
-      <p>Choisis ton animation, écris ton message et prévisualise le résultat.</p>
+      <a href="docs/notification-editor-1.7.0.png"><img src="docs/notification-editor-1.7.0.png" height="360" alt="Éditeur de notification avec titre, texte, onze emojis animés et modèles"></a>
+      <p>Choisis ton animation, ton message et les réponses proposées, puis vérifie l’aperçu.</p>
     </td>
     <td align="center" width="50%" valign="top">
-      <h3>Une réponse qui te ressemble</h3>
-      <a href="docs/notification-1.4.0.png"><img src="docs/notification-1.4.0.png" width="350" alt="Notification personnalisée avec emoji animé et réponses Oui, Non ou Personnaliser"></a>
-      <p>Oui, Non ou <a href="docs/notification-reply-custom-1.4.0.png">texte et animation personnalisés</a>.</p>
+      <h3>Tes réponses au choix</h3>
+      <a href="docs/notification-choices-1.7.0.png"><img src="docs/notification-choices-1.7.0.png" width="350" alt="Notification personnalisée avec trois réponses préparées et Fermer"></a>
+      <p>Oui, Non ou une autre réponse préparée. Fermer ne renvoie rien.</p>
     </td>
   </tr>
 </table>
@@ -128,11 +128,15 @@ Le script crée un environnement Python personnel, installe les dépendances, co
 
 - Icône noire **FT** dans la barre supérieure lorsque GNOME/StatusNotifier/AppIndicator le permet.
 - **L’icône entière devient rouge**, avec le compteur des messages non lus ; elle redevient noire après lecture.
-- Doubleclic sur l’icône : ouvrir la fenêtre (un clic fonctionne aussi selon la barre du bureau) ; clic droit : statut, paramètres, quitter.
+- Doubleclic ou activation principale sur l’icône : ouvrir la fenêtre ; clic milieu également pris en charge. Sur les barres GNOME qui ouvrent seulement un menu au premier clic, la compatibilité décrite ci-dessous reconnaît aussi sa fermeture rapide au second clic. Le menu conserve **Ouvrir FortyTchat**, statut, paramètres et quitter.
 - Fermer la fenêtre garde l’application active. **Quitter complètement** ou `Ctrl+Q` efface les conversations de ce processus.
 - Sans barre compatible : lancement réduit dans le dock, fenêtre récupérable depuis le dock ou le lanceur. Le titre et la liste indiquent les messages non lus.
 
 **Le placement précis en haut à gauche ou à côté de Discord appartient à GNOME/à ses extensions. L’application ne peut pas l’imposer.** Elle ne modifie ni les extensions ni les préférences du système. Qt documente ces limites d’intégration : [QSystemTrayIcon](https://doc.qt.io/qt-6.12/qsystemtrayicon.html).
+
+**Cas des postes où un clic ouvre le menu mais le doubleclic n’ouvre pas le tchat :** l’option **Paramètres → Général → Compatibilité doubleclic de l’icône (GNOME)** est activée par défaut. Elle reconnaît l’ouverture puis la fermeture du menu dans le délai de doubleclic, sans sélection d’action ni survol d’élément. Elle ignore un clic droit explicitement signalé et n’ouvre pas le tchat à la place d’une action du menu.
+
+Cette reconnaissance dépend des événements transmis par la barre. Une fermeture très rapide, par exemple avec Échap, peut être interprétée comme un second clic si le bureau ne précise pas sa cause ; désactiver l’option dans ce cas. **Le comportement sur les PC de l’école reste à vérifier sur place.** Si la barre ne transmet pas les événements nécessaires, choisir **Ouvrir FortyTchat** dans le menu ou utiliser le lanceur. Aucune extension ni configuration du bureau n’est modifiée. Références : [activation GNOME/AppIndicator](https://github.com/ubuntu/gnome-shell-extension-appindicator), [fermeture des menus dans Qt](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/platform/unix/dbusmenu/qdbusmenuadaptor.cpp).
 
 Après une mise à jour, **quitter complètement puis relancer** une instance déjà ouverte charge le nouveau design ; l’installateur le signale sans fermer vos discussions de force.
 
@@ -264,7 +268,7 @@ Dans **Paramètres → À propos**, retrouve la version installée, le lien GitH
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-1.6.0.png"><img src="docs/about-1.6.0.png" width="600" alt="Onglet À propos de FortyTchat 1.6.0 avec le logo FT, l’auteur et le lien GitHub"></a>
+  <a href="docs/about-1.7.0.png"><img src="docs/about-1.7.0.png" width="600" alt="Onglet À propos de FortyTchat 1.7.0 avec le logo FT, l’auteur et le lien GitHub"></a>
 </p>
 
 Le contenu est défilable pour rester lisible sur les petits écrans.
@@ -307,11 +311,22 @@ Les réactions et la saisie passent dans les enveloppes chiffrées, comme les me
 
 Dans une conversation privée, cliquer sur **✦** pour créer une notification :
 
-1. Choisir un **titre** (80 caractères maximum) et un **texte** (400 caractères maximum).
-2. Sélectionner l’un des **11 emojis animés** et utiliser **Aperçu** pour voir la carte complète.
-3. Cliquer sur **Envoyer** : le destinataire voit une carte centrée, sans son, avec l’animation choisie.
+1. Choisir un **titre** (80 caractères maximum), un **texte** (400 caractères) et l’un des **11 emojis animés**.
+2. Dans **Choisir les réponses proposées au destinataire**, préparer jusqu’à **trois boutons**. **Modifier** permet de choisir leur libellé (32 caractères), leur type **Oui**, **Non** ou **Autre**, et le titre, texte et emoji qui seront renvoyés à l’expéditeur.
+3. Cocher **Autoriser aussi une réponse libre** pour laisser le destinataire écrire autre chose. Décocher pour limiter les réponses aux boutons préparés.
+4. Pour une simple information, cocher **Fermer uniquement · aucune réponse attendue** : aucun bouton Oui/Non et aucune réponse n’est envoyée à la fermeture.
+5. Utiliser **Aperçu**, puis **Envoyer**. La carte apparaît au centre de l’écran, sans son.
 
-Le destinataire peut choisir **Oui !**, **Non !** ou **Personnaliser ma réponse…**. Cette dernière option ouvre le même éditeur pour choisir son texte et son animation. La réponse s’affiche ensuite chez l’expéditeur : bleu pour Oui ou une réponse personnalisée, rouge pour Non. Les demandes de pause classiques proposent aussi une réponse personnalisée entre clients compatibles.
+**Fermer reste toujours disponible** sur les cartes avec ces nouveaux choix : bouton, croix/fermeture, Échap et expiration ne renvoient ni acceptation ni refus. Cliquer sur un bouton préparé renvoie exactement la réponse définie par l’auteur. Le retour s’affiche en **bleu pour Oui ou Autre**, en **rouge pour Non**. Une réponse libre peut inclure un texte et une animation choisis par le destinataire.
+
+<table>
+<tr>
+<td align="center" width="50%"><a href="docs/notification-choices-1.7.0.png"><img src="docs/notification-choices-1.7.0.png" width="350" alt="Notification avec trois réponses préparées et bouton Fermer"></a><p>Les réponses sont choisies par l’expéditeur.</p></td>
+<td align="center" width="50%"><a href="docs/notification-info-1.7.0.png"><img src="docs/notification-info-1.7.0.png" width="350" alt="Notification informative avec le seul bouton Fermer"></a><p>Une information à fermer, sans réponse renvoyée.</p></td>
+</tr>
+</table>
+
+Le [**détail d’une réponse proposée**](docs/notification-response-editor-1.7.0.png) permet de préparer son libellé, son type, son texte et son emoji. Les demandes de pause classiques gardent leurs réponses habituelles et restent actives en Ne pas déranger.
 
 <p align="center">
   <img src="assets/animated/1f44d.gif" width="64" height="64" alt="Pouce en haut animé">
@@ -321,11 +336,11 @@ Le destinataire peut choisir **Oui !**, **Non !** ou **Personnaliser ma réponse
 
 Animations disponibles : **👍 😭 🤣 😘 👎 😛 💩 ❌ ✅ 🤯 💪**. Elles sont intégrées à l’installation ; les destinataires ne téléchargent rien et aucune URL d’image n’est envoyée sur le réseau.
 
-**Enregistrer ce modèle** conserve volontairement le titre, le texte et l’animation dans ton profil. Jusqu’à **12 modèles**, notifications et réponses confondues, peuvent être créés, modifiés ou supprimés. [**Paramètres → Mes notifications animées**](docs/settings-1.4.0.png) permet de les préparer même sans personne en ligne. Les notifications reçues et les réponses envoyées restent uniquement dans la conversation en mémoire, sauf les modèles que tu choisis explicitement d’enregistrer.
+**Enregistrer ce modèle** conserve volontairement le titre, le texte, l’animation et les choix de réponse dans ton profil. Jusqu’à **12 modèles**, notifications et réponses confondues, peuvent être créés, modifiés ou supprimés. [**Paramètres → Mes notifications animées**](docs/settings-1.4.0.png) permet de les préparer même sans personne en ligne. Les notifications reçues et les réponses envoyées restent uniquement dans la conversation en mémoire, sauf les modèles que tu choisis explicitement d’enregistrer.
 
 Une demande reste valable **2 minutes**. Pauses et notifications personnalisées partagent la limite de **3 demandes successives par destinataire** ; la quatrième bloque leurs nouveaux envois pendant **5 minutes**, en laissant les messages disponibles. **Ne pas déranger** refuse les nouvelles notifications personnalisées ; les pauses classiques et les réponses aux demandes déjà reçues restent actives.
 
-Ces cartes et leurs réponses sont chiffrées entre les appareils. Les deux participants et le relais doivent utiliser **FortyTchat 1.5.0 ou plus récent**.
+Les choix de réponse nécessitent **FortyTchat 1.7.0 chez les deux participants**. Un relais chiffré 1.5.0 minimum convient, car il transporte des enveloppes opaques. Les anciens clients chiffrés continuent à échanger les cartes classiques ; l’éditeur leur signale qu’un modèle avec choix exige une mise à jour, sans transformer silencieusement une carte Fermer uniquement en question Oui/Non. Les anciennes cartes sans choix explicites gardent leur fonctionnement antérieur. Toutes les cartes et réponses sont chiffrées de bout en bout.
 
 ## Envoyer un fichier
 
@@ -375,7 +390,7 @@ Pour enlever sa photo, choisir **Retirer mon image** ou sélectionner un personn
 
 | Problème | Vérification ou solution |
 | --- | --- |
-| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.6.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
+| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.7.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
 | Ancienne icône violette « 42 » | L’ancienne application tourne peut-être encore. La quitter depuis son menu, puis relancer `sh ./install.sh` depuis le projet actualisé. La nouvelle icône est noire avec **FT** en blanc. |
 | Contact absent après mise à jour | Actualiser les deux clients et le relais en 1.5.0 minimum ; les clients sans identité signée sont refusés. |
 | Clé du contact modifiée | Échanges bloqués : ouvrir son cadenas, comparer la nouvelle empreinte par un canal de confiance puis la vérifier. |
@@ -501,7 +516,7 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest -q
 python3 tools/stress_test.py --clients 200
 ```
 
-La suite locale comprend **142 tests** pour la version 1.6.0. Exécuter les tests dans l’environnement Python équipé des dépendances du projet. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, refus des clients et relais non chiffrés, notifications animées, modèles enregistrables, réponses personnalisées, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface, absence de persistance des messages, clés privées à permissions restreintes, signatures, anti-rejeu, changements de clé bloqués confidentialité du contenu vis-à-vis du relais, livraisons authentifiées, confirmations de lecture, visibilité réelle et préférence de lecture. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
+La suite locale comprend **154 tests** pour la version 1.7.0. Exécuter les tests dans l’environnement Python équipé des dépendances du projet. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, refus des clients et relais non chiffrés, notifications animées, modèles enregistrables, réponses personnalisées, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface, absence de persistance des messages, clés privées à permissions restreintes, signatures, anti-rejeu, changements de clé bloqués confidentialité du contenu vis-à-vis du relais, livraisons authentifiées, confirmations de lecture, visibilité réelle et préférence de lecture. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
 
 Les résultats locaux et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
 

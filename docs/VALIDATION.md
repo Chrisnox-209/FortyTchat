@@ -1,14 +1,24 @@
-# Validation locale de FortyTchat 1.6.0
+# Validation locale de FortyTchat 1.7.0
 
-Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.6.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
+Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.7.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
 
 ## Résultats automatisés
 
-- **142 tests réussis en 25,52 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- **154 tests réussis en 27,96 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
 - Mesure de diffusion E2EE réalisée en 1.5.0 sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
 - Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
 Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
+
+## Réponses et compatibilité de barre (1.7.0)
+
+- Schéma des choix strict : trois boutons, libellés uniques, type de réponse et cartes validés, aucun emoji distant ni indice ambigu. Sauvegarde/rechargement privé des modèles, ancien format conservé ; dépassement des 64 Kio refusé avant d’altérer le fichier valide.
+- TCP et relais réels : politique remise uniquement au destinataire, réponse préparée exacte, réponse libre seulement si autorisée, fermeture informative ne pouvant pas devenir une réponse. Expéditeur incorrect, mauvais index ou texte changé refusés sans consommer la vraie demande. Expiration et nettoyage des politiques.
+- Interface et application réelles : édition d’un bouton (libellé, type, titre, texte, emoji), aperçu, modèle réutilisable, clic du destinataire renvoyant exactement le contenu préparé. Annuler l’ajout d’un bouton ne l’ajoute pas. Bouton Fermer, Échap, fermeture et expiration d’une information ne produisent aucun retour.
+- Petits écrans et mises à l’échelle 100 %, 150 %, 200 %, dans les deux thèmes : contenu pleine largeur, textes non comprimés, derniers boutons accessibles par défilement, libellés trop longs elliptiques avec texte complet au survol.
+- Icône : noir/rouge et activation native, clic milieu, menu ouvert puis fermé rapidement sans action, absence d’ouverture pour une fermeture lente, un contexte explicite ou une action du menu ; compatibilité désactivable. Les essais couvrent les signaux Qt et la logique locale, **pas les événements d’une vraie extension GNOME des postes de l’école**. La mise au premier plan reste soumise au bureau.
+
+Les images `notification-editor-1.7.0.png`, `notification-response-editor-1.7.0.png`, `notification-choices-1.7.0.png`, `notification-info-1.7.0.png` et `about-1.7.0.png` montrent les widgets réellement rendus sous Qt 6.12 avec des données de démonstration. Aucun profil personnel n’a été utilisé.
 
 ## Envoyé, livré et vu (1.6.0)
 
