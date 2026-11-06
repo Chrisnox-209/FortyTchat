@@ -27,7 +27,7 @@ def valid_contact_id(value):
 
 
 def contact_capability(contact_id):
-    """Compact v1 extension, so older clients can still parse the same presence frame."""
+    """Compact contact UUID carried within the presence capabilities."""
     return 'c:' + base64.urlsafe_b64encode(bytes.fromhex(contact_id)).decode('ascii').rstrip('=')
 
 

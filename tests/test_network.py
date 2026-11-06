@@ -112,7 +112,8 @@ def test_lost_ack_retry_deduplicates_received_message():
                 if frame['type'] == 'hello':
                     self.observe(frame, '127.0.0.1')
                     frame = await read_frame(reader)
-                assert self._receive(frame)[0]
+                inner, receipt = await self._receive_secure(frame)
+                assert inner['type'] == 'message' and receipt is not None
                 writer.close()  # Simulate lost acknowledgment after successful reception.
                 await writer.wait_closed()
             else:
@@ -151,8 +152,10 @@ def test_relay_40_clients_fanout_privacy_and_trusted_rate_limits():
             assert all(len(received(ev)) == 1 for _, ev in pairs[2:])
             await a.send('wizz', b.sid)
             await until(lambda: len(received(pairs[1][1], 'wizz')) == 1)
-            # Bypass the sender UI and client limiter: the relay still rejects another target.
-            assert not await a._send_relay(event('wizz', a.sid, c.sid))
+            # Global Wizz delay lives at the sender; receivers also enforce their
+            # own per-contact limit after decrypting. The relay sees no action.
+            assert await a.send('wizz', c.sid) is None
+            assert not await a._send_relay(event('wizz', a.sid, b.sid))
             assert not received(pairs[2][1], 'wizz')
             # Bind sender identity to the registered connection.
             assert not await a._send_relay(event('message', b.sid, c.sid, text='Spoof attempt'))
@@ -162,7 +165,7 @@ def test_relay_40_clients_fanout_privacy_and_trusted_rate_limits():
             await until(lambda: len(received(pairs[0][1], 'break_reply')) == 1)
             for _ in range(20):
                 await a._send_relay(event('message', a.sid, b.sid, text='Burst'))
-            assert server.clients[a.sid].bucket.tokens < 1
+            assert b.peers[a.sid].bucket.tokens < 1
         finally:
             await asyncio.gather(*(x.stop() for x in clients))
             await server.stop()

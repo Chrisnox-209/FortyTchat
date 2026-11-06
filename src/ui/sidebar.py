@@ -184,7 +184,10 @@ class Sidebar(QFrame):
                     self._row(peer['sid'], peer['nick'], detail, True, peer.get('avatar', -1),
                               peer.get('avatar_image', ''), contact_id, True)
                 else:
-                    self._row(friend_key(contact_id), saved_name, 'Hors ligne', contact_id=contact_id, friend=True)
+                    changed = any(p.get('contact_id') == contact_id and p.get('security') == 'changed'
+                                  for p in self.peers.values())
+                    self._row(friend_key(contact_id), saved_name, 'Clé modifiée · vérifier' if changed else 'Hors ligne',
+                              contact_id=contact_id, friend=True)
         others = [p for p in self.peers.values() if p.get('contact_id') not in self.friends]
         self._section(f'{"AUTRES EN LIGNE" if self.friends else "EN LIGNE"}  ·  {len(others)}')
         for peer in sorted(self.peers.values(), key=lambda p: (p['nick'].casefold(), p['sid'])):
@@ -193,6 +196,8 @@ class Sidebar(QFrame):
             detail = {'online': self.previews.get(peer['sid'], 'Cliquer pour discuter'), 'away': 'Absent·e', 'dnd': 'Ne pas déranger'}.get(peer['status'], '')
             if peer['sid'] in self.blocked:
                 detail = 'Masqué · cliquer pour gérer'
+            elif peer.get('security') == 'changed':
+                detail = 'Clé modifiée · vérifier le cadenas'
             self._row(peer['sid'], peer['nick'], detail, True, peer.get('avatar', -1), peer.get('avatar_image', ''), peer.get('contact_id', ''))
         offline = [(sid, nick) for sid, nick in self.conversations.items() if sid not in self.peers
                    and self.known_contacts.get(sid) not in self.friends and not sid.startswith('friend:')]

@@ -57,7 +57,7 @@ def test_profile_contact_survives_rename_and_process_restart_without_messages(tm
     assert a.sid != b.sid and a.contact_id == b.contact_id
     assert contact_from_caps(a.hello()['caps']) == own_id
     assert len(encode(a.hello())) < 1024
-    assert set(a.hello()) == {'v','type','sid','nick','status','port','caps','avatar','avatar_hash'}
+    assert set(a.hello()) == {'v','type','sid','nick','status','port','caps','avatar','avatar_hash','crypto'}
     assert not Conversations().get('general')
     assert 'text' not in json.loads(store.path.read_text())
 
@@ -146,6 +146,13 @@ def test_friend_reconnect_renamed_new_session_routes_same_open_window(qt, tmp_pa
         controller.worker.loop.call_soon_threadsafe(announce, old)
         pump(qt, lambda: old.sid in controller.window.peers)
         view = controller.open_private(old.sid)
+        from src.security import fingerprint
+        view.security_button.click()
+        security = controller.security_dialogs[old.sid]
+        security.expected.setText(fingerprint(old.identity.public))
+        security.verify.click()
+        pump(qt, lambda: 'identité vérifiée' in view.security_note.text())
+        security.close()
         assert view.friend_button.isEnabled()
         view.friend_button.click()
         assert controller.preferences.friends[cid] == 'OldFriend42'
@@ -161,12 +168,13 @@ def test_friend_reconnect_renamed_new_session_routes_same_open_window(qt, tmp_pa
         pump(qt, lambda: old.sid not in controller.window.peers)
         assert not view.input.isEnabled()
         received = []
-        new = ChatClient('NewestFriend42', lambda k,d: received.append((k,d)), contact_id=cid, tcp_port=0, discovery=False)
+        new = ChatClient('NewestFriend42', lambda k,d: received.append((k,d)), contact_id=cid, crypto_identity=old.identity, tcp_port=0, discovery=False)
         controller.worker.submit(new.start()).result(4)
         controller.worker.loop.call_soon_threadsafe(announce, new)
         pump(qt, lambda: new.sid in controller.private_windows and view.current == new.sid)
         assert controller.private_windows[new.sid] is view and new.sid != old.sid
         assert view.is_friend and view.input.isEnabled()
+        assert 'identité vérifiée' in view.security_note.text()
         assert controller.preferences.friends[cid] == 'NewestFriend42'
         assert controller.history.get(new.sid)[0].text == 'RAM_ONLY_FRIEND_MESSAGE'
         view.input.setPlainText('To the current session')
@@ -175,6 +183,23 @@ def test_friend_reconnect_renamed_new_session_routes_same_open_window(qt, tmp_pa
         content = controller.store.path.read_text()
         assert 'RAM_ONLY_FRIEND_MESSAGE' not in content and 'To the current session' not in content
         assert json.loads(content)['friends'][cid] == 'NewestFriend42'
+        # A changed key must remain reachable from an offline friend row without
+        # attaching the old conversation before the new fingerprint is verified.
+        controller.worker.submit(new.stop()).result(4)
+        controller.worker.loop.call_soon_threadsafe(client.observe, {'v':1, 'type':'bye', 'sid':new.sid}, '127.0.0.1')
+        pump(qt, lambda: new.sid not in controller.window.peers)
+        changed = ChatClient('ChangedKey42', contact_id=cid, discovery=False)
+        changed.port = 39742
+        controller.worker.loop.call_soon_threadsafe(client.observe, changed.hello(), '127.0.0.1')
+        pump(qt, lambda: changed.sid in controller.window.peers)
+        assert controller.open_private(friend_key(cid)) is None
+        security = controller.security_dialogs[changed.sid]
+        assert view.current == new.sid and not view.input.isEnabled()
+        security.expected.setText(fingerprint(changed.identity.public))
+        security.verify.click()
+        pump(qt, lambda: view.current == changed.sid and view.input.isEnabled())
+        assert 'identité vérifiée' in view.security_note.text()
+        security.close()
         controller.change_friend(cid, False)
         assert cid not in controller.preferences.friends and not view.is_friend
     finally:

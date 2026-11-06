@@ -15,6 +15,7 @@ class PrivateWindow(QMainWindow):
     break_requested = Signal(str)
     block_requested = Signal(str, bool)
     friend_requested = Signal(str, bool)
+    security_requested = Signal(str)
     viewed = Signal(str)
     closed = Signal(str)
 
@@ -49,6 +50,9 @@ class PrivateWindow(QMainWindow):
         self.friend_button.setStyleSheet('font-size: 22px; padding: 3px;')
         self.friend_button.clicked.connect(lambda: self.friend_requested.emit(self.contact_id, not self.is_friend))
         head.addWidget(self.friend_button)
+        self.security_button = button('🔒', 'flat', 'Vérifier le chiffrement et les empreintes', 38)
+        self.security_button.clicked.connect(lambda: self.security_requested.emit(self.current))
+        head.addWidget(self.security_button)
         more = button('···', 'flat', 'Options de la conversation')
         more.clicked.connect(self.menu)
         head.addWidget(more)
@@ -75,7 +79,8 @@ class PrivateWindow(QMainWindow):
         self.input, self.send_button = self.composer.input, self.composer.send_button
         self.wizz_button, self.break_button = self.composer.wizz_button, self.composer.break_button
         footer_box.addWidget(self.composer)
-        note = label('Une fenêtre à vous. Une conversation éphémère.', 'caption')
+        self.security_note = label('Chiffré de bout en bout · identité à vérifier via le cadenas', 'caption', True)
+        note = self.security_note
         note.setAlignment(Qt.AlignmentFlag.AlignCenter)
         footer_box.addWidget(note)
         box.addWidget(footer)
@@ -98,7 +103,13 @@ class PrivateWindow(QMainWindow):
         self.avatar.update()
         text = 'Masqué pour cette session' if blocked else ({'online': '● En ligne', 'away': '● Absent·e', 'dnd': '● Ne pas déranger'}.get(peer['status'], '') if peer else '○ Hors ligne')
         self.status_label.setText(text)
-        available = bool(peer and not blocked)
+        state = peer.get('security', 'unverified') if peer else ''
+        self.security_button.setEnabled(bool(peer and peer.get('identity_key')))
+        self.security_button.setText('⚠' if state == 'changed' else '🔒')
+        self.security_note.setText({'verified': 'Chiffré de bout en bout · identité vérifiée',
+                                   'changed': 'Clé modifiée · échanges bloqués · vérifie le cadenas',
+                                   'unverified': 'Chiffré de bout en bout · identité à vérifier via le cadenas'}.get(state, 'Contact hors ligne · aucun envoi en attente'))
+        available = bool(peer and not blocked and peer.get('encrypted', True))
         self.composer.available = available
         self.input.setEnabled(available)
         self.send_button.setEnabled(available)

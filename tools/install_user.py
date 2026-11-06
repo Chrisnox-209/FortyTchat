@@ -39,7 +39,7 @@ def install(args):
     interpreter = Path(sys.executable).absolute()
     if args.use_current_python:
         subprocess.run([str(interpreter), '-c',
-                        'import sys, PySide6, PySide6.QtWidgets; '
+                        'import sys, PySide6, PySide6.QtWidgets, nacl; '
                         'version=tuple(map(int, PySide6.__version__.split(".")[:2])); '
                         'sys.exit("Python 3.14 nécessite PySide6 6.12 ou plus récent. Relancez install.sh sans --use-current-python.") '
                         'if sys.version_info >= (3,14) and version < (6,12) else None'], check=True)

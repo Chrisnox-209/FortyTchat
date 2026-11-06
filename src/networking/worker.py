@@ -45,6 +45,8 @@ class NetworkWorker(QObject):
                 getattr(self.client, method)(*args, **kwargs)
             except ValueError as exc:
                 self.received.emit('notice', {'text': str(exc)})
+            except OSError:
+                self.received.emit('notice', {'text': 'Impossible d’enregistrer la vérification : autorisations inchangées.'})
         self.loop.call_soon_threadsafe(invoke)
 
     def send(self, kind, target, **payload):

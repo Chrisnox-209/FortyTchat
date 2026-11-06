@@ -17,6 +17,8 @@ from .instance import SingleInstance
 from .memory import Conversations, Message
 from .networking.settings import NetworkConfig
 from .networking.worker import NetworkWorker
+from .security import CryptoIdentity
+from .ui.security import SecurityDialog
 from .ui.break_popup import BreakPopup, BreakReplyPopup, CardPopup
 from .ui.card_editor import CardEditor
 from .ui.avatar_picker import AvatarPicker
@@ -49,6 +51,7 @@ class Application(QObject):
         self.card_editors, self.card_deliveries = {}, set()
         self.typing_state, self.pending_reactions = TypingState(), PendingReactions()
         self.private_windows = {}
+        self.security_dialogs = {}
         self.peer_avatars = {}
         self.contact_sessions = {}
         self.settings, self.stopping, self.status = None, False, 'online'
@@ -56,6 +59,10 @@ class Application(QObject):
         root = config_home() / 'fortytchat-dev' / args.dev if args.dev else None
         self.store = ConfigStore(root)
         self.preferences = self.store.preferences
+        if not any((self.store.root / name).exists() for name in ('identity.json', 'trusted_contacts.json')):
+            # Persist the UUID before creating a key bound to that UUID.
+            self.store.save()
+        self.crypto_identity = CryptoIdentity(self.preferences.contact_id, self.store.root)
         self.card_templates = CardTemplates(self.store.root)
         remaining = min(2520, max(0, 2520 - (time.time() - self.preferences.last_wizz_at))) if self.preferences.last_wizz_at else 0
         self.wizz_deadline = time.monotonic() + remaining
@@ -113,7 +120,7 @@ class Application(QObject):
                        relay_port=network.relay_port, tls=context,
                        last_wizz_at=self.preferences.last_wizz_at, persist_wizz=self.store.reserve_wizz,
                        avatar=self.preferences.avatar, avatar_image=self.preferences.avatar_image,
-                       contact_id=self.preferences.contact_id)
+                       contact_id=self.preferences.contact_id, crypto_identity=self.crypto_identity)
         if args.insecure_local_relay:
             options.update(relay_host='127.0.0.1', relay_port=args.insecure_local_relay, tls=False)
         self.worker = NetworkWorker(self.preferences.nickname, **options)
@@ -168,6 +175,11 @@ class Application(QObject):
         contact_id = contact_from_key(sid)
         if contact_id:
             live = online_contact(self.latest_peers, contact_id, self.contact_sessions.get(contact_id, ''))
+            changed = next((peer for peer in self.latest_peers
+                            if peer.get('contact_id') == contact_id and peer.get('security') == 'changed'), None)
+            if not live and changed:
+                self.show_security(changed['sid'])
+                return None
             for existing in self.private_windows.values():
                 if existing.contact_id == contact_id:
                     existing.open_window()
@@ -194,12 +206,28 @@ class Application(QObject):
         view.break_requested.connect(lambda target: self.worker.send('break_invite', target))
         view.block_requested.connect(self.block)
         view.friend_requested.connect(self.change_friend)
+        view.security_requested.connect(self.show_security)
         view.viewed.connect(self.mark_viewed)
         view.closed.connect(self.close_private)
         self.window.sidebar.refresh()
         view.open_window()
         self.refresh_typing()
         return view
+
+    def show_security(self, sid=''):
+        if sid in self.security_dialogs:
+            self.security_dialogs[sid].raise_()
+            self.security_dialogs[sid].activateWindow()
+            return
+        peer = next((item for item in self.latest_peers if item['sid'] == sid), None)
+        if sid and not peer:
+            self.window.show_notice('Reconnecte ce contact pour comparer les empreintes.')
+            return
+        dialog = SecurityDialog(self.crypto_identity.public, peer, self.view_for(sid) or self.window)
+        self.security_dialogs[sid] = dialog
+        dialog.verify_requested.connect(lambda target, expected: self.worker.call('verify_contact', target, expected))
+        dialog.finished.connect(lambda *_: self.security_dialogs.pop(sid, None))
+        dialog.show()
 
     def bind_interactions(self, view):
         view.chat.actor_id = self.preferences.contact_id
@@ -215,7 +243,7 @@ class Application(QObject):
         view = self.view_for(target) or self.window
         peer = self.window.peers.get(target) or next((item for item in self.latest_peers if item['sid'] == target), None)
         if not self.cards_available(peer):
-            view.show_notice('Les notifications animées nécessitent des clients et un relais compatibles 1.4.0, ou une connexion directe.')
+            view.show_notice('Les notifications animées nécessitent des clients et un relais compatibles 1.5.0, ou une connexion directe.')
             return None
         key = (target, request)
         if key in self.card_editors:
@@ -305,6 +333,9 @@ class Application(QObject):
             view.chat.typing.set_typers(self.typing_state.names(sid))
 
     def close_private(self, sid):
+        dialog = self.security_dialogs.get(sid)
+        if dialog:
+            dialog.close()
         self.close_card_editors(target=sid)
         view = self.private_windows.pop(sid, None)
         if view:
@@ -347,6 +378,9 @@ class Application(QObject):
             view.set_friend(view.contact_id in self.preferences.friends)
 
     def move_private(self, old_sid, new_sid):
+        dialog = self.security_dialogs.get(old_sid)
+        if dialog:
+            dialog.close()
         self.history.move(old_sid, new_sid)
         self.typing_state.remove(old_sid)
         for metadata in self.file_transfers.values():
@@ -470,6 +504,10 @@ class Application(QObject):
         elif kind == 'notice':
             active = self.qt.activeWindow()
             (active if isinstance(active, PrivateWindow) else self.window).show_notice(data['text'])
+        elif kind == 'security_verified':
+            dialog = self.security_dialogs.get(data['sid'])
+            if dialog:
+                dialog.verified()
         elif kind == 'wizz_used':
             self.wizz_deadline = time.monotonic() + 42 * 60
             for view in self.private_windows.values():
@@ -704,6 +742,7 @@ class Application(QObject):
         dialog.nickname_requested.connect(self.rename)
         dialog.avatar_requested.connect(self.show_avatar_picker)
         dialog.cards_requested.connect(self.show_card_templates)
+        dialog.security_requested.connect(lambda: self.show_security())
         dialog.preference_changed.connect(self.change_preference)
         dialog.finished.connect(self.close_settings)
         dialog.show()

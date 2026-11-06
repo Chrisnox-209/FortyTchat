@@ -130,7 +130,7 @@ def test_custom_cards_respect_dnd_legacy_clients_and_request_expiration(relay):
         def hello(kind='hello'):
             data = original_hello(kind)
             data['caps'] = [cap for cap in data['caps'] if cap != 'cards']
-            return data
+            return old.crypto.sign_presence(data)
         old.hello = hello
         clients = [a, b, old]
         try:

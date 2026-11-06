@@ -23,6 +23,8 @@ dist/
 /network.json
 /config.json
 /notification_templates.json
+identity.json
+trusted_contacts.json
 .env
 .env.*
 !.env.example

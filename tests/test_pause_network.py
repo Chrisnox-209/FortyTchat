@@ -96,7 +96,7 @@ def test_incoming_pause_protection_survives_rename_and_reconnect_by_contact():
             # A new process/SID with the same persisted profile remains temporarily blocked.
             bob.observe(alice.hello('bye'), '127.0.0.1')
             await alice.stop()
-            replacement, replacement_events = recorder('AutrePseudo42', contact_id=stable_contact)
+            replacement, replacement_events = recorder('AutrePseudo42', contact_id=stable_contact, crypto_identity=alice.identity)
             clients.append(replacement)
             await replacement.start()
             bootstrap([bob, charlie, replacement])
@@ -153,7 +153,6 @@ def test_real_relay_pause_limits_dnd_retry_reconnect_and_message_fairness():
         server = RelayServer()
         port = await server.start(port=0)
         clock = [0.0]
-        server.break_limit.clock = lambda: clock[0]
         stable_contact = session_id()
         options = dict(relay_host='127.0.0.1', relay_port=port, tls=False)
         alice, alice_events = recorder('RelayAlice42', contact_id=stable_contact, **options)
@@ -177,7 +176,7 @@ def test_real_relay_pause_limits_dnd_retry_reconnect_and_message_fairness():
             await asyncio.sleep(0.01)
             assert len(frames(bob_events, 'break_invite')) == 3
             assert await alice.send('break_invite', bob.sid) is None
-            # Bypass the local limiter: the relay independently refuses the fourth.
+            # Bypass the sender limiter: the decrypting recipient refuses the fourth.
             assert not await alice._send_relay(event('break_invite', alice.sid, bob.sid))
             assert await bob.send('break_reply', alice.sid, request=requests[1], answer='declined')
             await until(lambda: len(frames(alice_events, 'break_reply')) == 1)
@@ -186,9 +185,9 @@ def test_real_relay_pause_limits_dnd_retry_reconnect_and_message_fairness():
             await until(lambda: len(frames(bob_events, 'message')) == 1)
             await alice.stop()
             await until(lambda: alice.sid not in server.clients and alice.sid not in bob.peers)
-            # The relay's key includes the stable sender and recipient contact IDs,
-            # so restarting with a different nickname/SID cannot erase the block.
-            replacement, replacement_events = recorder('RelayNewName42', contact_id=stable_contact, **options)
+            # The receiving endpoint binds its limit to the pinned stable contact,
+            # so restarting with the same identity cannot erase the block.
+            replacement, replacement_events = recorder('RelayNewName42', contact_id=stable_contact, crypto_identity=alice.identity, **options)
             clients.append(replacement)
             await replacement.start()
             await until(lambda: replacement.sid in server.clients and replacement.sid in bob.peers

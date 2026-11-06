@@ -35,10 +35,11 @@ def main():
             return 1
     try:
         import PySide6
+        import nacl
         from PySide6.QtCore import QTimer
         from PySide6.QtWidgets import QApplication
     except ImportError:
-        print('PySide6 manquant. Installez les dépendances dans un venv : python3 -m pip install -r requirements.txt', file=sys.stderr)
+        print('Dépendance manquante (PySide6 ou PyNaCl). Installez les dépendances dans un venv : python3 -m pip install -r requirements.txt', file=sys.stderr)
         return 1
     if sys.version_info >= (3, 14) and tuple(map(int, PySide6.__version__.split('.')[:2])) < (6, 12):
         print('Python 3.14 nécessite PySide6 6.12 ou plus récent. Lancez sh ./install.sh pour installer un environnement compatible.', file=sys.stderr)
@@ -52,10 +53,15 @@ def main():
     qt.setDesktopFileName('fr.fortytchat.FortyTchat')
     qt.setQuitOnLastWindowClosed(False)
     from src.app import Application, AlreadyRunning
+    from src.security import SecurityError
     try:
         app = Application(root, args)
     except AlreadyRunning:
         return 0
+    except SecurityError as exc:
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.critical(None, 'Identité de chiffrement inaccessible', str(exc))
+        return 1
     except OSError:
         print('Impossible d’initialiser la session utilisateur FortyTchat.', file=sys.stderr)
         return 1

@@ -313,11 +313,11 @@ def test_closing_picker_while_photo_is_loading(qt, photo, tmp_path, monkeypatch)
     picker.deleteLater()
 
 
-def test_old_relay_without_photo_capability_still_carries_chat(qt, photo):
+def test_encrypted_relay_without_photo_capability_still_carries_chat(qt, photo):
     class OldRelay(RelayServer):
         def put(self, connection, data):
             if data['type'] == 'pong':
-                data = {key: value for key, value in data.items() if key != 'caps'}
+                data = {**data, 'caps': ['e2ee']}
             return super().put(connection, data)
     async def scenario():
         relay = OldRelay()

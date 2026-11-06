@@ -13,7 +13,7 @@ from ..features.social import SOCIAL_EVENTS, valid_reaction
 from ..features.cards import CARD_EVENTS, valid_card
 
 VERSION = 1
-MAX_FRAME = 16384
+MAX_FRAME = 32768  # Includes the base64 overhead of the authenticated envelope.
 MAX_MESSAGE = 2000
 MAX_PEERS = 512
 ID = re.compile(r'[a-f0-9]{32}\Z')
@@ -38,7 +38,7 @@ def validate(data):
         if not valid_id(data.get('sid')):
             raise ProtocolError('Session invalide')
         if kind != 'bye':
-            if set(data) - {'v', 'type', 'sid', 'nick', 'status', 'port', 'avatar', 'caps', 'avatar_hash', 'contact_id'}:
+            if set(data) - {'v', 'type', 'sid', 'nick', 'status', 'port', 'avatar', 'caps', 'avatar_hash', 'contact_id', 'crypto'}:
                 raise ProtocolError('Champ de présence inconnu')
             if 'contact_id' in data and not valid_id(data['contact_id']):
                 raise ProtocolError('Identifiant de contact invalide')
@@ -59,6 +59,18 @@ def validate(data):
             port = data.get('port')
             if type(port) is not int or not 1 <= port <= 65535:
                 raise ProtocolError('Port invalide')
+    elif kind == 'sealed':
+        from ..security import unb64, SecurityError, MAX_PLAINTEXT
+        if (set(data) != {'v', 'type', 'id', 'from', 'to', 'channel', 'data'}
+                or not all(valid_id(data.get(key)) for key in ('id', 'from', 'to'))
+                or data.get('channel') not in ('event', 'stream', 'receipt')):
+            raise ProtocolError('Enveloppe chiffrée invalide')
+        try:
+            raw = unb64(data['data'])
+            if not 40 < len(raw) <= MAX_PLAINTEXT + 40:
+                raise SecurityError('Taille invalide')
+        except SecurityError as exc:
+            raise ProtocolError('Enveloppe chiffrée invalide') from exc
     elif kind in ('avatar_image', 'avatar_get'):
         allowed = {'v', 'type', 'sid', 'hash', 'data'} if kind == 'avatar_image' else {'v', 'type', 'sid', 'hash', 'from'}
         if set(data) != allowed:

@@ -15,6 +15,7 @@ class SettingsDialog(QDialog):
     diagnostic_requested = Signal()
     avatar_requested = Signal()
     cards_requested = Signal()
+    security_requested = Signal()
 
     def __init__(self, preferences, autostart_enabled, network, dev=False, parent=None):
         super().__init__(parent)
@@ -79,6 +80,9 @@ class SettingsDialog(QDialog):
         self.cards_button = button('Mes notifications animées', 'soft', 'Créer tes modèles de notification et de réponse')
         self.cards_button.clicked.connect(self.cards_requested)
         form.addWidget(self.cards_button)
+        self.security_button = button('Mon identité de chiffrement', 'soft', 'Afficher mon empreinte de sécurité')
+        self.security_button.clicked.connect(self.security_requested)
+        form.addWidget(self.security_button)
         form.addStretch()
         self.tabs.addTab(self.scroll_page(general), 'Général')
         privacy = QWidget()
@@ -109,7 +113,8 @@ class SettingsDialog(QDialog):
             ('Des fichiers à partager', 'Envoie un fichier de 20 Mio maximum dans le général ou en privé. Le destinataire choisit de l’enregistrer ou de le refuser. Les fichiers enregistrés restent à l’emplacement choisi.'),
             ('Un Wizz, une pause', 'Le Wizz fait vibrer la conversation pendant 2,8 secondes et montre les derniers messages, sans son. Un envoi toutes les 42 minutes. Les pauses restent actives en Ne pas déranger : trois demandes successives, puis cinq minutes de blocage à la quatrième. La réponse apparaît en bleu pour oui et en rouge pour non.'),
             ('Ton profil reste, les messages s’effacent', 'Pseudo, amis, photo et préférences restent sur ton espace utilisateur. Les messages restent en mémoire : Quitter complètement les efface de ce processus. Fermer la fenêtre garde l’application active.'),
-            ('Une identité d’affichage', 'Le pseudo et l’identifiant d’ami reconnaissent un profil sans authentifier un étudiant. Le LAN direct n’est pas chiffré. Le relais utilise TLS, sans chiffrement de bout en bout.'),
+            ('Chiffré de bout en bout', 'Messages, fichiers, réactions, saisie, Wizz et notifications sont chiffrés entre les appareils, en direct et via le relais. Chaque démarrage renouvelle les clés de session. Compare les empreintes depuis le cadenas pour vérifier le premier contact ; un changement de clé bloque les échanges. Les anciennes versions doivent être mises à jour.'),
+            ('Une identité à vérifier', 'La clé de ton profil et les clés publiques de tes contacts restent sur ton espace utilisateur, sans historique de messages. Le pseudo ne prouve pas l’identité d’un étudiant. Le général reste lisible par ses participants ; pseudos, présence, avatars et métadonnées de trafic restent publics. Un appareil compromis peut lire ses conversations.'),
             ('Ubuntu et la barre supérieure', 'L’icône FT devient rouge quand des messages sont non lus. Le doubleclic, son placement et la mise au premier plan dépendent du bureau. Sans barre compatible, FortyTchat reste accessible dans le dock.'),
         ]:
             privacy_box.addWidget(label(title, 'title', True))

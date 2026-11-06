@@ -28,7 +28,7 @@ def recorder(name, legacy=False, **options):
         def hello(kind='hello'):
             data = original(kind)
             data['caps'] = [cap for cap in data['caps'] if cap != 'social']
-            return data
+            return client.crypto.sign_presence(data)
         client.hello = hello
     return client, events
 

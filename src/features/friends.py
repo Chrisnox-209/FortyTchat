@@ -15,6 +15,6 @@ def contact_from_key(key):
 
 
 def online_contact(peers, contact_id, preferred=''):
-    candidates = [p for p in peers if p.get('contact_id') == contact_id]
+    candidates = [p for p in peers if p.get('contact_id') == contact_id and p.get('encrypted', True)]
     return next((p for p in candidates if p['sid'] == preferred), None) or next(
         iter(sorted(candidates, key=lambda p: (p['status'] != 'online', p['sid']))), None)

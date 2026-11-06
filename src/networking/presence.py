@@ -20,6 +20,10 @@ class Peer:
     avatar_hash: str = ''
     avatar_image: str = ''
     contact_id: str = ''
+    identity_key: str = ''
+    session_key: str = ''
+    security: str = 'unverified'
+    secure: bool = False
     bucket: object = field(default=None, repr=False)
     wizz: object = field(default=None, repr=False)
     social_bucket: object = field(default=None, repr=False)
@@ -32,4 +36,5 @@ class Peer:
     def public(self):
         return {'sid': self.sid, 'nick': self.nick, 'status': self.status, 'direct': self.direct,
                 'relay': self.relay, 'caps': self.caps, 'avatar': self.avatar,
-                'avatar_hash': self.avatar_hash, 'avatar_image': self.avatar_image, 'contact_id': self.contact_id}
+                'avatar_hash': self.avatar_hash, 'avatar_image': self.avatar_image, 'contact_id': self.contact_id,
+                'encrypted': self.secure, 'security': self.security, 'identity_key': self.identity_key}

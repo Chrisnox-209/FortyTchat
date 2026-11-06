@@ -87,7 +87,7 @@ class MainWindow(QMainWindow):
         title = QVBoxLayout()
         title.setSpacing(5)
         self.room_title = label('général', 'title')
-        self.room_subtitle = label('Un seul salon. Tout le cluster.', 'caption')
+        self.room_subtitle = label('Chiffré entre les participants du cluster.', 'caption')
         title.addWidget(self.room_title)
         title.addWidget(self.room_subtitle)
         header_box.addLayout(title, 1)
