@@ -5,7 +5,7 @@
 <h1 align="center">FortyTchat</h1>
 
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center"><strong>Version 1.2.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center"><strong>Version 1.3.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> &nbsp;·&nbsp;
@@ -17,14 +17,14 @@
 
 Créée par [Chrisnox-209](https://github.com/Chrisnox-209), **FortyTchat** est une messagerie locale pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées dans leurs propres fenêtres, des amis, des emojis et des avatars personnalisés. Son interface native adopte un thème anthracite et bleu, avec une apparence claire également disponible.
 
-**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.2.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
+**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.3.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
 
-Dans cette version : **fichiers jusqu’à 20 Mio**, **pauses même en Ne pas déranger**, nouvelles cartes de pause au centre de l’écran, réponse bleue ou rouge, icône FT rouge en présence de messages non lus et Wizz de 2,8 secondes. Les amis restent reconnus après un changement de pseudo ; les **3 781 emojis** et les avatars personnels restent disponibles.
+Dans cette version : **réponses avec citation cliquable**, **réactions emoji** et **trois points animés quand quelqu’un écrit**. Les pauses deviennent plus conviviales : « On fait une pause ? », « yessss !! » ou « Non je bosse !! ». Retrouvez aussi les amis, les **3 781 emojis**, les avatars personnalisés, les fichiers jusqu’à **20 Mio**, l’icône rouge des messages non lus et le Wizz silencieux.
 
 ## Aperçu
 
 <p align="center">
-  <a href="docs/friends-1.2.0.png"><img src="docs/friends-1.2.0.png" width="980" alt="Fenêtre principale de FortyTchat 1.2.0 avec le salon général, les amis et une pièce jointe"></a>
+  <a href="docs/friends-1.3.0.png"><img src="docs/friends-1.3.0.png" width="980" alt="FortyTchat 1.3.0 : salon général, citations, réactions et indicateur de saisie"></a>
 </p>
 
 <p align="center"><em>Le salon général et les amis, réunis dans une interface sombre. Profils de démonstration.</em></p>
@@ -33,8 +33,8 @@ Dans cette version : **fichiers jusqu’à 20 Mio**, **pauses même en Ne pas d�
   <tr>
     <td align="center" width="50%" valign="top">
       <h3>Messages privés</h3>
-      <a href="docs/files-1.2.0.png"><img src="docs/files-1.2.0.png" height="320" alt="Conversation privée avec réception d’un fichier, bouton Wizz et demande de pause"></a>
-      <p>Des échanges privés, un Wizz silencieux et une invitation à faire une pause.</p>
+      <a href="docs/social-1.3.0.png"><img src="docs/social-1.3.0.png" height="320" alt="Conversation privée avec réponse citée, réactions emoji et trois points animés"></a>
+      <p>Réponds à un message précis, réagis avec un emoji et vois quand ton ami écrit.</p>
     </td>
     <td align="center" width="50%" valign="top">
       <h3>3 781 emojis</h3>
@@ -56,14 +56,14 @@ Dans cette version : **fichiers jusqu’à 20 Mio**, **pauses même en Ne pas d�
   </tr>
   <tr>
     <td align="center" width="50%" valign="top">
-      <h3>Une pause ensemble ?</h3>
-      <a href="docs/pause-invite-1.2.0.png"><img src="docs/pause-invite-1.2.0.png" width="350" alt="Invitation de pause bleue, avec boutons Oui et Non"></a>
+      <h3>On fait une pause ?</h3>
+      <a href="docs/pause-invite-1.3.0.png"><img src="docs/pause-invite-1.3.0.png" width="350" alt="Invitation bleue : On fait une pause ? Réponses yessss !! et Non je bosse !!"></a>
       <p>Une carte au centre de l’écran, même en Ne pas déranger.</p>
     </td>
     <td align="center" width="50%" valign="top">
       <h3>La réponse en un clin d’œil</h3>
-      <a href="docs/pause-yes-1.2.0.png"><img src="docs/pause-yes-1.2.0.png" width="350" alt="Réponse de pause positive affichée dans une carte bleue"></a>
-      <p>Bleu pour oui, <a href="docs/pause-no-1.2.0.png">rouge pour non</a>.</p>
+      <a href="docs/pause-yes-1.3.0.png"><img src="docs/pause-yes-1.3.0.png" width="350" alt="Réponse de pause positive affichée dans une carte bleue"></a>
+      <p>Bleu pour oui, <a href="docs/pause-no-1.3.0.png">rouge pour non</a>.</p>
     </td>
   </tr>
 </table>
@@ -78,6 +78,7 @@ Les aperçus utilisent des profils, des textes et une illustration de démonstra
 - [Désinstaller](#désinstaller)
 - [Amis](#amis)
 - [Utilisation](#utilisation)
+- [Répondre et réagir](#répondre-et-réagir)
 - [Envoyer un fichier](#envoyer-un-fichier)
 - [Avatars et images personnelles](#avatars-et-images-personnelles)
 - [Dépannage](#dépannage)
@@ -233,7 +234,7 @@ Référence : [spécification XDG Autostart](https://specifications.freedesktop.
 - `Entrée` envoie, `Maj+Entrée` ajoute une ligne ; `Ctrl+K` place le focus sur les utilisateurs en ligne ; `Ctrl+,` ouvre les paramètres.
 - Le sélecteur propose **3 781 emojis**, neuf catégories et une recherche français/anglais (par exemple « café », « coeur », « chat » ou « football »). Le catalogue est embarqué et fonctionne hors ligne ; la grille affiche les éléments visibles sans créer des milliers de boutons. Les glyphes absents de la police ont un libellé de remplacement dans le sélecteur ; leur insertion reste Unicode.
 - **Wizz** : un seul envoi toutes les **42 minutes**, tous destinataires confondus. Le bouton indique le délai. La conversation s’ouvre au dernier message et vibre dans toutes les directions pendant **2,8 secondes**. Sous X11, la fenêtre bouge ; sous Wayland, son contenu vibre, car le bureau contrôle le placement et la mise au premier plan. Aucun son n’est joué.
-- **On va en pause ?** ouvre une carte bleue au centre de l’écran, valable 2 minutes. « Oui, j’arrive ! » et « Non, merci » renvoient une réponse affichée au centre de l’écran de l’expéditeur : bleu pour oui, rouge pour non. Fermer la carte signale une invitation non confirmée. **Trois demandes successives** sont autorisées par destinataire ; la quatrième bloque les demandes de pause de cet expéditeur pendant **5 minutes**. Après 5 minutes sans demande, une nouvelle série commence. Les messages restent disponibles et le blocage des pauses ne se prolonge pas à chaque tentative.
+- **On fait une pause ?** ouvre une carte bleue au centre de l’écran, valable 2 minutes. « yessss !! » et « Non je bosse !! » renvoient une réponse affichée au centre de l’écran de l’expéditeur : bleu pour oui, rouge pour non. Fermer la carte signale une invitation non confirmée. **Trois demandes successives** sont autorisées par destinataire ; la quatrième bloque les demandes de pause de cet expéditeur pendant **5 minutes**. Après 5 minutes sans demande, une nouvelle série commence. Les messages restent disponibles et le blocage des pauses ne se prolonge pas à chaque tentative.
 - Le menu `···` d’une conversation permet de masquer/démasquer une session. Le masquage expire à l’arrêt de l’application, car les identifiants sont temporaires.
 - Le mode **Ne pas déranger** laisse arriver les messages et fichiers sans notification et refuse les Wizz. **Les invitations de pause et leurs réponses restent actives**, y compris les cartes à l’écran.
 - Notifications via `notify-send` lorsqu’il est disponible, avec `suppress-sound=true` et **sans texte de conversation**. Sinon l’application conserve les badges et les indications internes.
@@ -244,7 +245,7 @@ Dans **Paramètres → À propos**, retrouve la version installée, le lien GitH
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-1.2.0.png"><img src="docs/about-1.2.0.png" width="600" alt="Onglet À propos de FortyTchat 1.2.0 avec le logo FT, l’auteur et le lien GitHub"></a>
+  <a href="docs/about-1.3.0.png"><img src="docs/about-1.3.0.png" width="600" alt="Onglet À propos de FortyTchat 1.3.0 avec le logo FT, l’auteur et le lien GitHub"></a>
 </p>
 
 Le contenu est défilable pour rester lisible sur les petits écrans.
@@ -252,6 +253,16 @@ Le contenu est défilable pour rester lisible sur les petits écrans.
 </details>
 
 Les messages sont affichés en texte brut, jamais comme du HTML exécutable. La fenêtre affiche les messages acceptés localement puis signale une livraison non confirmée. Un message envoyé sans autre utilisateur n’est visible que localement et n’est pas remis aux personnes arrivant ensuite.
+
+## Répondre et réagir
+
+- **Répondre** : cliquer sur **↩** dans une bulle. Le message choisi apparaît au-dessus du champ de saisie ; écrire la réponse puis envoyer. Le bouton **×** annule la citation. Cliquer sur une citation dans la conversation ramène au message d’origine et le met en évidence.
+- **Réagir** : cliquer sur **☺** dans une bulle, choisir une des six réactions rapides ou **Tous les emojis…** pour ouvrir le catalogue complet. Une personne peut avoir une réaction par message. Choisir un autre emoji remplace la sienne ; cliquer de nouveau sur le même la retire. Les pastilles affichent le compteur et les noms au survol ; ta réaction est mise en évidence.
+- **Voir la saisie en direct** : trois points animés et le nom de la personne apparaissent sous les messages pendant qu’elle écrit, en privé ou dans le général. L’indicateur disparaît après l’envoi, le changement de fenêtre ou l’inactivité. Le brouillon reste sur le poste de son auteur.
+
+Ces interactions restent en mémoire avec les messages et disparaissent à l’arrêt complet. Une citation dont le message d’origine est inconnu ou a quitté la mémoire du destinataire affiche **Message plus disponible** ; aucun ancien message n’est téléchargé pour la reconstituer.
+
+Les réactions et les indicateurs de saisie demandent **FortyTchat 1.3.0** chez les participants et, s’il est utilisé, sur le relais. Les anciennes versions continuent à recevoir le texte des messages ; les nouveautés s’activent entre les clients compatibles.
 
 ## Envoyer un fichier
 
@@ -279,7 +290,7 @@ Pour enlever sa photo, choisir **Retirer mon image** ou sélectionner un personn
 
 | Problème | Vérification ou solution |
 | --- | --- |
-| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.2.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
+| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.3.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
 | Ancienne icône violette « 42 » | L’ancienne application tourne peut-être encore. La quitter depuis son menu, puis relancer `sh ./install.sh` depuis le projet actualisé. La nouvelle icône est noire avec **FT** en blanc. |
 | Aucune personne en ligne à la maison | C’est normal si aucun autre client ne tourne sur le réseau. Pour tester sur un seul PC, ouvrir les deux profils de développement décrits plus bas. |
 | Personnes non détectées sur deux PC | Vérifier que les deux machines sont autorisées à communiquer. Le diagnostic est réservé aux commandes de la section réseau ; aucun réglage réseau n’est accessible dans l’interface. Le Wi-Fi invité, les VLAN ou des politiques d’isolation peuvent empêcher les échanges. |
@@ -402,7 +413,7 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest -q
 python3 tools/stress_test.py --clients 200
 ```
 
-La suite locale comprend **99 tests réussis** pour la version 1.2.0. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface et absence de persistance. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
+La suite locale comprend **104 tests réussis** pour la version 1.3.0. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, compatibilité des anciens clients, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface et absence de persistance. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
 
 Les résultats locaux et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
 

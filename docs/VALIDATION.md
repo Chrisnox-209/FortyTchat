@@ -1,10 +1,10 @@
 # Validation locale de FortyTchat
 
-Validation initiale le **5 novembre 2026**, étendue à la version **1.2.0 le 6 novembre 2026** dans l’environnement de développement. Python 3.14.4 et Qt/PySide6 6.10.2 pour la suite automatisée ; vérifications graphiques complémentaires avec Qt 6.12.0. Le créateur signale un essai réussi d’une version précédente en cluster. Les résultats ci-dessous concernent les tests locaux, sans mesure indépendante des nouveautés 1.2.0 à l’école.
+Validation initiale le **5 novembre 2026**, étendue à la version **1.3.0 le 6 novembre 2026** dans l’environnement de développement. Python 3.14.4 et Qt/PySide6 6.10.2 pour la suite automatisée ; vérifications graphiques complémentaires avec Qt 6.12.0. Le créateur signale un essai réussi d’une version précédente en cluster. Les résultats ci-dessous concernent les tests locaux, sans mesure indépendante des nouveautés 1.3.0 à l’école.
 
 ## Résultats
 
-- Suite automatisée actualisée : **99 tests réussis** en **38,23 s** le 6 novembre 2026, couvrant les fonctionnalités 1.2.0 et les régressions des versions précédentes.
+- Suite automatisée actualisée : **104 tests réussis** en **37,04 s** le 6 novembre 2026, couvrant les fonctionnalités 1.3.0 et les régressions des versions précédentes.
 - Charge du relais sur loopback : **200 clients réels asyncio**, roster complet, **199 réceptions uniques** pour un message général, aucune réception en double, en **1,13 s** pour cette exécution. Le test ne mesure pas la charge de 200 utilisateurs envoyant continuellement en parallèle.
 - Découverte UDP multicast réelle entre deux clients locaux, puis livraison TCP et annonce de départ : réussies.
 - ACK direct supprimé après réception : une nouvelle tentative, un seul message affiché.
@@ -57,6 +57,15 @@ Pour le signalement persistant de texte tronqué, l’instance réelle observée
 - README : installation SSH ou HTTPS dans `~/.FortyTchat`, mise à jour par `git pull --ff-only` puis `install.sh`, profil et choix d’autostart conservés. Les messages de la session restent éphémères.
 
 Les aperçus `friends-1.2.0.png`, `files-1.2.0.png` et `pause-*-1.2.0.png` sont des rendus Qt 6.12.0 avec des données de démonstration. Les paramètres sont également vérifiés aux facteurs 100 %, 150 % et 200 % dans les deux thèmes. L’onglet À propos présente la version, l’auteur et le lien du dépôt, ainsi que les fonctions et données conservées.
+
+## Version 1.3.0 : réponses, réactions et saisie
+
+- TCP et relais réels avec trois clients actuels et un client annonçant les capacités précédentes : réponses liées au message, texte reçu par les anciens clients, réactions et saisie uniquement pour les clients compatibles, confidentialité du routage privé.
+- Réactions ajoutées, remplacées et retirées ; un état plus ancien ne rétablit pas une réaction supprimée. Une réaction arrivée avant son message est appliquée à sa réception, avec expiration et file bornée.
+- Trois points animés pendant la saisie, arrêt après réception du message, protection du budget des messages face au spam de saisie, expiration des états et absence de brouillon dans les trames.
+- Interface réelle : bouton Répondre, aperçu dans le composeur, envoi avec référence, citation cliquable et mise en évidence, texte HTML conservé littéralement et infobulle échappée, réaction retirée par sa pastille, conservation après fermeture/réouverture d’une fenêtre. Un message source reçu en retard actualise sa citation.
+- Aucun texte, citation ni réaction dans les préférences sauvegardées. Les nouveaux textes de pause conservent les callbacks et les couleurs d’acceptation/refus.
+- Captures avec Qt 6.12.0 : `friends-1.3.0.png`, `social-1.3.0.png`, `about-1.3.0.png` et `pause-*-1.3.0.png`, avec profils et messages de démonstration.
 
 ## Ce qui n’est pas validé par ces essais
 

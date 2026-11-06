@@ -17,7 +17,7 @@ JSON UTF-8 avec un saut de ligne terminal, **16 384 octets maximum, délimiteur 
 Exemple de présence (valeurs illustratives) :
 
 ```json
-{"v":1,"type":"hello","sid":"dbe8e2c83e144a78890e277489f1d07d3","nick":"CosmicOtter0042","status":"online","port":39742,"caps":["files","wizz","pause","probe","avatar","avatar_image","friends","c:AAAAAAAAAAAAAAAAAAAAAQ"],"avatar":5,"avatar_hash":""}
+{"v":1,"type":"hello","sid":"dbe8e2c83e144a78890e277489f1d07d3","nick":"CosmicOtter0042","status":"online","port":39742,"caps":["files","wizz","pause","probe","social","avatar_image","friends","c:AAAAAAAAAAAAAAAAAAAAAQ"],"avatar":5,"avatar_hash":""}
 ```
 
 | Type logique | Type sur le fil | Rôle |
@@ -107,3 +107,16 @@ Le destinataire doit accepter et choisir un chemin de sauvegarde. Un fichier exi
 `file_decline` et `file_cancel` permettent le refus ou l’annulation. Un échec, une expiration ou un arrêt normal supprime le temporaire. Une coupure sans nouveau bloc expire après 60 secondes, plus au maximum une période de nettoyage réseau. Un arrêt brutal du système peut laisser un `.part` incomplet, jamais publié sous le nom final. Aucun transfert ni offre ne reprend automatiquement après un redémarrage.
 
 Limites locales : huit offres sortantes, 32 offres entrantes et quatre flux actifs dans chaque sens ; progression graphique regroupée au plus toutes les 150 ms (plus l’état final). Le relais limite aussi les offres (256 globalement, huit par session), les blocs, les tailles cumulées et les files. Les fichiers gardent les mêmes limites de confidentialité que le texte : réseau LAN en clair ou relais TLS, sans chiffrement de bout en bout. Les fichiers enregistrés volontairement restent sur disque après la fermeture de l’application.
+
+## Réponses, réactions et saisie (1.3.0)
+
+Un `message` peut ajouter `reply_to`, un identifiant de message valide. Le texte cité n’est jamais joint à la trame : chaque destinataire construit l’aperçu depuis sa conversation en mémoire. Une référence absente affiche un aperçu indisponible ; si le message arrive ensuite, l’aperçu est actualisé. Les citations restent du texte brut, y compris dans leur infobulle. Aucun historique n’est demandé ni enregistré.
+
+La capacité `social` remplace le marqueur historique `avatar` pour conserver les huit capacités de présence ; les avatars continuent à être annoncés dans leur champ habituel. Le relais annonce aussi `social` dans son `pong`. Les nouveaux événements ne sont routés que vers les clients compatibles, en direct ou via un relais actualisé. Un ancien client continue à afficher le texte des réponses et ignore leur référence.
+
+- `reaction` : champs de base `v`, `type`, `id`, `from`, `to`, plus `message` (référence), `emoji` et `seq`. L’emoji doit appartenir au catalogue embarqué ; une chaîne vide retire la réaction. Une seule réaction par profil et par message, avec remplacement et compteur côté interface. La référence est résolue uniquement dans la conversation visée.
+- `typing` : mêmes champs de base, plus `active` (booléen strict) et `seq`. Aucun texte de brouillon n’est accepté. Le client émet un début puis, si la frappe continue, au plus un rappel toutes les deux secondes. L’arrêt survient après 2,5 secondes sans frappe ou à la perte de focus. Le récepteur expire l’indicateur au bout de cinq secondes sans nouvelles.
+
+`seq` est un entier croissant de session. Un cache borné ignore les anciens états arrivant après un état plus récent, pour éviter de réafficher une réaction retirée ou une saisie arrêtée. Les réactions et la saisie ont leurs propres seaux de débit et n’épuisent pas le budget des messages. Blocage, destinataire et identité de session sont vérifiés comme pour le reste du protocole.
+
+Les réactions reçues avant leur message sont gardées au plus dix secondes, dans une file de 256 états maximum. L’ensemble des indicateurs de saisie est limité à 512 états et chaque message à 512 auteurs de réaction. Toutes ces données restent en mémoire ; une reconnexion ou un nouveau client n’en reçoit aucun historique.
