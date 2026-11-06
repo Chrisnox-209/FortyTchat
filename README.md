@@ -5,7 +5,7 @@
 <h1 align="center">FortyTchat</h1>
 
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center"><strong>Version 1.5.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center"><strong>Version 1.6.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> &nbsp;·&nbsp;
@@ -18,14 +18,14 @@
 
 **FortyTchat** est une messagerie locale pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées dans leurs propres fenêtres, des amis, des emojis et des avatars personnalisés. Son interface native adopte un thème anthracite et bleu, avec une apparence claire également disponible.
 
-**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.5.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
+**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.6.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
 
-Dans cette version : **le chiffrement de bout en bout est automatique**, pour les messages privés, le général, les fichiers et les interactions. Le **cadenas** permet de comparer les empreintes des contacts ; un changement de clé bloque les échanges. Les notifications et réponses personnalisées avec **11 emojis animés hors connexion**, les citations, réactions, trois points de saisie, amis, photos et Wizz restent disponibles. **Les clients et le relais doivent tous être mis à jour en 1.5.0 ou plus récent.**
+Dans cette version : **des coches pour suivre tes messages** — une grise pour **envoyé**, deux grises pour **livré**, deux bleues pour **vu**. Les confirmations sont chiffrées et le partage de lecture peut être désactivé dans les paramètres. Le **chiffrement de bout en bout automatique**, les amis, fichiers, réactions et notifications animées restent disponibles. Pour « Vu », les deux participants doivent être en **1.6.0 minimum** ; un client chiffré 1.5.0 conserve les messages et la confirmation de livraison.
 
 ## Aperçu
 
 <p align="center">
-  <a href="docs/friends-1.5.0.png"><img src="docs/friends-1.5.0.png" width="980" alt="FortyTchat 1.5.0 : salon général, citations, réactions et indicateur de saisie"></a>
+  <a href="docs/friends-1.6.0.png"><img src="docs/friends-1.6.0.png" width="980" alt="FortyTchat 1.6.0 : salon général, citations, réactions et indicateur de saisie"></a>
 </p>
 
 <p align="center"><em>Le salon général et les amis, réunis dans une interface sombre. Profils de démonstration.</em></p>
@@ -34,8 +34,8 @@ Dans cette version : **le chiffrement de bout en bout est automatique**, pour le
   <tr>
     <td align="center" width="50%" valign="top">
       <h3>Messages privés</h3>
-      <a href="docs/social-1.5.0.png"><img src="docs/social-1.5.0.png" height="320" alt="Conversation privée avec réponse citée, réactions emoji et trois points animés"></a>
-      <p>Réponds à un message précis, réagis avec un emoji et vois quand ton ami écrit.</p>
+      <a href="docs/social-1.6.0.png"><img src="docs/social-1.6.0.png" height="320" alt="Conversation privée avec réponse citée, réactions et coches envoyé, livré et vu"></a>
+      <p>Réponds, réagis et suis tes messages : envoyé, livré et vu.</p>
     </td>
     <td align="center" width="50%" valign="top">
       <h3>3 781 emojis</h3>
@@ -92,6 +92,7 @@ Les aperçus utilisent des profils, des textes et une illustration de démonstra
 - [Chiffrement de bout en bout](#chiffrement-de-bout-en-bout)
 - [Amis](#amis)
 - [Utilisation](#utilisation)
+- [Envoyé, livré et vu](#envoyé-livré-et-vu)
 - [Répondre et réagir](#répondre-et-réagir)
 - [Notifications personnalisées](#notifications-personnalisées)
 - [Envoyer un fichier](#envoyer-un-fichier)
@@ -233,7 +234,7 @@ Valeurs par défaut, avec respect de `XDG_CONFIG_HOME` et `XDG_DATA_HOME` lorsqu
 | `~/.config/fortytchat/notification_templates.json` | Modèles de notification et de réponse enregistrés volontairement |
 | `~/.config/fortytchat/identity.json` | Clé privée d’identité du profil (permissions 600), jamais envoyée sur le réseau |
 | `~/.config/fortytchat/trusted_contacts.json` | Clés publiques mémorisées et état des vérifications (permissions 600), aucun message |
-| `~/.config/fortytchat/config.json` | Pseudo, identifiant de profil, amis, miniature personnelle, thème, préférences et date du dernier Wizz |
+| `~/.config/fortytchat/config.json` | Pseudo, identifiant de profil, amis, miniature personnelle, thème, préférence de partage de lecture et date du dernier Wizz |
 | `~/.local/share/fortytchat/app/network.json` | Paramètres réseau de déploiement, sans accès depuis l’interface |
 | `~/.config/autostart/fr.fortytchat.FortyTchat.desktop` | Démarrage personnel, avec chemins absolus et `--background` |
 | `/tmp/fortytchat-UID/` | Verrou et socket d’activation privés, aucun message de chat |
@@ -263,7 +264,7 @@ Dans **Paramètres → À propos**, retrouve la version installée, le lien GitH
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-1.5.0.png"><img src="docs/about-1.5.0.png" width="600" alt="Onglet À propos de FortyTchat 1.5.0 avec le logo FT, l’auteur et le lien GitHub"></a>
+  <a href="docs/about-1.6.0.png"><img src="docs/about-1.6.0.png" width="600" alt="Onglet À propos de FortyTchat 1.6.0 avec le logo FT, l’auteur et le lien GitHub"></a>
 </p>
 
 Le contenu est défilable pour rester lisible sur les petits écrans.
@@ -271,6 +272,26 @@ Le contenu est défilable pour rester lisible sur les petits écrans.
 </details>
 
 Les messages sont affichés en texte brut, jamais comme du HTML exécutable. La fenêtre affiche les messages acceptés localement puis signale une livraison non confirmée. Un message envoyé sans autre utilisateur n’est visible que localement et n’est pas remis aux personnes arrivant ensuite.
+
+## Envoyé, livré et vu
+
+Les messages envoyés affichent leur état dans leur bulle :
+
+| Indication | Signification |
+| --- | --- |
+| **✓ Envoyé**, gris | Envoi lancé, confirmation du destinataire en attente |
+| **✓✓ Livré**, gris | L’application du destinataire a accepté le message et renvoyé une confirmation authentifiée |
+| **✓✓ Vu**, bleu | Le destinataire a affiché le message dans la zone visible de sa conversation active |
+| **! Non confirmé** | La confirmation n’est pas arrivée ; le message a pu être reçu. Aucun renvoi automatique après reconnexion |
+| **○ Local** | Aucun autre participant : message visible uniquement ici |
+
+Une fenêtre fermée, masquée, minimisée ou derrière une autre fenêtre active n’envoie pas « Vu ». Si la personne remonte la conversation, un nouveau message hors de la zone visible n’est pas marqué vu. Ce statut indique un affichage rapporté par son application, sans garantir une lecture attentive.
+
+Dans le **général**, les compteurs se rapportent aux destinataires en ligne choisis lors de l’envoi. Les deux coches deviennent bleues quand **tous** ont confirmé la lecture. Le survol détaille les confirmations de livraison et de lecture, avec les noms ; une confirmation partielle n’est pas présentée comme une lecture par tout le groupe. Les personnes arrivées plus tard ne sont pas ajoutées à ces compteurs.
+
+[**Paramètres → Général → Partager les confirmations de lecture**](docs/settings-1.6.0.png) est activé par défaut. Le désactiver empêche l’envoi de nouveaux « Vu », tout en laissant les livraisons confirmées et les confirmations reçues affichées. Cela ne retire pas les « Vu » déjà partagés. Le réactiver permet de confirmer les messages alors visibles dans une conversation active.
+
+Toutes ces confirmations passent dans les enveloppes **chiffrées de bout en bout**. Les états restent en RAM avec la conversation ; aucun historique de lecture, texte ou horaire de lecture n’est enregistré sur disque. Les deux clients doivent annoncer la fonction **1.6.0**. Un ancien client chiffré **1.5.0** continue à échanger les messages et ACK de livraison ; aucun événement de lecture inconnu ne lui est envoyé. Le relais opaque **1.5.0 minimum** convient également. Les confirmations restent disponibles pendant la session, sans boîte d’envoi ou rattrapage durable après arrêt.
 
 ## Répondre et réagir
 
@@ -354,7 +375,7 @@ Pour enlever sa photo, choisir **Retirer mon image** ou sélectionner un personn
 
 | Problème | Vérification ou solution |
 | --- | --- |
-| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.5.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
+| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.6.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
 | Ancienne icône violette « 42 » | L’ancienne application tourne peut-être encore. La quitter depuis son menu, puis relancer `sh ./install.sh` depuis le projet actualisé. La nouvelle icône est noire avec **FT** en blanc. |
 | Contact absent après mise à jour | Actualiser les deux clients et le relais en 1.5.0 minimum ; les clients sans identité signée sont refusés. |
 | Clé du contact modifiée | Échanges bloqués : ouvrir son cadenas, comparer la nouvelle empreinte par un canal de confiance puis la vérifier. |
@@ -480,7 +501,7 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest -q
 python3 tools/stress_test.py --clients 200
 ```
 
-La suite locale comprend **133 tests** pour la version 1.5.0. Exécuter les tests dans l’environnement Python équipé des dépendances du projet. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, refus des clients et relais non chiffrés, notifications animées, modèles enregistrables, réponses personnalisées, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface, absence de persistance des messages, clés privées à permissions restreintes, signatures, anti-rejeu, changements de clé bloqués et confidentialité du contenu vis-à-vis du relais. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
+La suite locale comprend **142 tests** pour la version 1.6.0. Exécuter les tests dans l’environnement Python équipé des dépendances du projet. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, refus des clients et relais non chiffrés, notifications animées, modèles enregistrables, réponses personnalisées, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface, absence de persistance des messages, clés privées à permissions restreintes, signatures, anti-rejeu, changements de clé bloqués confidentialité du contenu vis-à-vis du relais, livraisons authentifiées, confirmations de lecture, visibilité réelle et préférence de lecture. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
 
 Les résultats locaux et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
 

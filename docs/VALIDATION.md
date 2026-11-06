@@ -1,14 +1,27 @@
-# Validation locale de FortyTchat 1.5.0
+# Validation locale de FortyTchat 1.6.0
 
-Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.5.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
+Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.6.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
 
 ## Résultats automatisés
 
-- **133 tests réussis en 22,64 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
-- Diffusion E2EE sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
+- **142 tests réussis en 25,52 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- Mesure de diffusion E2EE réalisée en 1.5.0 sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
 - Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
 Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
+
+## Envoyé, livré et vu (1.6.0)
+
+- TCP et relais : confirmation individuelle de livraison après l’ACK authentifié, sans confondre réception et affichage. Lecture privée et générale, correspondant aux destinataires choisis à l’envoi.
+- Confirmations chiffrées bornées à 32 IDs uniques, sans texte ni horaire ; trames générales, champs inconnus, doublons ou références mal formées refusés. Un autre participant ne peut pas confirmer la lecture d’un message privé qu’il n’a pas reçu.
+- États monotones : une lecture arrivée avant un résultat de livraison ne régresse pas. Compteurs du général partiels, deux coches bleues seulement après confirmation par tous. Références bornées à 200 par conversation et 4 000 par registre, effacées à l’arrêt.
+- Envois groupés, absence de doubles envois simultanés, nouvelle tentative après cinq secondes si la confirmation échoue, et budget indépendant laissant les messages disponibles.
+- Client chiffré antérieur sans capacité de lecture : messages et livraison restent disponibles, aucune trame inconnue envoyée. DND ne transforme pas une réception en lecture et n’empêche pas une confirmation lorsque la personne consulte volontairement sa conversation.
+- Deux contrôleurs Qt et deux clients réseau réels : « Livré » quand aucune conversation n’est ouverte, « Vu » seulement après affichage actif, aucun « Vu » quand la fenêtre est minimisée ou inactive ou que le message est sous la zone visible. Défiler jusqu’au message déclenche la confirmation.
+- Préférence de lecture activée par défaut, persistée, désactivation vérifiée sur un message affiché, réactivation puis confirmation ; une confirmation déjà partagée n’est pas retirée. Les états survivent à la fermeture/réouverture de la fenêtre dans le même processus, mais aucun texte ni état de lecture n’entre dans les fichiers du profil.
+- Paramètres lisibles à 100 %, 150 % et 200 %. Le suivi du bas de la conversation accompagne les calculs différés de hauteur de Qt sans déplacer un lecteur qui a volontairement remonté la conversation. Modifier une préférence sans changer de thème ne réapplique plus le style global.
+
+Les captures `friends-1.6.0.png`, `social-1.6.0.png`, `settings-1.6.0.png` et `about-1.6.0.png` sont des rendus Qt de démonstration. Les coches sont illustrées avec des états synthétiques explicitement préparés pour ces captures ; le comportement réel est vérifié par les essais ci-dessus. Les images des fonctions inchangées conservent leur numéro antérieur.
 
 ## Chiffrement et frontières de confiance
 

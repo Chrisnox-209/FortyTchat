@@ -1,4 +1,4 @@
-# Réseau et chiffrement de FortyTchat 1.5.0
+# Réseau et chiffrement de FortyTchat 1.6.0
 
 ## Découverte et routes
 
@@ -20,7 +20,7 @@ Chaque profil conserve son UUID de contact et une clé d’identité **Ed25519**
 
 La signature porte sur le préfixe de domaine `FortyTchat signed presence v1\0` puis le JSON canonique de tous les champs, sauf `type` et `crypto.signature`. L’exclusion de `type` permet au relais de convertir `hello` en `presence`. Pseudo, SID, statut, port, capacités, référence d’avatar, contact et clés sont ainsi liés. Le relais et le client vérifient cette signature. Une session en cours ne peut pas changer sa clé de session ou son identifiant de contact.
 
-Les capacités restent limitées à huit : `files`, `wizz`, `cards`, `probe`, `social`, `avatar_image`, `friends`, `c:` suivi du UUID en base64url canonique. Le relais annonce `avatar_image`, `files`, `social`, `cards` et `e2ee`.
+Les capacités restent limitées à huit : `files`, `wizz`, `cards`, `probe`, `social`, `avatar_image`, `receipts`, `c:` suivi du UUID en base64url canonique. Le relais annonce `avatar_image`, `files`, `social`, `cards` et `e2ee`.
 
 ### Premier contact et changement de clé
 
@@ -92,3 +92,17 @@ Les miniatures de profil sont **publiques** : import PNG/JPEG/WebP de 10 Mo/50 M
 ## Diagnostic
 
 `python3 main.py --diagnose` et `python3 tools/network_probe.py` inspectent interfaces et écoute locale sans scanner le réseau ni modifier le pare-feu. Une écoute locale ne prouve pas la communication entre deux postes. Le relais n’interconnecte pas des sous-réseaux s’il n’est pas accessible depuis eux ; sa machine, son DNS et son certificat exigent un déploiement autorisé.
+
+## Livraison et lecture (1.6.0)
+
+Le marqueur `receipts` remplace `friends`, qui n’était pas utilisé pour le routage : les UUID `c:` et la fonction d’amis sont conservés. Les huit capacités restent signées. Les clients chiffrés 1.5.0 restent compatibles pour les messages, fichiers, interactions existantes et confirmations de livraison ; aucune trame de lecture ne leur est envoyée. Un relais opaque 1.5.0 peut transporter ces nouvelles enveloppes sans comprendre leur contenu.
+
+`message_delivery` est un événement local par destinataire après l’ACK authentifié existant. Le récepteur attendu, son SID et l’ID du transport restent liés à cet ACK. Une simple mise en file par le relais ne produit pas « Livré ». Les destinataires sont figés au moment de l’envoi, et l’interface garde leur état individuel ; une confirmation de lecture ne peut pas régresser à « Envoyé » ou « Non confirmé » si un résultat réseau plus ancien arrive ensuite.
+
+La trame intérieure privée `read_receipt` contient les champs de base `v`, `type`, `id`, `from`, `to`, plus `messages` : **1 à 32 IDs uniques**, sans texte ni horaire, vers l’auteur original. Le cœur conserve uniquement des références et destinataires en RAM, avec au plus **200 références par conversation** et **4 000 par registre**. Il n’accepte une lecture que pour un message réellement adressé à la session signataire. Les références inconnues, évincées, déjà confirmées ou appartenant à un autre destinataire ne modifient aucun état. Les références du général restent envoyées individuellement à leur auteur, sans diffusion de l’événement de lecture aux autres membres.
+
+L’interface inspecte la zone visible toutes les 350 ms uniquement dans sa fenêtre de conversation active et non minimisée. Les messages hors de la zone visible, fichiers et messages système sont exclus. Le cœur vérifie que chaque référence a effectivement été reçue et que le contact est compatible, autorisé et joignable. Les envois simultanés sont regroupés et marqués en attente pour éviter les doublons. Un échec permet une nouvelle tentative après cinq secondes si le message est encore affiché ; un ACK authentifié clôt la confirmation. Un arrêt efface ces références.
+
+Débit séparé des messages, réactions et saisie : **16 confirmations**, recharge **4/s**, à l’envoi et par contact à la réception ; chaque trame peut confirmer 32 messages. Aucun événement de confirmation ne crée de notification ou de badge. Le choix `read_receipts` est une préférence locale booléenne, activée par défaut, contrôlant uniquement les confirmations envoyées. Il n’est pas annoncé publiquement. Aucun état de lecture n’est ajouté aux fichiers de configuration.
+
+Le suivi du bas du tchat accompagne les changements différés de hauteur des bulles Qt, tout en restant désactivé quand le lecteur remonte volontairement la conversation. L’état « Vu » rapporte un affichage par le client, pas une attestation qu’une personne a compris le texte ; un client modifié peut mentir sur sa propre lecture.

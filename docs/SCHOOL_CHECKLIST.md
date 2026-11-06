@@ -1,6 +1,6 @@
 # Retour à l’École 42 : essais sur place
 
-Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.5.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.6.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
 ## Préparer deux postes
 
@@ -49,11 +49,19 @@ Ne pas scanner le `/16`, modifier le pare-feu ou réutiliser un port de service 
 
 ## Chiffrement et identité
 
-- Mettre à jour les deux clients et le relais éventuel en 1.5.0 minimum. Comparer les empreintes en personne via le cadenas, puis vérifier le statut **Identité vérifiée** sur chacun des postes.
+- Mettre à jour les deux clients et le relais éventuel en 1.6.0 minimum. Comparer les empreintes en personne via le cadenas, puis vérifier le statut **Identité vérifiée** sur chacun des postes.
 - Quitter puis relancer l’un des clients : conserver son pseudo, ses amis, sa clé d’identité et la vérification, avec un nouveau SID et une nouvelle clé de session. Aucun historique réseau ne doit arriver.
 - Vérifier les messages privés, le général, les fichiers et les cartes via les deux routes autorisées. Le général reste lisible par tous ses participants.
 - Pour un essai de remplacement de clé, employer uniquement des profils de développement jetables : la session modifiée doit rester bloquée jusqu’à comparaison de sa nouvelle empreinte. Ne pas supprimer les clés du profil personnel.
 - Une capture réseau autorisée peut voir les présences, avatars, IP et enveloppes chiffrées ; elle ne doit pas révéler le texte des messages, les noms ou le contenu des pièces jointes. Un essai local ne remplace pas un audit indépendant du protocole.
+
+## Envoyé, livré et vu
+
+- Envoyer un message privé sans ouvrir la conversation chez le destinataire : deux coches grises après réception, pas de « Vu ».
+- Ouvrir la conversation chez le destinataire : deux coches bleues. Vérifier aussi une fenêtre minimisée, inactive et un nouveau message reçu pendant une lecture plus haut dans le tchat.
+- Désactiver **Partager les confirmations de lecture**, recevoir un message visible : rester à « Livré » chez l’auteur. Réactiver puis consulter : « Vu » peut être confirmé ; les anciennes confirmations déjà envoyées ne sont pas retirées.
+- Dans le général, vérifier les compteurs par destinataire et les coches bleues seulement après lecture par tous les destinataires de l’envoi. Un nouveau participant ne reçoit aucun ancien message ni ancien statut.
+- Essayer un client chiffré 1.5.0 : messages et livraison disponibles, lecture indisponible. Aucun repli en clair.
 
 ## Démarrage de session
 
@@ -73,13 +81,13 @@ Un test réussi sur deux machines ne valide pas à lui seul 200 postes ni plusie
 
 | Vérification | Date / postes | Résultat réel |
 | --- | --- | --- |
-| IPv4/interface/masque | À compléter | À vérifier en 1.5.0 |
-| Découverte même zone | À compléter | À vérifier en 1.5.0 |
-| Découverte entre zones | À compléter | À vérifier en 1.5.0 |
-| TCP général et privé | À compléter | À vérifier en 1.5.0 |
-| Empreintes comparées, identité conservée | À compléter | À vérifier en 1.5.0 |
-| Contenu chiffré TCP et relais | À compléter | À vérifier en 1.5.0 |
+| IPv4/interface/masque | À compléter | À vérifier en 1.6.0 |
+| Découverte même zone | À compléter | À vérifier en 1.6.0 |
+| Découverte entre zones | À compléter | À vérifier en 1.6.0 |
+| TCP général et privé | À compléter | À vérifier en 1.6.0 |
+| Empreintes comparées, identité conservée | À compléter | À vérifier en 1.6.0 |
+| Contenu chiffré TCP et relais | À compléter | À vérifier en 1.6.0 |
 | TLS/relais autorisé | À compléter | Aucun déploiement présumé |
-| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.5.0 |
-| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.5.0 |
-| Autostart après connexion | À compléter | À vérifier sur la session école en 1.5.0 |
+| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.6.0 |
+| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.6.0 |
+| Autostart après connexion | À compléter | À vérifier sur la session école en 1.6.0 |
