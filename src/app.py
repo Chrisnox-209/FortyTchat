@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication, QFileDialog
 from .autostart import Autostart
 from .config import ConfigStore, config_home
 from .identity import valid_nickname, valid_contact_id
-from .features.friends import MAX_FRIENDS, contact_from_key, friend_key, online_contact
+from .features.friends import MAX_FRIENDS, FriendPresence, contact_from_key, friend_key, friend_rows, online_contact
 from .features.social import TypingState, PendingReactions, preview
 from .features.cards import CardTemplates, answer_card
 from .features.receipts import update_recipient
@@ -60,6 +60,7 @@ class Application(QObject):
         root = config_home() / 'fortytchat-dev' / args.dev if args.dev else None
         self.store = ConfigStore(root)
         self.preferences = self.store.preferences
+        self.friend_presence = FriendPresence(self.preferences.friends)
         if not any((self.store.root / name).exists() for name in ('identity.json', 'trusted_contacts.json')):
             # Persist the UUID before creating a key bound to that UUID.
             self.store.save()
@@ -96,6 +97,9 @@ class Application(QObject):
         self.tray.settings_requested.connect(lambda: self.show_settings(0))
         self.tray.quit_requested.connect(self.quit)
         self.tray.status_requested.connect(self.set_status)
+        self.tray.friend_requested.connect(self.open_friend)
+        self.tray.popup_requested.connect(self.show_friend_card)
+        self.window.sidebar.popup_requested.connect(self.show_friend_card)
         self.tray.timer.timeout.connect(self.refresh_integration)
         self.window.send_requested.connect(self.send_message)
         self.bind_interactions(self.window)
@@ -125,6 +129,7 @@ class Application(QObject):
         if args.insecure_local_relay:
             options.update(relay_host='127.0.0.1', relay_port=args.insecure_local_relay, tls=False)
         self.worker = NetworkWorker(self.preferences.nickname, **options)
+        self.window.sidebar.popup_available = self.cards_available
         self.worker.received.connect(self.on_network)
         self.peer_timer = QTimer(self)
         self.peer_timer.setSingleShot(True)
@@ -137,6 +142,7 @@ class Application(QObject):
         self.refresh_integration()
         self.worker.start()
         self.apply_network_preferences()
+        self.refresh_friend_surfaces(notify=False)
         self.qt.aboutToQuit.connect(self.cleanup)
         if self.preferences.dnd:
             self.window.sidebar.status_button.setText('●  Ne pas déranger')
@@ -240,6 +246,25 @@ class Application(QObject):
         view.chat.quote_missing.connect(lambda: view.show_notice('Le message cité n’est plus disponible dans cette session.'))
         view.composer.typing_changed.connect(lambda active: self.send_typing(view.current, active))
         view.composer.card_requested.connect(lambda: self.show_card_editor(view.current))
+
+    def open_friend(self, contact_id):
+        if contact_id in self.preferences.friends:
+            self.open_private(friend_key(contact_id))
+
+    def show_friend_card(self, contact_id):
+        if contact_id not in self.preferences.friends:
+            return None
+        peer = online_contact(self.latest_peers, contact_id, self.contact_sessions.get(contact_id, ''))
+        if not peer or peer['sid'] in self.window.sidebar.blocked or not self.cards_available(peer):
+            self.window.show_notice('Cet ami doit être connecté, autorisé et compatible pour recevoir une popup.')
+            return None
+        editor = self.show_card_editor(peer['sid'])
+        if editor:
+            editor.raise_()
+            editor.activateWindow()
+            if editor.windowHandle():
+                editor.windowHandle().requestActivate()
+        return editor
 
     def show_card_editor(self, target, request='', popup=None):
         view = self.view_for(target) or self.window
@@ -408,6 +433,22 @@ class Application(QObject):
         for sid, view in self.private_windows.items():
             view.set_peer(self.window.peers.get(sid), sid in self.window.sidebar.blocked)
             view.set_friend(view.contact_id in self.preferences.friends)
+        self.refresh_friend_surfaces()
+
+    def refresh_friend_surfaces(self, notify=True):
+        blocked = self.window.sidebar.blocked
+        self.tray.update_friends(friend_rows(self.preferences.friends, self.latest_peers, blocked,
+                                           self.contact_sessions, self.cards_available))
+        arrivals = self.friend_presence.update(self.preferences.friends, self.latest_peers, blocked,
+                    enabled=notify and self.preferences.friend_notifications and not self.preferences.dnd)
+        if len(arrivals) == 1:
+            self.notifications.show(f'{arrivals[0]["nick"]} est en ligne',
+                'Ton ami vient de se connecter au cluster. Retrouve-le depuis l’icône FortyTchat.', urgency='normal')
+        elif arrivals:
+            names = ', '.join(peer['nick'] for peer in arrivals[:3])
+            extra = f' et {len(arrivals) - 3} autre(s)' if len(arrivals) > 3 else ''
+            self.notifications.show(f'{len(arrivals)} amis sont en ligne',
+                names + extra + ' viennent de se connecter au cluster.', urgency='normal')
 
     def move_private(self, old_sid, new_sid):
         dialog = self.security_dialogs.get(old_sid)
@@ -463,6 +504,7 @@ class Application(QObject):
         self.window.sidebar.refresh()
         for view in self.private_windows.values():
             view.set_friend(view.contact_id in self.preferences.friends)
+        self.refresh_friend_surfaces(notify=False)
         self.window.show_notice('Ami ajouté : il restera reconnu même si son pseudo change.' if added else 'Contact retiré des amis.')
 
     def add_message(self, target, message):
@@ -891,6 +933,7 @@ class Application(QObject):
         self.window.update_actions()
         if sid in self.private_windows:
             self.private_windows[sid].set_peer(self.window.peers.get(sid), value)
+        self.refresh_friend_surfaces(notify=False)
         self.window.show_notice('Utilisateur masqué pour cette session.' if value else 'Utilisateur démasqué.')
 
     def quit(self):

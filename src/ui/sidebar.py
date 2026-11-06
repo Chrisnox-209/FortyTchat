@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QFrame, QVBoxLayout, QHBoxLayout, QListWidget,
                                QListWidgetItem, QStyledItemDelegate, QStyle, QMenu)
 from .widgets import Avatar, button, color_for, label, paint_avatar
 from .theme import colors
-from ..features.friends import friend_key, online_contact
+from ..features.friends import friend_key, friend_rows, online_contact
 
 
 class PeerDelegate(QStyledItemDelegate):
@@ -67,6 +67,7 @@ class Sidebar(QFrame):
     status_requested = Signal()
     avatar_requested = Signal()
     friend_requested = Signal(str, bool)
+    popup_requested = Signal(str)
 
     def __init__(self, nickname, avatar=-1, image_data='', friends=None):
         super().__init__()
@@ -74,6 +75,7 @@ class Sidebar(QFrame):
         self.setFixedWidth(312)
         self.peers, self.conversations, self.unread = {}, {}, {}
         self.blocked, self.current = set(), 'general'
+        self.popup_available = None
         self.previews = {}
         self.friends, self.known_contacts = friends if friends is not None else {}, {}
         layout = QVBoxLayout(self)
@@ -136,14 +138,27 @@ class Sidebar(QFrame):
     def friend_menu(self, position):
         item = self.list.itemAt(position)
         data = item.data(Qt.ItemDataRole.UserRole) if item else None
+        menu = self.build_friend_menu(data)
+        if menu:
+            menu.exec(self.list.viewport().mapToGlobal(position))
+            menu.deleteLater()
+
+    def build_friend_menu(self, data):
         if not data or not data.get('contact_id'):
             return
         contact_id = data['contact_id']
         added = contact_id in self.friends
         menu = QMenu(self)
+        if added:
+            menu.addAction('Discuter…', lambda: self.selected.emit(friend_key(contact_id)))
+            popup = menu.addAction('Envoyer une popup…', lambda: self.popup_requested.emit(contact_id))
+            row = friend_rows({contact_id:self.friends[contact_id]}, self.peers.values(), self.blocked,
+                              popup_available=self.popup_available)[0]
+            popup.setEnabled(row['popup'])
+            menu.addSeparator()
         menu.addAction('Retirer des amis' if added else 'Ajouter aux amis',
                        lambda: self.friend_requested.emit(contact_id, not added))
-        menu.exec(self.list.viewport().mapToGlobal(position))
+        return menu
 
     def _section(self, name):
         item = QListWidgetItem()

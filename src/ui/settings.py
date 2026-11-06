@@ -68,6 +68,10 @@ class SettingsDialog(QDialog):
         self.dnd.setChecked(preferences.dnd)
         form.addWidget(self.dnd)
         form.addWidget(label('En mode Ne pas déranger, les messages restent silencieux ; Wizz et notifications personnalisées sont refusés. Les demandes de pause restent actives.', 'caption', True))
+        self.friend_notifications = QCheckBox('Notifier la connexion de mes amis')
+        self.friend_notifications.setChecked(preferences.friend_notifications)
+        form.addWidget(self.friend_notifications)
+        form.addWidget(label('Une notification Ubuntu silencieuse quand un ami se connecte. Ne pas déranger la masque. Les amis déjà présents au démarrage et les petites coupures réseau ne déclenchent pas d’alerte.', 'caption', True))
         self.read_receipts = QCheckBox('Partager les confirmations de lecture')
         self.read_receipts.setChecked(preferences.read_receipts)
         form.addWidget(self.read_receipts)
@@ -119,6 +123,8 @@ class SettingsDialog(QDialog):
             ('Répondre, réagir, discuter', 'Le bouton ↩ cite un message ; un clic sur la citation y ramène. Le bouton ☺ ajoute une réaction emoji, modifiable ou retirable. Trois points animés indiquent quand quelqu’un écrit, sans partager son brouillon.'),
             ('Tes notifications, tes réponses', 'Le bouton ✦ permet de choisir titre, texte, animation et réponses proposées. Prépare jusqu’à trois boutons avec leur libellé, une réponse Oui, Non ou Autre, et le texte et emoji qui seront renvoyés. Autorise une réponse libre si tu le souhaites, ou choisis Fermer uniquement pour une simple information. Fermer ne renvoie aucune réponse sur ces nouvelles cartes. Les choix peuvent être enregistrés avec tes modèles ; les deux clients doivent utiliser 1.7.0.'),
             ('Tes amis, ton image, tes emojis', 'Les amis restent reconnus après un changement de pseudo. Choisis un avatar ou importe ta photo, puis exprime-toi parmi 3 781 emojis avec recherche et catégories.'),
+            ('Tes amis depuis l’icône', 'Le clic droit sur l’icône FT affiche tes amis en ligne et hors ligne. Ouvre le sous-menu d’un ami pour discuter ou envoyer une popup, sans ouvrir le tchat. Le clic droit dans la liste des amis propose aussi l’éditeur de popup. Un ami hors ligne ne peut pas recevoir de popup.'),
+            ('Un ami arrive dans le cluster', 'Une notification Ubuntu silencieuse t’avertit quand un ami se connecte. Désactive-la dans Général ou avec Ne pas déranger. Les connexions simultanées sont regroupées, sans alerte pour les changements de pseudo, les petites coupures ou les amis déjà présents au démarrage. Le bureau Ubuntu contrôle la position et l’apparence des bannières.'),
             ('Des fichiers à partager', 'Envoie un fichier de 20 Mio maximum dans le général ou en privé. Le destinataire choisit de l’enregistrer ou de le refuser. Les fichiers enregistrés restent à l’emplacement choisi.'),
             ('Un Wizz, une pause', 'Le Wizz fait vibrer la conversation pendant 2,8 secondes et montre les derniers messages, sans son. Un envoi toutes les 42 minutes. Les pauses restent actives en Ne pas déranger : trois demandes successives, puis cinq minutes de blocage à la quatrième. La réponse apparaît en bleu pour oui et en rouge pour non.'),
             ('Ton profil reste, les messages s’effacent', 'Pseudo, amis, photo et préférences restent sur ton espace utilisateur. Les messages restent en mémoire : Quitter complètement les efface de ce processus. Fermer la fenêtre garde l’application active.'),
@@ -138,6 +144,7 @@ class SettingsDialog(QDialog):
         self.autostart.toggled.connect(lambda value: self.preference_changed.emit('autostart', value))
         self.wizz.toggled.connect(lambda value: self.preference_changed.emit('wizz_enabled', value))
         self.dnd.toggled.connect(lambda value: self.preference_changed.emit('dnd', value))
+        self.friend_notifications.toggled.connect(lambda value: self.preference_changed.emit('friend_notifications', value))
         self.read_receipts.toggled.connect(lambda value: self.preference_changed.emit('read_receipts', value))
         self.tray_menu_double_click.toggled.connect(lambda value: self.preference_changed.emit('tray_menu_double_click', value))
         self.theme.currentIndexChanged.connect(lambda index: self.preference_changed.emit('theme', self.theme.itemData(index)))

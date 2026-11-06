@@ -23,6 +23,7 @@ class Preferences:
     dnd: bool = False
     read_receipts: bool = True
     tray_menu_double_click: bool = True
+    friend_notifications: bool = True
     theme: str = 'dark'
     avatar: int = -1
     avatar_image: str = ''
@@ -62,7 +63,7 @@ class ConfigStore:
                     if (valid_contact_id(contact_id) and contact_id != values['contact_id']
                             and valid_nickname(nickname) and len(values['friends']) < 256):
                         values['friends'][contact_id] = nickname
-            for key in ('autostart', 'wizz_enabled', 'dnd', 'read_receipts', 'tray_menu_double_click'):
+            for key in ('autostart', 'wizz_enabled', 'dnd', 'read_receipts', 'tray_menu_double_click', 'friend_notifications'):
                 if type(values.get(key)) is not bool:
                     values[key] = False if key == 'autostart' else getattr(defaults, key)
             if values.get('theme') not in ('dark', 'light'):
