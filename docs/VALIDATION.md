@@ -1,0 +1,61 @@
+# Validation locale de FortyTchat
+
+Validation initiale le **5 novembre 2026**, puis extension aux images personnelles le **6 novembre 2026** dans l’environnement de développement. Python 3.14.4 et Qt/PySide6 6.10.2 lors de la validation initiale. Aucun PC du cluster de l’École 42 n’était accessible.
+
+## Résultats
+
+- Suite automatisée actualisée : **70 tests**, tous réussis avec les amis, les emojis étendus, la désinstallation, les correctifs d’affichage et les fonctionnalités existantes (**36,01 s** le 6 novembre 2026).
+- Charge du relais sur loopback : **200 clients réels asyncio**, roster complet, **199 réceptions uniques** pour un message général, aucune réception en double, en **1,13 s** pour cette exécution. Le test ne mesure pas la charge de 200 utilisateurs envoyant continuellement en parallèle.
+- Découverte UDP multicast réelle entre deux clients locaux, puis livraison TCP et annonce de départ : réussies.
+- ACK direct supprimé après réception : une nouvelle tentative, un seul message affiché.
+- TCP : général, message privé, texte Unicode, trames segmentées, trames invalides, source inconnue et fermeture incomplète vérifiés.
+- Relais à 40 clients : diffusion, confidentialité du routage privé, refus d’expéditeur falsifié, limites Wizz et anti-spam vérifiés.
+- Redémarrage du relais : reconnexion automatique ; un nouveau client ne reçoit aucun ancien message. La limite Wizz survit à la reconnexion d’une même session tant que le relais reste actif.
+- Identités : session temporaire, collision de pseudo résolue sans changer l’ID, changement de pseudo propagé, avatar validé, choix conservé et numéro d’avatar transmis par UDP et par le handshake TCP.
+- Réception : masquage, DND, Wizz désactivé, invitations liées à un expéditeur et expiration vérifiés.
+- Configuration et XDG : premier lancement, sauvegarde atomique à permissions restreintes, état réel du fichier, désactivation conservée, entrée supprimée non recréée et configuration endommagée vérifiés.
+- Installation dans des chemins XDG temporaires avec espaces et caractère `$` : copie, lanceur `--version`, entrée de menu validée par `desktop-file-validate`, réinstallation sans réactiver un choix désactivé.
+- Interface Qt hors écran : envoi clavier, texte brut, emojis/recherche, thème clair, fermeture réduite, **clic sur une personne en ligne → fenêtre privée indépendante**, réponse TCP depuis cette fenêtre, fermeture/réouverture dans la même session et badge **1** puis effacement à la consultation. Le sélecteur propose 24 avatars, un mode automatique et l’import d’une image personnelle.
+- Non-persistance : aucune conversation dans les fichiers de configuration ; aucun chemin de stockage dans les services réseau ; nouveau processus sans historique ; cache en mémoire abandonné à la fermeture complète.
+
+Les tests d’images personnelles vérifient aussi : les trois formats annoncés (PNG, JPEG, WebP), l’aperçu et l’annulation, le zoom et le recadrage, le chargement hors du thread graphique, la fermeture pendant le chargement, la suppression des métadonnées, la sauvegarde de la seule miniature personnelle, le rendu chez un destinataire, l’absence de sauvegarde des images reçues, la découverte UDP suivie du transfert TCP, le relais et la reconnexion, le refus de l’usurpation d’une autre session, les tailles et empreintes invalides, le rejet des dimensions excessives avant décodage, le retrait de l’image et la compatibilité des messages avec un ancien relais sans cette capacité. Les fichiers d’entrée sont des images synthétiques de test.
+
+Les tests ont été exécutés avec une autorisation d’ouverture de sockets locales, le bac à sable par défaut interdisant TCP/UDP. Les installations de test utilisent uniquement des dossiers temporaires, sans modifier l’autostart du profil réel.
+
+## Vérification visuelle
+
+Les fichiers `preview.png` et `private-preview.png` montrent les widgets réellement rendus par Qt, avec la palette anthracite/gris/bleu de la référence fournie. Les personnages prédéfinis sont des illustrations vectorielles déterministes dessinées localement. L’import d’images personnelles est désormais disponible, mais aucune photo personnelle réelle n’a été utilisée pour les tests ou les captures. L’aperçu privé utilise un nom de démonstration et n’affirme pas la présence d’un utilisateur réel. `fortytchat-reference-v3.png` et `fortytchat-private-v3.png` présentent également des profils et textes explicitement marqués comme démonstration, pour illustrer le style en conversation ; ils ne peuplent jamais l’application au lancement.
+
+`avatars-photo-import.png` montre le bouton d’import et `avatar-crop-preview.png` montre le recadrage sur une illustration synthétique.
+
+## Correctif d’affichage 1.0.1 et mise à jour
+
+Le défaut des captures utilisateur a été reproduit à 150 % : champs de 25 pixels pour une hauteur attendue de 40, et paragraphes d’environ 22 pixels pour 48 nécessaires. Les pages de paramètres sont désormais défilables et conservent le calcul de hauteur du texte selon sa largeur. Les champs et boutons gardent leur hauteur naturelle.
+
+Trois tests en processus Qt séparés vérifient les facteurs **1, 1,5 et 2**, dans les deux thèmes et avec des fenêtres de **570 × 590** et **460 × 420** pixels logiques : pas de paragraphe comprimé, champs lisibles, accès au dernier contrôle par défilement, aucun défilement horizontal et aucune zone vide superflue. Les captures `settings-general-1.0.1.png` et `settings-about-1.0.1.png` montrent le rendu réel à 150 %.
+
+L’icône a été remplacée par un SVG noir **FT** blanc, avec PNG dérivé. Le compteur de messages non lus est conservé et dessiné avec une taille de texte indépendante du DPI. Son rendu a été inspecté sur l’icône et avec le badge « 1 ».
+
+La réinstallation est testée dans une installation XDG temporaire : code et icône actualisés, pseudo, thème, photo personnelle et autostart désactivé conservés. Le script de mise à jour a été retiré à la demande de l’utilisateur ; les scripts disponibles sont `install.sh` et `uninstall.sh`.
+
+## Version 1.1.0 : amis, emojis et désinstallation
+
+- Migration des anciens profils sans perdre le pseudo, le thème ou l’autostart désactivé ; création et conservation de l’ID de contact, liste de 256 amis bornée.
+- Étoile d’ajout/retrait, amis visibles hors ligne, reconnaissance après changement de pseudo et nouvelle session, rattachement de la même fenêtre privée et envoi au SID courant. Les messages restent absents des préférences.
+- Catalogue Unicode/CLDR embarqué de 3 781 emojis, neuf catégories, recherche française sans accents et anglaise, grille virtualisée ; remplacement d’un emoji composé manquant comme séquence entière.
+- Désinstallation d’une copie temporaire avec processus Python actif : arrêt de cette seule copie, application, lanceur, entrée de menu et autostart supprimés ; autres programmes laissés actifs. Profil conservé par défaut, puis suppression explicite par `--purge`.
+
+Pour le signalement persistant de texte tronqué, l’instance réelle observée avait été lancée avant le correctif, alors que les fichiers sur disque avaient été remplacés. Un rendu frais a aussi été vérifié avec **Qt 6.12.0 de l’interpréteur installé**, à 150 %, sans utiliser le profil personnel. Les fichiers `friends-1.1.0.png`, `emojis-1.1.0.png` et `settings-installed-qt-1.1.0.png` montrent ces widgets avec des données de démonstration. La désinstallation ferme la copie installée avant sa suppression ; une installation suivante charge réellement le nouveau code.
+
+## Ce qui n’est pas validé par ces essais
+
+- Communication sur deux ordinateurs physiques ou sur le réseau `10.12.0.0/16` de l’école.
+- Broadcast entre zones, filtrage multicast, VLAN, pare-feu ou politiques d’isolation du cluster.
+- Disponibilité d’une machine relais autorisée, de son DNS et de son certificat TLS de production.
+- Rendu de l’icône, de son compteur et des clics dans la session GNOME réelle de l’école ; l’ordre près de Discord reste contrôlé par l’environnement.
+- Autostart après une vraie fermeture/réouverture de session Ubuntu, règles institutionnelles et mise au premier plan Wayland.
+- Disponibilité de toutes les bibliothèques natives Qt sur une nouvelle installation Ubuntu. Le chemin de l’installateur testé réutilise le Python déjà équipé ; la création de venv et le téléchargement de wheels dépendent de la machine et de son accès réseau.
+- Respect du silence par le serveur de notifications propre au poste (le programme émet explicitement la demande `suppress-sound`).
+- Protection contre un acteur réseau hostile, identité campus, chiffrement de bout en bout ou garantie Wizz par personne physique sans authentification.
+
+La procédure à réaliser sur place est fournie dans `SCHOOL_CHECKLIST.md`.

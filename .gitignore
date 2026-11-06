@@ -1,0 +1,43 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.egg-info/
+
+# Environnements et caches de développement
+venv/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+
+# Couverture et distributions générées
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+build/
+dist/
+
+# Configuration propre au poste et secrets
+/network.json
+/config.json
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Fichiers temporaires et métadonnées du poste
+*.pyo
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.idea/

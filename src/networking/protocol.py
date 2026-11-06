@@ -1,0 +1,135 @@
+"""Small, bounded JSON-line protocol. Never deserialize Python objects."""
+import asyncio
+import json
+import re
+
+from ..identity import valid_nickname, session_id, contact_from_caps
+from ..avatar_data import avatar_hash, valid_avatar_hash, AvatarError
+
+VERSION = 1
+MAX_FRAME = 16384
+MAX_MESSAGE = 2000
+MAX_PEERS = 512
+ID = re.compile(r'[a-f0-9]{32}\Z')
+EVENTS = {'message', 'wizz', 'break_invite', 'break_reply'}
+
+
+class ProtocolError(ValueError):
+    pass
+
+
+def valid_id(value):
+    return isinstance(value, str) and ID.fullmatch(value) is not None
+
+
+def validate(data):
+    if not isinstance(data, dict) or type(data.get('v')) is not int or data['v'] != VERSION:
+        raise ProtocolError('Version ou format invalide')
+    kind = data.get('type')
+    if not isinstance(kind, str):
+        raise ProtocolError('Type invalide')
+    if kind in ('hello', 'presence', 'bye'):
+        if not valid_id(data.get('sid')):
+            raise ProtocolError('Session invalide')
+        if kind != 'bye':
+            if set(data) - {'v', 'type', 'sid', 'nick', 'status', 'port', 'avatar', 'caps', 'avatar_hash', 'contact_id'}:
+                raise ProtocolError('Champ de présence inconnu')
+            if 'contact_id' in data and not valid_id(data['contact_id']):
+                raise ProtocolError('Identifiant de contact invalide')
+            if not valid_nickname(data.get('nick')) or data.get('status') not in ('online', 'away', 'dnd'):
+                raise ProtocolError('Identité invalide')
+            avatar = data.get('avatar', -1)
+            if type(avatar) is not int or not -1 <= avatar < 24:
+                raise ProtocolError('Avatar invalide')
+            if not valid_avatar_hash(data.get('avatar_hash', '')):
+                raise ProtocolError('Référence d’image invalide')
+            if 'avatar_image' in data:
+                raise ProtocolError('Image interdite dans une annonce de présence')
+            caps = data.get('caps', [])
+            if not isinstance(caps, list) or len(caps) > 8 or any(not isinstance(c, str) or len(c) > 24 for c in caps):
+                raise ProtocolError('Capacités invalides')
+            if sum(c.startswith('c:') for c in caps) > 1 or any(c.startswith('c:') and not contact_from_caps([c]) for c in caps):
+                raise ProtocolError('Identifiant de contact invalide')
+            port = data.get('port')
+            if type(port) is not int or not 1 <= port <= 65535:
+                raise ProtocolError('Port invalide')
+    elif kind in ('avatar_image', 'avatar_get'):
+        allowed = {'v', 'type', 'sid', 'hash', 'data'} if kind == 'avatar_image' else {'v', 'type', 'sid', 'hash', 'from'}
+        if set(data) != allowed:
+            raise ProtocolError('Trame d’image invalide')
+        if not valid_id(data.get('sid')) or not valid_avatar_hash(data.get('hash')) or not data['hash']:
+            raise ProtocolError('Référence d’image invalide')
+        if kind == 'avatar_get':
+            if not valid_id(data.get('from')):
+                raise ProtocolError('Session demandeuse invalide')
+        else:
+            try:
+                if avatar_hash(data.get('data')) != data['hash']:
+                    raise AvatarError('Image invalide')
+            except (AvatarError, TypeError) as exc:
+                raise ProtocolError('Miniature d’avatar invalide') from exc
+    elif kind in EVENTS:
+        if not valid_id(data.get('id')) or not valid_id(data.get('from')):
+            raise ProtocolError('Identifiant invalide')
+        if data.get('to') != 'general' and not valid_id(data.get('to')):
+            raise ProtocolError('Destinataire invalide')
+        if kind != 'message' and data['to'] == 'general':
+            raise ProtocolError('Action privée uniquement')
+        if kind == 'message':
+            value = data.get('text')
+            if (not isinstance(value, str) or not value.strip() or len(value) > MAX_MESSAGE
+                    or any(0xd800 <= ord(c) <= 0xdfff for c in value)
+                    or len(value.encode('utf-8')) > 8000
+                    or any(ord(c) < 32 and c not in '\n\t' for c in value)):
+                raise ProtocolError('Message invalide (1 à 2000 caractères)')
+        if kind == 'break_reply':
+            if not valid_id(data.get('request')) or data.get('answer') not in ('accepted', 'declined', 'dismissed'):
+                raise ProtocolError('Réponse invalide')
+    elif kind == 'ack':
+        if not valid_id(data.get('id')) or type(data.get('ok')) is not bool:
+            raise ProtocolError('Accusé invalide')
+        if not isinstance(data.get('reason', ''), str) or len(data.get('reason', '')) > 160:
+            raise ProtocolError('Erreur invalide')
+    elif kind in ('ping', 'pong'):
+        pass
+    else:
+        raise ProtocolError('Type inconnu')
+    return data
+
+
+def encode(data):
+    validate(data)
+    try:
+        raw = json.dumps(data, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8') + b'\n'
+    except (ValueError, UnicodeError) as exc:
+        raise ProtocolError('Encodage invalide') from exc
+    if len(raw) > MAX_FRAME:
+        raise ProtocolError('Trame trop longue')
+    return raw
+
+
+def decode(raw):
+    if len(raw) > MAX_FRAME:
+        raise ProtocolError('Trame trop longue')
+    try:
+        return validate(json.loads(raw))
+    except (ValueError, UnicodeError, RecursionError) as exc:
+        raise ProtocolError('Trame invalide') from exc
+
+
+async def read_frame(reader, timeout=12):
+    try:
+        raw = await asyncio.wait_for(reader.readline(), timeout)
+    except (ValueError, asyncio.LimitOverrunError) as exc:
+        raise ProtocolError('Trame trop longue') from exc
+    if not raw or not raw.endswith(b'\n'):
+        raise ConnectionError('Connexion fermée')
+    return decode(raw)
+
+
+def event(kind, sender, target, **payload):
+    return {'v': VERSION, 'type': kind, 'id': session_id(), 'from': sender, 'to': target, **payload}
+
+
+def ack(message_id, ok=True, reason=''):
+    return {'v': VERSION, 'type': 'ack', 'id': message_id, 'ok': ok, 'reason': reason}

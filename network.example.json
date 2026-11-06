@@ -1,0 +1,11 @@
+{
+  "mode": "auto",
+  "udp_port": 39741,
+  "tcp_port": 39742,
+  "multicast_group": "239.42.42.42",
+  "heartbeat": 25,
+  "peer_timeout": 90,
+  "relay_host": "",
+  "relay_port": 39743,
+  "relay_ca": ""
+}
