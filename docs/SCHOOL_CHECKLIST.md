@@ -1,6 +1,6 @@
 # Retour à l’École 42 : essais sur place
 
-Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.3.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.4.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
 ## Préparer deux postes
 
@@ -42,6 +42,8 @@ Ne pas scanner le `/16`, modifier le pare-feu ou réutiliser un port de service 
 - Recevoir un Wizz : vibration de 2,8 secondes, défilement au dernier message et absence de son ; en tester un autre destinataire dans les 42 minutes : envoi refusé. Sous Wayland, la mise au premier plan peut être refusée ; le contenu doit tout de même signaler l’événement.
 - Invitation : accepter, refuser et fermer la popup lors de sessions distinctes, puis vérifier que la quatrième demande successive est bloquée pendant 5 minutes. Vérifier le retour à l’expéditeur et l’expiration après 2 minutes.
 - Masquer une session, activer DND, désactiver Wizz. Les messages restent reçus silencieusement en DND ; les pauses et leurs réponses restent affichées. Vérifier bleu pour « yessss !! » et rouge pour « Non je bosse !! ».
+- Créer une notification avec ✦, essayer les onze animations, Oui, Non et une réponse personnalisée. Préparer un modèle hors connexion dans les paramètres, puis vérifier sa réutilisation.
+- En DND, une notification personnalisée est refusée, une pause classique reste affichée et peut recevoir une réponse personnalisée.
 - Envoyer un fichier en privé puis dans le général : refuser, accepter, choisir un emplacement et annuler pendant le transfert. Vérifier le contenu reçu, l’absence d’écrasement et de téléchargement automatique.
 - Vérifier l’absence de son de notification dans l’environnement Ubuntu concerné, y compris si le serveur de notifications ignore des options.
 
@@ -63,11 +65,11 @@ Un test réussi sur deux machines ne valide pas à lui seul 200 postes ni plusie
 
 | Vérification | Date / postes | Résultat réel |
 | --- | --- | --- |
-| IPv4/interface/masque | À compléter | À vérifier en 1.3.0 |
-| Découverte même zone | À compléter | À vérifier en 1.3.0 |
-| Découverte entre zones | À compléter | À vérifier en 1.3.0 |
-| TCP général et privé | À compléter | À vérifier en 1.3.0 |
+| IPv4/interface/masque | À compléter | À vérifier en 1.4.0 |
+| Découverte même zone | À compléter | À vérifier en 1.4.0 |
+| Découverte entre zones | À compléter | À vérifier en 1.4.0 |
+| TCP général et privé | À compléter | À vérifier en 1.4.0 |
 | TLS/relais autorisé | À compléter | Aucun déploiement présumé |
-| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.3.0 |
-| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.3.0 |
-| Autostart après connexion | À compléter | À vérifier sur la session école en 1.3.0 |
+| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.4.0 |
+| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.4.0 |
+| Autostart après connexion | À compléter | À vérifier sur la session école en 1.4.0 |

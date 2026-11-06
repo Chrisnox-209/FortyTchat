@@ -1,10 +1,10 @@
 # Validation locale de FortyTchat
 
-Validation initiale le **5 novembre 2026**, étendue à la version **1.3.0 le 6 novembre 2026** dans l’environnement de développement. Python 3.14.4 et Qt/PySide6 6.10.2 pour la suite automatisée ; vérifications graphiques complémentaires avec Qt 6.12.0. Le créateur signale un essai réussi d’une version précédente en cluster. Les résultats ci-dessous concernent les tests locaux, sans mesure indépendante des nouveautés 1.3.0 à l’école.
+Validation initiale le **5 novembre 2026**, étendue à la version **1.4.0 le 6 novembre 2026** dans l’environnement de développement. Python 3.14.4 et Qt/PySide6 6.12.0 pour la validation 1.4.0. Les validations antérieures utilisaient aussi Qt 6.10.2. Le créateur signale un essai réussi d’une version précédente en cluster. Les résultats ci-dessous concernent les tests locaux, sans mesure indépendante des nouveautés 1.4.0 à l’école.
 
 ## Résultats
 
-- Suite automatisée actualisée : **104 tests réussis** en **37,04 s** le 6 novembre 2026, couvrant les fonctionnalités 1.3.0 et les régressions des versions précédentes.
+- Suite automatisée actualisée : **114 tests réussis** en **39,16 s** le 6 novembre 2026, couvrant les fonctionnalités 1.4.0 et les régressions des versions précédentes.
 - Charge du relais sur loopback : **200 clients réels asyncio**, roster complet, **199 réceptions uniques** pour un message général, aucune réception en double, en **1,13 s** pour cette exécution. Le test ne mesure pas la charge de 200 utilisateurs envoyant continuellement en parallèle.
 - Découverte UDP multicast réelle entre deux clients locaux, puis livraison TCP et annonce de départ : réussies.
 - ACK direct supprimé après réception : une nouvelle tentative, un seul message affiché.
@@ -66,6 +66,18 @@ Les aperçus `friends-1.2.0.png`, `files-1.2.0.png` et `pause-*-1.2.0.png` sont 
 - Interface réelle : bouton Répondre, aperçu dans le composeur, envoi avec référence, citation cliquable et mise en évidence, texte HTML conservé littéralement et infobulle échappée, réaction retirée par sa pastille, conservation après fermeture/réouverture d’une fenêtre. Un message source reçu en retard actualise sa citation.
 - Aucun texte, citation ni réaction dans les préférences sauvegardées. Les nouveaux textes de pause conservent les callbacks et les couleurs d’acceptation/refus.
 - Captures avec Qt 6.12.0 : `friends-1.3.0.png`, `social-1.3.0.png`, `about-1.3.0.png` et `pause-*-1.3.0.png`, avec profils et messages de démonstration.
+
+## Version 1.4.0 : notifications animées et réponses personnalisées
+
+- Les onze GIF fournis sont décodables et animés avec QMovie, à taille réduite sans cache de toutes les images. Un changement de sélection change l’animation et cacher le widget arrête la lecture.
+- Modèles locaux privés : création, modification, suppression, rechargement, limite de douze modèles, fichier invalide traité et conservation à la désinstallation ordinaire. Le mode de préparation hors connexion n’émet aucun envoi.
+- TCP et relais réels : cartes privées, réponses Oui et personnalisées, référence liée au bon expéditeur, réponse unique, refus des références expirées, anti-spam commun aux pauses, DND et compatibilité des anciens clients. Une pause classique peut recevoir une réponse animée personnalisée.
+- Interface : création avec le bouton ✦, choix de GIF, aperçu, modèle réutilisable, carte reçue, annulation de l’éditeur puis réponse Oui, réponse personnalisée, fermeture et libération de la carte. Les textes reçus ne sont pas enregistrés dans les modèles ni dans les préférences.
+- Cartes et éditeur défilables avec les textes maximaux et des mots longs ; aperçu dans les deux thèmes. Les noms de fichiers et les libellés elliptiques sont recalculés à la largeur réelle et après changement de police.
+
+Un défaut intermittent a été reproduit avec Python 3.14 et Qt 6.10 dans une séquence de création et destruction de fenêtres. Qt indique que [la branche 6.10 ne prend pas en charge Python 3.14](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). La même séquence passe avec Qt 6.12 ; les dépendances et les contrôles de lancement imposent donc PySide6 6.12 minimum pour Python 3.14. L’environnement utilisateur déjà installé n’a pas été modifié pour ces essais.
+
+Les captures `notification-editor-1.4.0.png`, `notification-1.4.0.png`, `notification-reply-*-1.4.0.png` et les paramètres 1.4.0 sont rendus avec Qt 6.12.0 et des données de démonstration. Attribution et licence des GIF incluses dans `assets/animated/`.
 
 ## Ce qui n’est pas validé par ces essais
 

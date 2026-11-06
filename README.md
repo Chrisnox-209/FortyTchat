@@ -5,7 +5,7 @@
 <h1 align="center">FortyTchat</h1>
 
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center"><strong>Version 1.3.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center"><strong>Version 1.4.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> &nbsp;·&nbsp;
@@ -15,16 +15,16 @@
   <a href="#désinstaller">Désinstaller</a>
 </p>
 
-Créée par [Chrisnox-209](https://github.com/Chrisnox-209), **FortyTchat** est une messagerie locale pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées dans leurs propres fenêtres, des amis, des emojis et des avatars personnalisés. Son interface native adopte un thème anthracite et bleu, avec une apparence claire également disponible.
+**FortyTchat** est une messagerie locale pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées dans leurs propres fenêtres, des amis, des emojis et des avatars personnalisés. Son interface native adopte un thème anthracite et bleu, avec une apparence claire également disponible.
 
-**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.3.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
+**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.4.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
 
-Dans cette version : **réponses avec citation cliquable**, **réactions emoji** et **trois points animés quand quelqu’un écrit**. Les pauses deviennent plus conviviales : « On fait une pause ? », « yessss !! » ou « Non je bosse !! ». Retrouvez aussi les amis, les **3 781 emojis**, les avatars personnalisés, les fichiers jusqu’à **20 Mio**, l’icône rouge des messages non lus et le Wizz silencieux.
+Dans cette version : **crée tes notifications avec un titre, un texte et un emoji animé**, puis réponds par **Oui**, **Non** ou avec une **réponse personnalisée**. Les **11 GIF intégrés** fonctionnent hors connexion et tes modèles sont réutilisables. Les citations, réactions, trois points de saisie, amis, photos personnelles, fichiers de 20 Mio et Wizz silencieux restent disponibles.
 
 ## Aperçu
 
 <p align="center">
-  <a href="docs/friends-1.3.0.png"><img src="docs/friends-1.3.0.png" width="980" alt="FortyTchat 1.3.0 : salon général, citations, réactions et indicateur de saisie"></a>
+  <a href="docs/friends-1.4.0.png"><img src="docs/friends-1.4.0.png" width="980" alt="FortyTchat 1.4.0 : salon général, citations, réactions et indicateur de saisie"></a>
 </p>
 
 <p align="center"><em>Le salon général et les amis, réunis dans une interface sombre. Profils de démonstration.</em></p>
@@ -33,7 +33,7 @@ Dans cette version : **réponses avec citation cliquable**, **réactions emoji**
   <tr>
     <td align="center" width="50%" valign="top">
       <h3>Messages privés</h3>
-      <a href="docs/social-1.3.0.png"><img src="docs/social-1.3.0.png" height="320" alt="Conversation privée avec réponse citée, réactions emoji et trois points animés"></a>
+      <a href="docs/social-1.4.0.png"><img src="docs/social-1.4.0.png" height="320" alt="Conversation privée avec réponse citée, réactions emoji et trois points animés"></a>
       <p>Réponds à un message précis, réagis avec un emoji et vois quand ton ami écrit.</p>
     </td>
     <td align="center" width="50%" valign="top">
@@ -57,13 +57,25 @@ Dans cette version : **réponses avec citation cliquable**, **réactions emoji**
   <tr>
     <td align="center" width="50%" valign="top">
       <h3>On fait une pause ?</h3>
-      <a href="docs/pause-invite-1.3.0.png"><img src="docs/pause-invite-1.3.0.png" width="350" alt="Invitation bleue : On fait une pause ? Réponses yessss !! et Non je bosse !!"></a>
+      <a href="docs/pause-invite-1.4.0.png"><img src="docs/pause-invite-1.4.0.png" width="350" alt="Invitation bleue : On fait une pause ? Réponses yessss !! et Non je bosse !!"></a>
       <p>Une carte au centre de l’écran, même en Ne pas déranger.</p>
     </td>
     <td align="center" width="50%" valign="top">
       <h3>La réponse en un clin d’œil</h3>
-      <a href="docs/pause-yes-1.3.0.png"><img src="docs/pause-yes-1.3.0.png" width="350" alt="Réponse de pause positive affichée dans une carte bleue"></a>
-      <p>Bleu pour oui, <a href="docs/pause-no-1.3.0.png">rouge pour non</a>.</p>
+      <a href="docs/notification-reply-yes-1.4.0.png"><img src="docs/notification-reply-yes-1.4.0.png" width="350" alt="Réponse de pause positive affichée dans une carte bleue"></a>
+      <p>Bleu pour oui, <a href="docs/notification-reply-no-1.4.0.png">rouge pour non</a>.</p>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%" valign="top">
+      <h3>Ta notification, ton style</h3>
+      <a href="docs/notification-editor-1.4.0.png"><img src="docs/notification-editor-1.4.0.png" height="360" alt="Éditeur de notification avec titre, texte, onze emojis animés et modèles"></a>
+      <p>Choisis ton animation, écris ton message et prévisualise le résultat.</p>
+    </td>
+    <td align="center" width="50%" valign="top">
+      <h3>Une réponse qui te ressemble</h3>
+      <a href="docs/notification-1.4.0.png"><img src="docs/notification-1.4.0.png" width="350" alt="Notification personnalisée avec emoji animé et réponses Oui, Non ou Personnaliser"></a>
+      <p>Oui, Non ou <a href="docs/notification-reply-custom-1.4.0.png">texte et animation personnalisés</a>.</p>
     </td>
   </tr>
 </table>
@@ -79,6 +91,7 @@ Les aperçus utilisent des profils, des textes et une illustration de démonstra
 - [Amis](#amis)
 - [Utilisation](#utilisation)
 - [Répondre et réagir](#répondre-et-réagir)
+- [Notifications personnalisées](#notifications-personnalisées)
 - [Envoyer un fichier](#envoyer-un-fichier)
 - [Avatars et images personnelles](#avatars-et-images-personnelles)
 - [Dépannage](#dépannage)
@@ -134,7 +147,7 @@ sh ./install.sh --use-current-python
 
 `--no-launch` installe sans lancer immédiatement ; `--bin-dir DOSSIER` choisit l’emplacement du petit lanceur. Sans `--use-current-python`, le script utilise un venv dédié et ne modifie aucun paquet système.
 
-Si `python3 -m venv` ou les bibliothèques natives nécessaires à Qt sont absents, le script explique l’échec. Il n’installe pas de composants système et ne contourne pas une restriction de l’école. Il faut alors un Python utilisateur déjà équipé ou un environnement fourni par l’établissement. Les wheels Qt restent plus volumineuses qu’une interface Tkinter ; la dépendance est limitée à **PySide6 Essentials**.
+Si `python3 -m venv` ou les bibliothèques natives nécessaires à Qt sont absents, le script explique l’échec. Il n’installe pas de composants système et ne contourne pas une restriction de l’école. Il faut alors un Python utilisateur déjà équipé ou un environnement fourni par l’établissement. Les wheels Qt restent plus volumineuses qu’une interface Tkinter ; la dépendance est limitée à **PySide6 Essentials**. Avec Python 3.14, l’installateur utilise PySide6 6.12 ou plus récent ; `--use-current-python` vérifie aussi cette compatibilité.
 
 ## Mettre à jour
 
@@ -147,7 +160,7 @@ Une fois la nouvelle version publiée sur GitHub :
 git -C "$HOME/.FortyTchat" pull --ff-only && sh "$HOME/.FortyTchat/install.sh"
 ```
 
-Le dépôt caché est actualisé, puis l’installateur réutilise l’environnement Python et relance FortyTchat réduit. **Le pseudo, les amis, la photo, les préférences et le choix de démarrage automatique sont conservés.** La configuration réseau déjà installée est également reprise, sauf si le dossier source fournit son propre `network.json` de déploiement.
+Le dépôt caché est actualisé, puis l’installateur réutilise l’environnement Python et relance FortyTchat réduit. **Le pseudo, les amis, la photo, les modèles de notification, les préférences et le choix de démarrage automatique sont conservés.** La configuration réseau déjà installée est également reprise, sauf si le dossier source fournit son propre `network.json` de déploiement.
 
 Les messages de la session sont éphémères : quitter l’application les abandonne. Les fichiers déjà enregistrés restent à leur emplacement. Le script signale une instance encore ouverte : la quitter complètement puis relancer le lanceur charge le nouveau code.
 
@@ -175,7 +188,7 @@ sh "$HOME/.FortyTchat/uninstall.sh"
 
 Depuis une autre copie du projet, utiliser `sh ./uninstall.sh` dans son dossier.
 
-Le script arrête uniquement les processus appartenant à cet utilisateur et exécutant le `main.py` de la copie installée. Il supprime l’application, son environnement Python dédié, son lanceur, son entrée de menu et son autostart, sans sudo et sans toucher aux autres applications. Le profil, les amis et la photo restent dans l’espace de configuration personnel.
+Le script arrête uniquement les processus appartenant à cet utilisateur et exécutant le `main.py` de la copie installée. Il supprime l’application, son environnement Python dédié, son lanceur, son entrée de menu et son autostart, sans sudo et sans toucher aux autres applications. Le profil, les amis, la photo et les modèles de notification restent dans l’espace de configuration personnel.
 
 Pour supprimer aussi ces données :
 
@@ -215,6 +228,7 @@ Valeurs par défaut, avec respect de `XDG_CONFIG_HOME` et `XDG_DATA_HOME` lorsqu
 | `~/.local/share/fortytchat/venv/` | Interpréteur et dépendances dédiés |
 | `~/.local/share/applications/fr.fortytchat.FortyTchat.desktop` | Entrée du menu |
 | `~/.local/bin/fortytchat` | Lanceur |
+| `~/.config/fortytchat/notification_templates.json` | Modèles de notification et de réponse enregistrés volontairement |
 | `~/.config/fortytchat/config.json` | Pseudo, identifiant de profil, amis, miniature personnelle, thème, préférences et date du dernier Wizz |
 | `~/.local/share/fortytchat/app/network.json` | Paramètres réseau de déploiement, sans accès depuis l’interface |
 | `~/.config/autostart/fr.fortytchat.FortyTchat.desktop` | Démarrage personnel, avec chemins absolus et `--background` |
@@ -236,7 +250,7 @@ Référence : [spécification XDG Autostart](https://specifications.freedesktop.
 - **Wizz** : un seul envoi toutes les **42 minutes**, tous destinataires confondus. Le bouton indique le délai. La conversation s’ouvre au dernier message et vibre dans toutes les directions pendant **2,8 secondes**. Sous X11, la fenêtre bouge ; sous Wayland, son contenu vibre, car le bureau contrôle le placement et la mise au premier plan. Aucun son n’est joué.
 - **On fait une pause ?** ouvre une carte bleue au centre de l’écran, valable 2 minutes. « yessss !! » et « Non je bosse !! » renvoient une réponse affichée au centre de l’écran de l’expéditeur : bleu pour oui, rouge pour non. Fermer la carte signale une invitation non confirmée. **Trois demandes successives** sont autorisées par destinataire ; la quatrième bloque les demandes de pause de cet expéditeur pendant **5 minutes**. Après 5 minutes sans demande, une nouvelle série commence. Les messages restent disponibles et le blocage des pauses ne se prolonge pas à chaque tentative.
 - Le menu `···` d’une conversation permet de masquer/démasquer une session. Le masquage expire à l’arrêt de l’application, car les identifiants sont temporaires.
-- Le mode **Ne pas déranger** laisse arriver les messages et fichiers sans notification et refuse les Wizz. **Les invitations de pause et leurs réponses restent actives**, y compris les cartes à l’écran.
+- Le mode **Ne pas déranger** laisse arriver les messages et fichiers sans notification et refuse les Wizz et les nouvelles notifications personnalisées. **Les invitations de pause et les réponses aux demandes déjà reçues restent actives**, y compris les cartes à l’écran.
 - Notifications via `notify-send` lorsqu’il est disponible, avec `suppress-sound=true` et **sans texte de conversation**. Sinon l’application conserve les badges et les indications internes.
 
 Dans **Paramètres → À propos**, retrouve la version installée, le lien GitHub, les fonctions et les données conservées.
@@ -245,7 +259,7 @@ Dans **Paramètres → À propos**, retrouve la version installée, le lien GitH
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-1.3.0.png"><img src="docs/about-1.3.0.png" width="600" alt="Onglet À propos de FortyTchat 1.3.0 avec le logo FT, l’auteur et le lien GitHub"></a>
+  <a href="docs/about-1.4.0.png"><img src="docs/about-1.4.0.png" width="600" alt="Onglet À propos de FortyTchat 1.4.0 avec le logo FT, l’auteur et le lien GitHub"></a>
 </p>
 
 Le contenu est défilable pour rester lisible sur les petits écrans.
@@ -263,6 +277,30 @@ Les messages sont affichés en texte brut, jamais comme du HTML exécutable. La 
 Ces interactions restent en mémoire avec les messages et disparaissent à l’arrêt complet. Une citation dont le message d’origine est inconnu ou a quitté la mémoire du destinataire affiche **Message plus disponible** ; aucun ancien message n’est téléchargé pour la reconstituer.
 
 Les réactions et les indicateurs de saisie demandent **FortyTchat 1.3.0** chez les participants et, s’il est utilisé, sur le relais. Les anciennes versions continuent à recevoir le texte des messages ; les nouveautés s’activent entre les clients compatibles.
+
+## Notifications personnalisées
+
+Dans une conversation privée, cliquer sur **✦** pour créer une notification :
+
+1. Choisir un **titre** (80 caractères maximum) et un **texte** (400 caractères maximum).
+2. Sélectionner l’un des **11 emojis animés** et utiliser **Aperçu** pour voir la carte complète.
+3. Cliquer sur **Envoyer** : le destinataire voit une carte centrée, sans son, avec l’animation choisie.
+
+Le destinataire peut choisir **Oui !**, **Non !** ou **Personnaliser ma réponse…**. Cette dernière option ouvre le même éditeur pour choisir son texte et son animation. La réponse s’affiche ensuite chez l’expéditeur : bleu pour Oui ou une réponse personnalisée, rouge pour Non. Les demandes de pause classiques proposent aussi une réponse personnalisée entre clients compatibles.
+
+<p align="center">
+  <img src="assets/animated/1f44d.gif" width="64" height="64" alt="Pouce en haut animé">
+  <img src="assets/animated/1f923.gif" width="64" height="64" alt="Emoji mort de rire animé">
+  <img src="assets/animated/1f4aa.gif" width="64" height="64" alt="Biceps animé">
+</p>
+
+Animations disponibles : **👍 😭 🤣 😘 👎 😛 💩 ❌ ✅ 🤯 💪**. Elles sont intégrées à l’installation ; les destinataires ne téléchargent rien et aucune URL d’image n’est envoyée sur le réseau.
+
+**Enregistrer ce modèle** conserve volontairement le titre, le texte et l’animation dans ton profil. Jusqu’à **12 modèles**, notifications et réponses confondues, peuvent être créés, modifiés ou supprimés. [**Paramètres → Mes notifications animées**](docs/settings-1.4.0.png) permet de les préparer même sans personne en ligne. Les notifications reçues et les réponses envoyées restent uniquement dans la conversation en mémoire, sauf les modèles que tu choisis explicitement d’enregistrer.
+
+Une demande reste valable **2 minutes**. Pauses et notifications personnalisées partagent la limite de **3 demandes successives par destinataire** ; la quatrième bloque leurs nouveaux envois pendant **5 minutes**, en laissant les messages disponibles. **Ne pas déranger** refuse les nouvelles notifications personnalisées ; les pauses classiques et les réponses aux demandes déjà reçues restent actives.
+
+Ces cartes et leurs réponses personnalisées demandent **FortyTchat 1.4.0** chez les deux participants et sur le relais s’il est utilisé. Les messages, fichiers et pauses classiques restent compatibles avec les versions précédentes.
 
 ## Envoyer un fichier
 
@@ -290,7 +328,7 @@ Pour enlever sa photo, choisir **Retirer mon image** ou sélectionner un personn
 
 | Problème | Vérification ou solution |
 | --- | --- |
-| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.3.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
+| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.4.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
 | Ancienne icône violette « 42 » | L’ancienne application tourne peut-être encore. La quitter depuis son menu, puis relancer `sh ./install.sh` depuis le projet actualisé. La nouvelle icône est noire avec **FT** en blanc. |
 | Aucune personne en ligne à la maison | C’est normal si aucun autre client ne tourne sur le réseau. Pour tester sur un seul PC, ouvrir les deux profils de développement décrits plus bas. |
 | Personnes non détectées sur deux PC | Vérifier que les deux machines sont autorisées à communiquer. Le diagnostic est réservé aux commandes de la section réseau ; aucun réglage réseau n’est accessible dans l’interface. Le Wi-Fi invité, les VLAN ou des politiques d’isolation peuvent empêcher les échanges. |
@@ -413,9 +451,13 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest -q
 python3 tools/stress_test.py --clients 200
 ```
 
-La suite locale comprend **104 tests réussis** pour la version 1.3.0. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, compatibilité des anciens clients, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface et absence de persistance. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
+La suite locale comprend **114 tests réussis** pour la version 1.4.0. Exécuter les tests dans l’environnement Python équipé des dépendances du projet. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, réponses citées, réactions ajoutées/remplacées/retirées, saisie transitoire, compatibilité des anciens clients, notifications animées, modèles enregistrables, réponses personnalisées, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface et absence de persistance. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
 
 Les résultats locaux et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
+
+## Crédits des animations
+
+Les 11 GIF **Animated Noto Emoji de Google**, fournis via les liens EmojiTerra, sont distribués sous [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), conformément à la [documentation officielle Noto](https://googlefonts.github.io/noto-emoji-files/?view=docs). Les fichiers sont intégrés sans modification ; seul leur affichage est redimensionné. Sources, empreintes et attribution : [assets/animated/ATTRIBUTION.md](assets/animated/ATTRIBUTION.md). La licence complète accompagne les fichiers : [assets/animated/LICENSE.txt](assets/animated/LICENSE.txt).
 
 ## Données Unicode
 

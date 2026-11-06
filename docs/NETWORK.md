@@ -17,7 +17,7 @@ JSON UTF-8 avec un saut de ligne terminal, **16 384 octets maximum, délimiteur 
 Exemple de présence (valeurs illustratives) :
 
 ```json
-{"v":1,"type":"hello","sid":"dbe8e2c83e144a78890e277489f1d07d3","nick":"CosmicOtter0042","status":"online","port":39742,"caps":["files","wizz","pause","probe","social","avatar_image","friends","c:AAAAAAAAAAAAAAAAAAAAAQ"],"avatar":5,"avatar_hash":""}
+{"v":1,"type":"hello","sid":"dbe8e2c83e144a78890e277489f1d07d3","nick":"CosmicOtter0042","status":"online","port":39742,"caps":["files","wizz","cards","probe","social","avatar_image","friends","c:AAAAAAAAAAAAAAAAAAAAAQ"],"avatar":5,"avatar_hash":""}
 ```
 
 | Type logique | Type sur le fil | Rôle |
@@ -120,3 +120,17 @@ La capacité `social` remplace le marqueur historique `avatar` pour conserver le
 `seq` est un entier croissant de session. Un cache borné ignore les anciens états arrivant après un état plus récent, pour éviter de réafficher une réaction retirée ou une saisie arrêtée. Les réactions et la saisie ont leurs propres seaux de débit et n’épuisent pas le budget des messages. Blocage, destinataire et identité de session sont vérifiés comme pour le reste du protocole.
 
 Les réactions reçues avant leur message sont gardées au plus dix secondes, dans une file de 256 états maximum. L’ensemble des indicateurs de saisie est limité à 512 états et chaque message à 512 auteurs de réaction. Toutes ces données restent en mémoire ; une reconnexion ou un nouveau client n’en reçoit aucun historique.
+
+## Notifications animées (1.4.0)
+
+La capacité `cards` remplace le marqueur historique `pause` pour conserver les huit capacités de présence. Le fonctionnement des pauses classiques ne dépendait pas de ce marqueur. Un relais actualisé annonce également `cards` dans son premier `pong`. Les clients vérifient la capacité du destinataire et de la route avant d’envoyer une carte ; un ancien relais ne reçoit aucune de ces nouvelles trames.
+
+`card_invite` est un événement privé avec `title` (1 à 80 caractères), `text` (0 à 400 caractères) et `emoji`. `emoji` est exclusivement un identifiant de la liste locale des onze GIF. Les trames n’acceptent ni URL, ni chemin, ni données binaires d’image. Le titre et le texte sont affichés comme texte brut. Les mots longs peuvent être coupés à l’affichage et les cartes défilent si le contenu dépasse l’écran.
+
+`card_reply` ajoute `request`, lié à une demande en attente de cet expéditeur, et `answer` : `accepted`, `declined`, `custom` ou `dismissed`. La réponse inclut le même trio titre/texte/animation. Elle peut répondre à une carte personnalisée ou, entre clients compatibles, à une pause classique. Une référence inconnue, consommée ou expirée est refusée. L’interface ne clôture la demande qu’une fois et libère son emplacement après réponse ou expiration.
+
+Les cartes partagent les compteurs anti-spam des pauses : trois demandes par destinataire dans une série, blocage de cinq minutes à la quatrième, expiration après deux minutes. Les nouvelles cartes personnalisées respectent DND ; les pauses classiques et les réponses restent actives. Le relais refuse une carte à une session annonçant DND ; le client vérifie aussi sa préférence réelle à réception.
+
+Les animations sont des GIF locaux du paquet d’installation. QMovie lit une seule animation sélectionnée dans l’éditeur et une par carte visible, redimensionnées à 100–112 pixels, avec `CacheNone`. Les onze vignettes du sélecteur sont statiques. Les envois et réponses restent en mémoire comme les autres conversations.
+
+Seuls les modèles explicitement enregistrés sont écrits dans `notification_templates.json` sous le dossier de profil. Le fichier est borné à douze modèles, validé à la lecture et remplacé atomiquement avec des permissions privées. Il ne contient aucun journal des notifications reçues. La désinstallation ordinaire conserve ces modèles ; `--purge` supprime le profil complet.
