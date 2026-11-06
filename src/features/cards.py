@@ -29,6 +29,44 @@ def valid_card(data):
             and isinstance(data['emoji'], str) and data['emoji'] in EMOJI_IDS)
 
 
+
+def default_responses():
+    return {'buttons': [dict(label='Oui !', answer='accepted', **answer_card('accepted')),
+                        dict(label='Non !', answer='declined', **answer_card('declined'))], 'free': True}
+
+
+def valid_responses(value):
+    if (not isinstance(value, dict) or set(value) != {'buttons', 'free'}
+            or type(value['free']) is not bool or not isinstance(value['buttons'], list)
+            or len(value['buttons']) > 3):
+        return False
+    labels = set()
+    for item in value['buttons']:
+        if (not isinstance(item, dict) or set(item) != {'label', 'answer', 'title', 'text', 'emoji'}
+                or not card_text(item['label'], 32) or any(c in item['label'] for c in '\n\t')
+                or item['answer'] not in ('accepted', 'declined', 'custom')
+                or not valid_card({key: item[key] for key in ('title', 'text', 'emoji')})
+                or item['label'].strip().casefold() in labels):
+            return False
+        labels.add(item['label'].strip().casefold())
+    return True
+
+
+def valid_invite(value):
+    return (isinstance(value, dict) and not set(value) - {'title', 'text', 'emoji', 'responses'}
+            and valid_card({key: value.get(key) for key in ('title', 'text', 'emoji')})
+            and ('responses' not in value or valid_responses(value['responses'])))
+
+
+def allowed_reply(policy, frame):
+    choice = frame.get('choice')
+    if choice is None:
+        return policy['free'] and frame['answer'] == 'custom'
+    if type(choice) is not int or not 0 <= choice < len(policy['buttons']):
+        return False
+    selected = policy['buttons'][choice]
+    return all(frame.get(key) == selected[key] for key in ('answer', 'title', 'text', 'emoji'))
+
 def answer_card(answer):
     return {'title': 'yessss !!' if answer == 'accepted' else 'Non je bosse !!' if answer == 'declined' else 'Une prochaine fois !',
             'text': '', 'emoji': '1f44d' if answer == 'accepted' else '1f44e' if answer == 'declined' else '274c'}
@@ -47,30 +85,35 @@ class CardTemplates:
                     raise ValueError('Modèles invalides')
                 ids = set()
                 for item in data:
-                    if (not isinstance(item, dict) or set(item) != {'id', 'kind', 'title', 'text', 'emoji'}
+                    if (not isinstance(item, dict) or set(item) - {'id', 'kind', 'title', 'text', 'emoji', 'responses'}
                             or not isinstance(item['id'], str) or len(item['id']) != 32
                             or any(c not in '0123456789abcdef' for c in item['id'])
                             or item['id'] in ids or item['kind'] not in ('invite', 'reply')
-                            or not valid_card({key: item[key] for key in ('title', 'text', 'emoji')})):
+                            or not (valid_invite if item['kind'] == 'invite' else valid_card)({key: val for key, val in item.items() if key not in ('id', 'kind')})):
                         raise ValueError('Modèle invalide')
                     ids.add(item['id'])
                 self.items = data
-            except (OSError, ValueError, TypeError, RecursionError):
+            except (OSError, ValueError, TypeError, KeyError, RecursionError):
                 self.error = 'Les modèles enregistrés sont illisibles. Tu peux créer une nouvelle notification.'
 
     def _write(self, items):
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        encoded = json.dumps(items, ensure_ascii=False, separators=(',', ':'))
+        if len(encoded.encode('utf-8')) > 65536:
+            raise ValueError('Modèles trop volumineux : raccourcis les réponses ou supprime un modèle.')
         fd, name = tempfile.mkstemp(prefix='.notifications-', dir=self.path.parent)
         try:
             with os.fdopen(fd, 'w', encoding='utf-8') as stream:
-                json.dump(items, stream, ensure_ascii=False, separators=(',', ':'))
+                stream.write(encoded)
+                stream.flush()
+                os.fsync(stream.fileno())
             os.replace(name, self.path)
         finally:
             if os.path.exists(name): os.unlink(name)
         self.items, self.error = items, ''
 
     def save(self, payload, kind, template_id=''):
-        if not valid_card(payload) or kind not in ('invite', 'reply'):
+        if kind not in ('invite', 'reply') or not (valid_invite if kind == 'invite' else valid_card)(payload):
             raise ValueError('Complète le titre, le texte et l’emoji.')
         items = [dict(item) for item in self.items]
         existing = next((i for i, item in enumerate(items) if item['id'] == template_id and item['kind'] == kind), None)

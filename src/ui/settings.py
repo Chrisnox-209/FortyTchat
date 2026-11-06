@@ -72,6 +72,10 @@ class SettingsDialog(QDialog):
         self.read_receipts.setChecked(preferences.read_receipts)
         form.addWidget(self.read_receipts)
         form.addWidget(label('Deux coches grises : livré. Deux bleues : vu dans la conversation active. Désactive cette option pour ne pas envoyer « Vu » ; la livraison reste confirmée. Les confirmations déjà partagées restent visibles.', 'caption', True))
+        self.tray_menu_double_click = QCheckBox('Compatibilité doubleclic de l’icône (GNOME)')
+        self.tray_menu_double_click.setChecked(preferences.tray_menu_double_click)
+        form.addWidget(self.tray_menu_double_click)
+        form.addWidget(label('Aide à ouvrir le tchat au doubleclic quand la barre ouvre seulement un menu. Désactive cette option si une fermeture rapide du menu ouvre le tchat involontairement.', 'caption', True))
         theme_row = QHBoxLayout()
         theme_row.addWidget(label('Apparence'))
         self.theme = QComboBox()
@@ -113,14 +117,14 @@ class SettingsDialog(QDialog):
             ('Le cluster, en direct', 'Une messagerie locale pour discuter dans le salon général ou dans une fenêtre privée. Aucun compte à créer : les personnes présentes sur le réseau sont découvertes automatiquement.'),
             ('Envoyé, livré, vu', 'Une coche grise : envoyé, réception en attente. Deux coches grises : livré à l’application du destinataire. Deux bleues : affiché dans sa conversation active. Les compteurs du général concernent les destinataires présents à l’envoi. Désactive le partage des confirmations de lecture dans Général si tu ne veux pas envoyer « Vu ». Les états restent en mémoire et leurs confirmations sont chiffrées.'),
             ('Répondre, réagir, discuter', 'Le bouton ↩ cite un message ; un clic sur la citation y ramène. Le bouton ☺ ajoute une réaction emoji, modifiable ou retirable. Trois points animés indiquent quand quelqu’un écrit, sans partager son brouillon.'),
-            ('Des notifications à ton image', 'Le bouton ✦ ouvre un éditeur de titre, texte et emoji animé. Onze animations sont disponibles hors connexion. Réponds par Oui, Non ou une réponse personnalisée. Tes modèles enregistrés restent dans ton profil et sont accessibles depuis les paramètres.'),
+            ('Tes notifications, tes réponses', 'Le bouton ✦ permet de choisir titre, texte, animation et réponses proposées. Prépare jusqu’à trois boutons avec leur libellé, une réponse Oui, Non ou Autre, et le texte et emoji qui seront renvoyés. Autorise une réponse libre si tu le souhaites, ou choisis Fermer uniquement pour une simple information. Fermer ne renvoie aucune réponse sur ces nouvelles cartes. Les choix peuvent être enregistrés avec tes modèles ; les deux clients doivent utiliser 1.7.0.'),
             ('Tes amis, ton image, tes emojis', 'Les amis restent reconnus après un changement de pseudo. Choisis un avatar ou importe ta photo, puis exprime-toi parmi 3 781 emojis avec recherche et catégories.'),
             ('Des fichiers à partager', 'Envoie un fichier de 20 Mio maximum dans le général ou en privé. Le destinataire choisit de l’enregistrer ou de le refuser. Les fichiers enregistrés restent à l’emplacement choisi.'),
             ('Un Wizz, une pause', 'Le Wizz fait vibrer la conversation pendant 2,8 secondes et montre les derniers messages, sans son. Un envoi toutes les 42 minutes. Les pauses restent actives en Ne pas déranger : trois demandes successives, puis cinq minutes de blocage à la quatrième. La réponse apparaît en bleu pour oui et en rouge pour non.'),
             ('Ton profil reste, les messages s’effacent', 'Pseudo, amis, photo et préférences restent sur ton espace utilisateur. Les messages restent en mémoire : Quitter complètement les efface de ce processus. Fermer la fenêtre garde l’application active.'),
             ('Chiffré de bout en bout', 'Messages, fichiers, réactions, saisie, Wizz et notifications sont chiffrés entre les appareils, en direct et via le relais. Chaque démarrage renouvelle les clés de session. Compare les empreintes depuis le cadenas pour vérifier le premier contact ; un changement de clé bloque les échanges. Les anciennes versions doivent être mises à jour.'),
             ('Une identité à vérifier', 'La clé de ton profil et les clés publiques de tes contacts restent sur ton espace utilisateur, sans historique de messages. Le pseudo ne prouve pas l’identité d’un étudiant. Le général reste lisible par ses participants ; pseudos, présence, avatars et métadonnées de trafic restent publics. Un appareil compromis peut lire ses conversations.'),
-            ('Ubuntu et la barre supérieure', 'L’icône FT devient rouge quand des messages sont non lus. Le doubleclic, son placement et la mise au premier plan dépendent du bureau. Sans barre compatible, FortyTchat reste accessible dans le dock.'),
+            ('Ubuntu et la barre supérieure', 'L’icône FT devient rouge quand des messages sont non lus. Doubleclic, activation principale ou clic milieu ouvrent le tchat. La compatibilité GNOME reconnaît aussi l’ouverture puis la fermeture rapide du menu, sans sélectionner une action ; elle peut être désactivée dans Général. Le menu propose toujours Ouvrir FortyTchat. Le bureau garde le contrôle du placement et de la mise au premier plan ; le comportement doit être vérifié sur les postes de l’école.'),
         ]:
             privacy_box.addWidget(label(title, 'title', True))
             privacy_box.addWidget(label(text, 'muted', True))
@@ -135,6 +139,7 @@ class SettingsDialog(QDialog):
         self.wizz.toggled.connect(lambda value: self.preference_changed.emit('wizz_enabled', value))
         self.dnd.toggled.connect(lambda value: self.preference_changed.emit('dnd', value))
         self.read_receipts.toggled.connect(lambda value: self.preference_changed.emit('read_receipts', value))
+        self.tray_menu_double_click.toggled.connect(lambda value: self.preference_changed.emit('tray_menu_double_click', value))
         self.theme.currentIndexChanged.connect(lambda index: self.preference_changed.emit('theme', self.theme.itemData(index)))
 
     @staticmethod

@@ -178,6 +178,8 @@ class MainWindow(QMainWindow):
         self.showNormal()
         self.raise_()
         self.activateWindow()
+        if self.windowHandle():
+            self.windowHandle().requestActivate()
         self.input.setFocus()
         self.sidebar.unread.pop('general', None)
         self.sidebar.refresh()

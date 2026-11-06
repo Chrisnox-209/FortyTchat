@@ -11,7 +11,7 @@ from ..features.file_transfer import FileTransfers, FILE_EVENTS, CHUNK_SIZE, dis
 from ..features.break_request import Invitations, BreakRateLimit
 from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
 from ..features.social import SOCIAL_EVENTS, SocialOrder
-from ..features.cards import CARD_EVENTS
+from ..features.cards import CARD_EVENTS, allowed_reply
 from ..features.receipts import ReceiptLedger, READ_EVENTS, READ_BATCH
 from ..identity import session_id, unique_nickname, valid_nickname, contact_capability, contact_from_caps
 from ..avatar_data import avatar_hash, avatar_frame
@@ -59,6 +59,7 @@ class ChatClient:
         self.persist_wizz = persist_wizz
         self.peers, self.blocked = {}, set()
         self.seen, self.outgoing_invites, self.incoming_invites = SeenMessages(), Invitations(), Invitations()
+        self.card_policies = {'incoming': {}, 'outgoing': {}}
         self.message_bucket = TokenBucket()
         self.social_bucket, self.typing_bucket = TokenBucket(12, 3), TokenBucket(4, 1)
         self.receipts, self.receipt_bucket = ReceiptLedger(), TokenBucket(16, 4)
@@ -95,7 +96,7 @@ class ChatClient:
     def hello(self, kind='hello'):
         return self.crypto.sign_presence({'v': 1, 'type': kind, 'sid': self.sid, 'nick': self.nickname,
                 'status': self.status, 'port': self.port,
-                'caps': ['files', 'wizz', 'cards', 'probe', 'social', 'avatar_image', 'receipts', contact_capability(self.contact_id)],
+                'caps': ['files', 'choices', 'cards', 'probe', 'social', 'avatar_image', 'receipts', contact_capability(self.contact_id)],
                 'avatar': self.avatar, 'avatar_hash': self.avatar_hash})
 
     def network_state(self):
@@ -257,6 +258,7 @@ class ChatClient:
             await self._start_local()
             self._announce()
             self.files.prune()
+            self.prune_card_policies()
             now = time.monotonic()
             for sid, peer in list(self.peers.items()):
                 if not peer.relay and now - peer.direct_seen > self.peer_timeout:
@@ -371,6 +373,7 @@ class ChatClient:
                     self.connections.discard(writer)
 
     def _receive(self, frame):
+        self.prune_card_policies()
         sender = frame['from']
         peer = self.peers.get(sender)
         if not peer or not peer.secure or sender in self.blocked:
@@ -391,6 +394,8 @@ class ChatClient:
             return False, 'Demandes de pause bloquées pendant 5 minutes'
         if kind in CARD_EVENTS and 'cards' not in peer.caps:
             return False, 'Notifications personnalisées incompatibles'
+        if ('responses' in frame or 'choice' in frame) and 'choices' not in peer.caps:
+            return False, 'Choix de réponse incompatibles'
         if kind == 'card_invite' and self.dnd:
             return False, 'Ne pas déranger'
         if kind in SOCIAL_EVENTS and 'social' not in peer.caps:
@@ -410,15 +415,24 @@ class ChatClient:
                 return False, 'Demandes de pause bloquées pendant 5 minutes'
             if not self.incoming_invites.add(frame['id'], sender):
                 return False, 'Invitation indisponible'
+            if 'responses' in frame:
+                self.card_policies['incoming'][frame['id']] = frame['responses']
+        if kind in ('break_reply', 'card_reply'):
+            policy = self.card_policies['outgoing'].get(frame['request'])
+            if (policy is not None and (kind != 'card_reply' or not allowed_reply(policy, frame))
+                    or policy is None and 'choice' in frame):
+                return False, 'Cette réponse ne fait pas partie des choix proposés'
         if kind in ('break_reply', 'card_reply') and not self.outgoing_invites.consume(frame['request'], sender):
             return False, 'Invitation expirée'
+        if kind in ('break_reply', 'card_reply'):
+            self.card_policies['outgoing'].pop(frame['request'], None)
         self.seen.add(frame['id'])
         if kind in SOCIAL_EVENTS:
             self.social_order.remember(frame)
         if kind == 'message':
             self.receipts.received(frame)
         # Keep only validated fields; never trust a network-provided display name.
-        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active', 'title') if k in frame}
+        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active', 'title', 'responses', 'choice') if k in frame}
         self.emit('event', frame=payload, nickname=peer.nick, avatar=peer.avatar, avatar_image=peer.avatar_image,
                   contact_id=peer.contact_id)
         return True, ''
@@ -549,6 +563,7 @@ class ChatClient:
             self.operations.discard(operation)
 
     async def _send(self, kind, target, **payload):
+        self.prune_card_policies()
         if self._closing:
             return None
         if kind in READ_EVENTS:
@@ -569,8 +584,10 @@ class ChatClient:
             self.emit('notice', text='Salon général : les contacts dont la clé a changé sont exclus de cet envoi. Vérifie leurs empreintes pour les autoriser.')
         if kind in CARD_EVENTS:
             peers = [p for p in peers if 'cards' in p.caps and (p.direct or (p.relay and self.relay_writer and self.relay_cards))]
+            if 'responses' in frame or 'choice' in frame:
+                peers = [p for p in peers if 'choices' in p.caps]
         if target != 'general' and not peers:
-            self.emit('notice', text='Notifications animées indisponibles : actualise les clients et le relais en 1.5.0.'
+            self.emit('notice', text='Choix de réponse indisponibles : actualise les deux clients en 1.7.0.' if 'responses' in frame or 'choice' in frame else 'Notifications animées indisponibles : actualise les clients et le relais en 1.5.0.'
                       if kind in CARD_EVENTS else 'Contact indisponible ou clé modifiée : vérifie le cadenas de la conversation.')
             return None
         if kind in ('break_invite', 'card_invite') and self.outgoing_break_limit.remaining(peers[0].contact_id or target):
@@ -599,9 +616,19 @@ class ChatClient:
             if not self.outgoing_invites.add(frame['id'], target):
                 self.emit('notice', text='Trop de demandes sans réponse. Patiente un instant.')
                 return None
+            if 'responses' in frame:
+                self.card_policies['outgoing'][frame['id']] = frame['responses']
+        if kind in ('break_reply', 'card_reply'):
+            policy = self.card_policies['incoming'].get(payload.get('request'))
+            if (policy is not None and (kind != 'card_reply' or not allowed_reply(policy, frame))
+                    or policy is None and 'choice' in frame):
+                self.emit('notice', text='Cette réponse ne fait pas partie des choix proposés.')
+                return None
         if kind in ('break_reply', 'card_reply') and not self.incoming_invites.consume(payload.get('request'), target):
             self.emit('notice', text='Cette invitation a expiré.')
             return None
+        if kind in ('break_reply', 'card_reply'):
+            self.card_policies['incoming'].pop(payload.get('request'), None)
         self.seen.add(frame['id'])
         if kind == 'message':
             self.receipts.sent(frame, peers)
@@ -624,6 +651,12 @@ class ChatClient:
             ok = False
         self.emit('message_delivery', id=frame['id'], target=frame['to'], peer=peer.sid, ok=ok)
         return ok
+
+    def prune_card_policies(self):
+        for name, invitations in (('incoming', self.incoming_invites), ('outgoing', self.outgoing_invites)):
+            invitations.prune()
+            self.card_policies[name] = {key: value for key, value in self.card_policies[name].items()
+                                        if key in invitations.pending}
 
     async def mark_read(self, references):
         operation = asyncio.current_task()
@@ -943,5 +976,7 @@ class ChatClient:
         self.avatar_attempts.clear()
         self.incoming_invites.pending.clear()
         self.outgoing_invites.pending.clear()
+        self.card_policies['incoming'].clear()
+        self.card_policies['outgoing'].clear()
         self.receipts.clear()
         self.crypto.private = None

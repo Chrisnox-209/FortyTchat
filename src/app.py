@@ -252,7 +252,8 @@ class Application(QObject):
             self.card_editors[key].raise_()
             self.card_editors[key].activateWindow()
             return self.card_editors[key]
-        editor = CardEditor(peer['nick'], self.card_templates, reply=bool(request), parent=self.window)
+        editor = CardEditor(peer['nick'], self.card_templates, reply=bool(request), parent=self.window,
+                            allow_choices='choices' in peer.get('caps', ()))
         self.card_editors[key] = editor
         if popup:
             editor.submitted.connect(lambda payload: popup.answer(payload) if not popup.answered else None)
@@ -272,7 +273,9 @@ class Application(QObject):
 
     def send_card_answer(self, target, request, original_kind, value):
         if isinstance(value, dict):
-            return self.worker.send('card_reply', target, request=request, answer='custom', **value)
+            payload = dict(value)
+            answer = payload.pop('answer', 'custom')
+            return self.worker.send('card_reply', target, request=request, answer=answer, **payload)
         if original_kind == 'card_invite':
             return self.worker.send('card_reply', target, request=request, answer=value, **answer_card(value))
         return self.worker.send('break_reply', target, request=request, answer=value)
@@ -854,6 +857,8 @@ class Application(QObject):
             self.settings.feedback.setText('Préférences appliquées immédiatement.' )
 
     def apply_network_preferences(self):
+        import os
+        self.tray.menu_double_click = self.preferences.tray_menu_double_click and 'GNOME' in os.environ.get('XDG_CURRENT_DESKTOP', '').upper()
         self.worker.call('preferences', wizz_enabled=self.preferences.wizz_enabled, dnd=self.preferences.dnd,
                          status=self.status, avatar=self.preferences.avatar, avatar_image=self.preferences.avatar_image,
                          read_receipts=self.preferences.read_receipts)

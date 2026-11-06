@@ -1,11 +1,12 @@
 """Screen-centred, silent invitation cards, independent of the chat window."""
 import re
+import html
 
 from PySide6.QtCore import Qt, QTimer, QRectF, QPointF, Signal
 from PySide6.QtGui import (QColor, QCursor, QFont, QGuiApplication, QLinearGradient,
                            QPainter, QPainterPath, QPen)
 from PySide6.QtWidgets import (QApplication, QDialog, QFrame, QGraphicsDropShadowEffect,
-                               QHBoxLayout, QVBoxLayout, QWidget, QScrollArea, QLayout, QBoxLayout)
+                               QHBoxLayout, QVBoxLayout, QWidget, QScrollArea, QLayout, QBoxLayout, QSizePolicy)
 
 from .widgets import button, label
 from ..features.break_request import INVITE_LIFETIME
@@ -151,6 +152,12 @@ class _PauseCard(QDialog):
             self.move(available.center() - self.rect().center())
         super().showEvent(event)
         QTimer.singleShot(0, self.present)
+        if hasattr(self, 'choice_buttons'):
+            QTimer.singleShot(0, self.fit_choice_labels)
+
+    def fit_choice_labels(self):
+        for control, full in getattr(self, 'choice_buttons', []):
+            control.setText(control.fontMetrics().elidedText(full, Qt.TextElideMode.ElideRight, max(60, control.width() - 44)))
 
     def present(self):
         if not self.isVisible():
@@ -244,14 +251,59 @@ class CardPopup(BreakPopup):
         self.body_label.setText(card_display_text(card['text']) or 'Un petit message pour toi.')
         self.yes_button.setText('Oui !')
         self.no_button.setText('Non !')
+        self.policy = card.get('responses')
+        self.choice_buttons = []
+        if self.policy is not None:
+            self.yes_button.hide()
+            self.no_button.hide()
+            old_controls = self.controls
+            self.box.removeItem(old_controls)
+            old_controls.setParent(None)
+            old_controls.deleteLater()
+            del self.controls
+            self.custom_button.setText('Autre réponse…')
+            position = self.box.indexOf(self.custom_button)
+            for index, choice in enumerate(self.policy['buttons']):
+                control = button(choice['label'], 'pauseSecondary' if choice['answer'] == 'declined' else 'pausePrimary')
+                control.setMinimumWidth(0)
+                control.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+                escaped = html.escape(choice['label'])
+                control.setToolTip(choice['label'] if escaped == choice['label'] else '<qt>' + escaped + '</qt>')
+                control.setAccessibleName(choice['label'])
+                value = {key: choice[key] for key in ('answer', 'title', 'text', 'emoji')}
+                control.clicked.connect(lambda checked=False, v=value, i=index: self.answer({**v, 'choice': i}))
+                self.box.insertWidget(position, control)
+                self.choice_buttons.append((control, choice['label']))
+                position += 1
+            self.custom_button.setVisible(self.policy['free'])
+            self.close_button = button('Fermer', 'pauseSecondary')
+            self.close_button.clicked.connect(self.reject)
+            self.box.insertWidget(self.box.indexOf(self.custom_button) + 1, self.close_button)
+            if not self.policy['buttons'] and not self.policy['free']:
+                self.box.itemAt(self.box.count() - 1).widget().setText('Information · aucune réponse attendue · sans son')
+
+    def reject(self):
+        if getattr(self, 'policy', None) is None:
+            return super().reject()
+        self.answered = True
+        self.timer.stop()
+        QDialog.done(self, QDialog.DialogCode.Rejected)
+
+    def closeEvent(self, event):
+        if self.policy is None:
+            return super().closeEvent(event)
+        self.reject()
+        event.accept()
 
 
-class CardPreviewPopup(_PauseCard):
-    def __init__(self, card, parent=None):
-        super().__init__('Aperçu de notification', parent=parent, emoji=card['emoji'])
-        self.add_text('APERÇU LOCAL', 'pauseEyebrow')
-        self.add_text(card_title(card['title']), 'pauseTitle')
-        self.add_text(card['text'] or 'Un petit message pour toi.', 'pauseBody')
-        close = button('Fermer l’aperçu', 'pausePrimary')
+class CardPreviewPopup(CardPopup):
+    def __init__(self, card, parent=None, reply=False):
+        if reply:
+            card = {**card, 'responses': {'buttons': [], 'free': False}}
+        super().__init__('Aperçu local', card, lambda value: None, parent)
+        self.setWindowTitle('Aperçu local · aucun envoi')
+        self.custom_button.setEnabled(False)
+        self.custom_button.setToolTip('La réponse libre sera disponible chez le destinataire.')
+        close = button('Fermer l’aperçu', 'pauseSecondary')
         close.clicked.connect(self.accept)
         self.box.addWidget(close)

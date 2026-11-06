@@ -10,7 +10,7 @@ from ..avatar_data import avatar_hash, valid_avatar_hash, AvatarError
 
 from ..features.file_transfer import FILE_EVENTS, CHUNK_SIZE, MAX_FILE_SIZE, valid_filename
 from ..features.social import SOCIAL_EVENTS, valid_reaction
-from ..features.cards import CARD_EVENTS, valid_card
+from ..features.cards import CARD_EVENTS, valid_card, valid_responses
 from ..features.receipts import READ_EVENTS, READ_BATCH
 
 VERSION = 1
@@ -119,6 +119,8 @@ def validate(data):
                 if not 0 < len(raw) <= CHUNK_SIZE:
                     raise ProtocolError('Taille du bloc invalide')
     elif kind in EVENTS:
+        if ('responses' in data and kind != 'card_invite') or ('choice' in data and kind != 'card_reply'):
+            raise ProtocolError('Choix de réponse réservé aux notifications personnalisées')
         if not valid_id(data.get('id')) or not valid_id(data.get('from')):
             raise ProtocolError('Identifiant invalide')
         if data.get('to') != 'general' and not valid_id(data.get('to')):
@@ -133,6 +135,14 @@ def validate(data):
                 raise ProtocolError('Confirmation de lecture invalide')
         if kind in CARD_EVENTS:
             fields = {'title', 'text', 'emoji'} | ({'request', 'answer'} if kind == 'card_reply' else set())
+            if kind == 'card_invite' and 'responses' in data:
+                fields.add('responses')
+                if not valid_responses(data['responses']):
+                    raise ProtocolError('Choix de réponse invalides')
+            if kind == 'card_reply' and 'choice' in data:
+                fields.add('choice')
+                if type(data['choice']) is not int or not 0 <= data['choice'] < 3:
+                    raise ProtocolError('Choix de réponse invalide')
             if set(data) != {'v', 'type', 'id', 'from', 'to'} | fields:
                 raise ProtocolError('Notification invalide')
             if not valid_card({key: data[key] for key in ('title', 'text', 'emoji')}):
