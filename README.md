@@ -5,25 +5,26 @@
 <h1 align="center">FortyTchat</h1>
 
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center"><strong>Version 1.1.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center"><strong>Version 1.2.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> &nbsp;·&nbsp;
+  <a href="#mettre-à-jour">Mettre à jour</a> &nbsp;·&nbsp;
   <a href="#aperçu">Découvrir l’application</a> &nbsp;·&nbsp;
   <a href="#amis">Amis</a> &nbsp;·&nbsp;
   <a href="#désinstaller">Désinstaller</a>
 </p>
 
-Une messagerie native et éphémère au design inspiré des applications mobiles pour les étudiants du cluster 42. Python, Qt/PySide6, palette anthracite/gris/bleu inspirée de la référence fournie, avatars illustrés, salon **#général**, messages privés, emojis, Wizz silencieux et invitations de pause interactives.
+Créée par [Chrisnox-209](https://github.com/Chrisnox-209), **FortyTchat** est une messagerie locale pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées dans leurs propres fenêtres, des amis, des emojis et des avatars personnalisés. Son interface native adopte un thème anthracite et bleu, avec une apparence claire également disponible.
 
-**Aucun compte, aucune adresse IP à saisir, aucun sudo.** La communication dépend des autorisations réelles du réseau : elle n’a pas été validée sur les PC de l’École 42.
+**Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.** Les personnes en ligne sont découvertes automatiquement. Les messages restent en mémoire et disparaissent de ce processus lorsque l’application est quittée complètement ; les fichiers volontairement enregistrés restent sur disque. Une version précédente a été testée en cluster par son créateur. Les améliorations 1.2.0 ont été vérifiées localement ; le fonctionnement dépend des autorisations réseau de chaque campus.
 
-Dans cette version : **amis conservés même après un changement de pseudo**, **3 781 emojis**, import de photo personnelle, icône **noire avec FT en blanc**, compteur de messages non lus et paramètres défilables. Les pages de paramètres défilent lorsque leur contenu dépasse la hauteur disponible ; les champs et les paragraphes gardent leur taille lisible.
+Dans cette version : **fichiers jusqu’à 20 Mio**, **pauses même en Ne pas déranger**, nouvelles cartes de pause au centre de l’écran, réponse bleue ou rouge, icône FT rouge en présence de messages non lus et Wizz de 2,8 secondes. Les amis restent reconnus après un changement de pseudo ; les **3 781 emojis** et les avatars personnels restent disponibles.
 
 ## Aperçu
 
 <p align="center">
-  <a href="docs/friends-1.1.0.png"><img src="docs/friends-1.1.0.png" width="980" alt="Fenêtre principale de FortyTchat avec le salon général, les amis et les utilisateurs en ligne"></a>
+  <a href="docs/friends-1.2.0.png"><img src="docs/friends-1.2.0.png" width="980" alt="Fenêtre principale de FortyTchat 1.2.0 avec le salon général, les amis et une pièce jointe"></a>
 </p>
 
 <p align="center"><em>Le salon général et les amis, réunis dans une interface sombre. Profils de démonstration.</em></p>
@@ -32,7 +33,7 @@ Dans cette version : **amis conservés même après un changement de pseudo**, *
   <tr>
     <td align="center" width="50%" valign="top">
       <h3>Messages privés</h3>
-      <a href="docs/fortytchat-private-v3.png"><img src="docs/fortytchat-private-v3.png" height="320" alt="Conversation privée dans une fenêtre indépendante avec les boutons Wizz et pause"></a>
+      <a href="docs/files-1.2.0.png"><img src="docs/files-1.2.0.png" height="320" alt="Conversation privée avec réception d’un fichier, bouton Wizz et demande de pause"></a>
       <p>Des échanges privés, un Wizz silencieux et une invitation à faire une pause.</p>
     </td>
     <td align="center" width="50%" valign="top">
@@ -53,6 +54,18 @@ Dans cette version : **amis conservés même après un changement de pseudo**, *
       <p>Déplace, zoome et valide l’aperçu avant de partager ta miniature.</p>
     </td>
   </tr>
+  <tr>
+    <td align="center" width="50%" valign="top">
+      <h3>Une pause ensemble ?</h3>
+      <a href="docs/pause-invite-1.2.0.png"><img src="docs/pause-invite-1.2.0.png" width="350" alt="Invitation de pause bleue, avec boutons Oui et Non"></a>
+      <p>Une carte au centre de l’écran, même en Ne pas déranger.</p>
+    </td>
+    <td align="center" width="50%" valign="top">
+      <h3>La réponse en un clin d’œil</h3>
+      <a href="docs/pause-yes-1.2.0.png"><img src="docs/pause-yes-1.2.0.png" width="350" alt="Réponse de pause positive affichée dans une carte bleue"></a>
+      <p>Bleu pour oui, <a href="docs/pause-no-1.2.0.png">rouge pour non</a>.</p>
+    </td>
+  </tr>
 </table>
 
 Les aperçus utilisent des profils, des textes et une illustration de démonstration. Clique sur une image pour l’ouvrir en grand.
@@ -61,10 +74,11 @@ Les aperçus utilisent des profils, des textes et une illustration de démonstra
 
 - [Aperçu de l’application](#aperçu)
 - [Installer et démarrer](#installer-et-démarrer)
-- [Réinstaller une nouvelle version](#réinstaller-une-nouvelle-version)
+- [Mettre à jour](#mettre-à-jour)
 - [Désinstaller](#désinstaller)
 - [Amis](#amis)
 - [Utilisation](#utilisation)
+- [Envoyer un fichier](#envoyer-un-fichier)
 - [Avatars et images personnelles](#avatars-et-images-personnelles)
 - [Dépannage](#dépannage)
 - [Réseau et relais](#réseau-automatique)
@@ -73,13 +87,19 @@ Les aperçus utilisent des profils, des textes et une illustration de démonstra
 
 ## Installer et démarrer
 
-Installation en une ligne, dans le dossier caché `~/.FortyTchat` :
+Sur Ubuntu/Linux, avec **Git** et **Python 3.10 ou plus récent**, installation en une ligne dans le dossier caché `~/.FortyTchat` :
 
 ```sh
 git clone git@github.com:Chrisnox-209/FortyTchat.git "$HOME/.FortyTchat" && sh "$HOME/.FortyTchat/install.sh"
 ```
 
-Le dépôt reste dans ton dossier personnel sans encombrer les dossiers visibles. Pour l’ouvrir dans le gestionnaire de fichiers, utilise `Ctrl+H` pour afficher les fichiers cachés.
+Cette commande utilise une clé SSH GitHub déjà configurée. Pour installer le dépôt public sans clé SSH :
+
+```sh
+git clone https://github.com/Chrisnox-209/FortyTchat.git "$HOME/.FortyTchat" && sh "$HOME/.FortyTchat/install.sh"
+```
+
+Le dépôt reste dans ton dossier personnel sans encombrer les dossiers visibles. `Ctrl+H` affiche les fichiers cachés dans le gestionnaire de fichiers. Si `~/.FortyTchat` existe déjà, utilise la section [Mettre à jour](#mettre-à-jour).
 
 Depuis le dossier du projet, sur Ubuntu avec Python 3.10 ou plus récent :
 
@@ -90,8 +110,8 @@ sh ./install.sh
 Le script crée un environnement Python personnel, installe les dépendances, copie l’application, crée son lanceur et l’entrée de démarrage XDG. Il lance ensuite FortyTchat **réduit**, sans ouvrir la fenêtre principale si la barre accepte son icône. Aucune demande de pseudo ou de réseau : un pseudo distinctif est généré et la découverte commence immédiatement.
 
 - Icône noire **FT** dans la barre supérieure lorsque GNOME/StatusNotifier/AppIndicator le permet.
-- **Petit badge « 1 », puis compteur des messages non lus** sur l’icône.
-- Clic sur l’icône : ouvrir la fenêtre ; clic droit : statut, paramètres, quitter.
+- **L’icône entière devient rouge**, avec le compteur des messages non lus ; elle redevient noire après lecture.
+- Doubleclic sur l’icône : ouvrir la fenêtre (un clic fonctionne aussi selon la barre du bureau) ; clic droit : statut, paramètres, quitter.
 - Fermer la fenêtre garde l’application active. **Quitter complètement** ou `Ctrl+Q` efface les conversations de ce processus.
 - Sans barre compatible : lancement réduit dans le dock, fenêtre récupérable depuis le dock ou le lanceur. Le titre et la liste indiquent les messages non lus.
 
@@ -115,20 +135,30 @@ sh ./install.sh --use-current-python
 
 Si `python3 -m venv` ou les bibliothèques natives nécessaires à Qt sont absents, le script explique l’échec. Il n’installe pas de composants système et ne contourne pas une restriction de l’école. Il faut alors un Python utilisateur déjà équipé ou un environnement fourni par l’établissement. Les wheels Qt restent plus volumineuses qu’une interface Tkinter ; la dépendance est limitée à **PySide6 Essentials**.
 
-## Réinstaller une nouvelle version
+## Mettre à jour
 
-Depuis le dossier contenant la nouvelle version complète du projet :
+Une fois la nouvelle version publiée sur GitHub :
+
+1. Dans le menu de FortyTchat, choisir **Quitter complètement**. Fermer seulement la fenêtre garde le programme actif.
+2. Récupérer la dernière version et l’installer :
 
 ```sh
-sh ./uninstall.sh
-sh ./install.sh
+git -C "$HOME/.FortyTchat" pull --ff-only && sh "$HOME/.FortyTchat/install.sh"
 ```
 
-Le premier script ferme les instances de la copie installée et retire l’application. Le second installe et démarre la nouvelle version. **Le pseudo, les amis et la photo sont conservés par défaut.** La désinstallation retire le démarrage automatique ; le réactiver dans les paramètres après réinstallation si souhaité.
+Le dépôt caché est actualisé, puis l’installateur réutilise l’environnement Python et relance FortyTchat réduit. **Le pseudo, les amis, la photo, les préférences et le choix de démarrage automatique sont conservés.** La configuration réseau déjà installée est également reprise, sauf si le dossier source fournit son propre `network.json` de déploiement.
 
-Les conversations sont éphémères : fermer complètement le processus abandonne les messages de cette session. Les fichiers déjà remplacés ne changent pas les classes Python d’une application encore ouverte. Une icône actualisée ne suffit donc pas à prouver qu’une ancienne fenêtre utilise le nouveau code.
+Les messages de la session sont éphémères : quitter l’application les abandonne. Les fichiers déjà enregistrés restent à leur emplacement. Le script signale une instance encore ouverte : la quitter complètement puis relancer le lanceur charge le nouveau code.
 
-Le titre **Paramètres · FortyTchat 1.1.0** permet de reconnaître la version de la fenêtre réellement ouverte. Le lanceur indique la version installée :
+Si le dépôt a été cloné dans un autre dossier, se placer dans ce dossier puis exécuter :
+
+```sh
+git pull --ff-only && sh ./install.sh
+```
+
+Pour réinstaller une copie locale déjà actualisée, exécuter `sh ./install.sh` depuis cette copie après avoir quitté l’application.
+
+La version apparaît dans **Paramètres → À propos** et dans le titre des paramètres. Le lanceur permet aussi de la vérifier :
 
 ```sh
 ~/.local/bin/fortytchat --version
@@ -136,16 +166,20 @@ Le titre **Paramètres · FortyTchat 1.1.0** permet de reconnaître la version d
 
 ## Désinstaller
 
+Pour l’installation dans le dossier caché :
+
 ```sh
-sh ./uninstall.sh
+sh "$HOME/.FortyTchat/uninstall.sh"
 ```
+
+Depuis une autre copie du projet, utiliser `sh ./uninstall.sh` dans son dossier.
 
 Le script arrête uniquement les processus appartenant à cet utilisateur et exécutant le `main.py` de la copie installée. Il supprime l’application, son environnement Python dédié, son lanceur, son entrée de menu et son autostart, sans sudo et sans toucher aux autres applications. Le profil, les amis et la photo restent dans l’espace de configuration personnel.
 
 Pour supprimer aussi ces données :
 
 ```sh
-sh ./uninstall.sh --purge
+sh "$HOME/.FortyTchat/uninstall.sh" --purge
 ```
 
 `--purge` efface également les profils de développement. Une réinstallation créera alors une nouvelle identité de profil et les anciens contacts ne pourront plus la reconnaître automatiquement. Si un autre dossier de lanceur a été choisi à l’installation, préciser le même avec `--bin-dir DOSSIER`.
@@ -175,11 +209,13 @@ Valeurs par défaut, avec respect de `XDG_CONFIG_HOME` et `XDG_DATA_HOME` lorsqu
 
 | Fichier/dossier | Usage |
 | --- | --- |
+| `~/.FortyTchat/` | Dépôt source caché utilisé pour les mises à jour |
 | `~/.local/share/fortytchat/app/` | Application installée, indépendante du dossier téléchargé |
 | `~/.local/share/fortytchat/venv/` | Interpréteur et dépendances dédiés |
 | `~/.local/share/applications/fr.fortytchat.FortyTchat.desktop` | Entrée du menu |
 | `~/.local/bin/fortytchat` | Lanceur |
-| `~/.config/fortytchat/config.json` | Pseudo, avatar, thème, préférences, date du dernier Wizz |
+| `~/.config/fortytchat/config.json` | Pseudo, identifiant de profil, amis, miniature personnelle, thème, préférences et date du dernier Wizz |
+| `~/.local/share/fortytchat/app/network.json` | Paramètres réseau de déploiement, sans accès depuis l’interface |
 | `~/.config/autostart/fr.fortytchat.FortyTchat.desktop` | Démarrage personnel, avec chemins absolus et `--background` |
 | `/tmp/fortytchat-UID/` | Verrou et socket d’activation privés, aucun message de chat |
 
@@ -196,13 +232,30 @@ Référence : [spécification XDG Autostart](https://specifications.freedesktop.
 - Cliquer directement sur une personne dans **En ligne** ouvre une conversation privée dans une **nouvelle fenêtre indépendante**. Aucun champ de recherche à remplir. Plusieurs fenêtres privées peuvent rester ouvertes. Les IDs de session, distincts des pseudos et des IP, identifient les destinataires. Les collisions de pseudo sont résolues avec un suffixe et le nouveau nom est annoncé immédiatement.
 - `Entrée` envoie, `Maj+Entrée` ajoute une ligne ; `Ctrl+K` place le focus sur les utilisateurs en ligne ; `Ctrl+,` ouvre les paramètres.
 - Le sélecteur propose **3 781 emojis**, neuf catégories et une recherche français/anglais (par exemple « café », « coeur », « chat » ou « football »). Le catalogue est embarqué et fonctionne hors ligne ; la grille affiche les éléments visibles sans créer des milliers de boutons. Les glyphes absents de la police ont un libellé de remplacement dans le sélecteur ; leur insertion reste Unicode.
-- **Wizz** : un seul envoi toutes les **42 minutes**, tous destinataires confondus. Le bouton indique le délai. Un effet visuel fait trembler le contenu de la fenêtre ; sa mise au premier plan dépend de Wayland/GNOME. Aucun son n’est joué.
-- **On va en pause ?** ouvre une invitation valable 2 minutes. « J’arrive ! », « Pas maintenant » et la fermeture renvoient une réponse. Limite : une invitation par minute, tous destinataires confondus.
+- **Wizz** : un seul envoi toutes les **42 minutes**, tous destinataires confondus. Le bouton indique le délai. La conversation s’ouvre au dernier message et vibre dans toutes les directions pendant **2,8 secondes**. Sous X11, la fenêtre bouge ; sous Wayland, son contenu vibre, car le bureau contrôle le placement et la mise au premier plan. Aucun son n’est joué.
+- **On va en pause ?** ouvre une carte bleue au centre de l’écran, valable 2 minutes. « Oui, j’arrive ! » et « Non, merci » renvoient une réponse affichée au centre de l’écran de l’expéditeur : bleu pour oui, rouge pour non. Fermer la carte signale une invitation non confirmée. **Trois demandes successives** sont autorisées par destinataire ; la quatrième bloque les demandes de pause de cet expéditeur pendant **5 minutes**. Après 5 minutes sans demande, une nouvelle série commence. Les messages restent disponibles et le blocage des pauses ne se prolonge pas à chaque tentative.
 - Le menu `···` d’une conversation permet de masquer/démasquer une session. Le masquage expire à l’arrêt de l’application, car les identifiants sont temporaires.
-- Le mode **Ne pas déranger** laisse arriver les messages, supprime les notifications et refuse Wizz/invitations.
+- Le mode **Ne pas déranger** laisse arriver les messages et fichiers sans notification et refuse les Wizz. **Les invitations de pause et leurs réponses restent actives**, y compris les cartes à l’écran.
 - Notifications via `notify-send` lorsqu’il est disponible, avec `suppress-sound=true` et **sans texte de conversation**. Sinon l’application conserve les badges et les indications internes.
 
+Dans **Paramètres → À propos**, retrouve la version installée, le lien GitHub, les fonctions et les données conservées.
+
+<details>
+<summary>Voir l’onglet À propos</summary>
+
+<p align="center">
+  <a href="docs/about-1.2.0.png"><img src="docs/about-1.2.0.png" width="600" alt="Onglet À propos de FortyTchat 1.2.0 avec le logo FT, l’auteur et le lien GitHub"></a>
+</p>
+
+Le contenu est défilable pour rester lisible sur les petits écrans.
+
+</details>
+
 Les messages sont affichés en texte brut, jamais comme du HTML exécutable. La fenêtre affiche les messages acceptés localement puis signale une livraison non confirmée. Un message envoyé sans autre utilisateur n’est visible que localement et n’est pas remis aux personnes arrivant ensuite.
+
+## Envoyer un fichier
+
+Le bouton **＋** joint un fichier dans le salon général ou une conversation privée. Le destinataire clique sur **Enregistrer…**, choisit un emplacement, ou refuse. La progression et l’annulation apparaissent dans le chat. Limite : **20 Mio par fichier**, offre valable **10 minutes**, clients et relais compatibles 1.2.0 requis. Aucun téléchargement automatique, aucune ouverture automatique ; un fichier existant n’est jamais écrasé. Les fichiers acceptés et enregistrés restent sur le disque après fermeture de l’application.
 
 ## Amis
 
@@ -226,10 +279,10 @@ Pour enlever sa photo, choisir **Retirer mon image** ou sélectionner un personn
 
 | Problème | Vérification ou solution |
 | --- | --- |
-| Texte tronqué dans les paramètres | Réinstaller la version 1.1.0 avec les deux commandes ci-dessus. Vérifier que le titre de la fenêtre des paramètres indique 1.1.0 ; l’ancienne instance doit être fermée. Les onglets Général, Réseau et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
+| Texte tronqué dans les paramètres | Suivre [Mettre à jour](#mettre-à-jour), puis vérifier la version réellement ouverte. Vérifier que le titre de la fenêtre des paramètres indique 1.2.0 ; l’ancienne instance doit être fermée. Les onglets Général et À propos sont défilables ; utiliser la molette ou la barre à droite. La correction est vérifiée à 100 %, 150 % et 200 % de mise à l’échelle. |
 | Ancienne icône violette « 42 » | L’ancienne application tourne peut-être encore. La quitter depuis son menu, puis relancer `sh ./install.sh` depuis le projet actualisé. La nouvelle icône est noire avec **FT** en blanc. |
 | Aucune personne en ligne à la maison | C’est normal si aucun autre client ne tourne sur le réseau. Pour tester sur un seul PC, ouvrir les deux profils de développement décrits plus bas. |
-| Personnes non détectées sur deux PC | Ouvrir **Paramètres → Réseau → Tester le réseau** et vérifier que les deux machines sont autorisées à communiquer. Le Wi-Fi invité, les VLAN ou des politiques d’isolation peuvent empêcher les échanges. |
+| Personnes non détectées sur deux PC | Vérifier que les deux machines sont autorisées à communiquer. Le diagnostic est réservé aux commandes de la section réseau ; aucun réglage réseau n’est accessible dans l’interface. Le Wi-Fi invité, les VLAN ou des politiques d’isolation peuvent empêcher les échanges. |
 | Port déjà occupé | Vérifier qu’une autre instance ou un autre service écoute avec `ss -tuln`. Pour plusieurs clients sur le même PC, utiliser `--dev alice` et `--dev bob`, sans changer de ports système. |
 | Icône de barre absente | Le support GNOME/AppIndicator dépend de la session. FortyTchat reste accessible dans le dock ou le menu des applications. |
 | Application absente au début de session | Vérifier **Lancer FortyTchat au démarrage** et la politique XDG Autostart de la session. Le programme ne contourne pas une politique qui le désactive. |
@@ -258,7 +311,7 @@ Ces deux captures ont été fournies pendant les essais sur un PC Ubuntu. Elles 
 | Service | Protocole | Port par défaut |
 | --- | --- | --- |
 | Découverte | UDP | **39741** |
-| Messages directs | TCP | **39742** |
+| Messages et fichiers directs | TCP | **39742** |
 | Relais facultatif | TCP + TLS | **39743** |
 
 Les interfaces IPv4 actives sont énumérées à chaque lancement, puis revérifiées périodiquement. Les interfaces physiques sont prioritaires ; loopback, Docker, ponts et interfaces virtuelles connues sont exclues. Une interface active non physique restante peut servir de secours, avec une indication dans le diagnostic. L’adresse observée `10.12.10.7` n’est jamais utilisée comme adresse fixe dans l’application.
@@ -301,11 +354,11 @@ Le relais utilise uniquement la RAM, borne ses files, lie l’expéditeur à sa 
 
 Détails du protocole, de la livraison et des limites : [docs/NETWORK.md](docs/NETWORK.md).
 
-## Diagnostic intégré et test à l’école
+## Diagnostic en ligne de commande
 
-**Paramètres → Réseau → Diagnostic → Tester le réseau** affiche l’interface, IPv4, sous-réseau, broadcast, ports, sockets, pairs détectés, relais et dernières erreurs techniques sans contenu de conversation.
+Les boutons, l’onglet et le menu Réseau ont été retirés de l’interface. Les paramètres de déploiement sont uniquement dans `network.json`, à côté de `main.py`. L’installateur crée ce fichier à partir de `network.example.json` lors de la première installation et conserve un fichier déjà configuré. Dans l’installation standard : `~/.local/share/fortytchat/app/network.json`.
 
-Le test vérifie les services locaux, émet une annonce, attend des pairs et teste TCP uniquement vers un pair découvert annonçant sa capacité `probe`. Une connexion active au relais est également indiquée. **Une socket ouverte localement ne prouve jamais qu’un autre PC peut la joindre.**
+Les commandes de diagnostic restent disponibles pour la maintenance, sans contenu de conversation.
 
 Commandes sans sudo :
 
@@ -318,7 +371,7 @@ python3 main.py --diagnose
 python3 tools/network_probe.py
 ```
 
-Les deux dernières commandes font uniquement des essais de bind locaux. Si FortyTchat tourne déjà, son propre port peut être signalé occupé : consulter alors le diagnostic de l’application.
+Les deux dernières commandes font uniquement des essais de bind locaux. Si FortyTchat tourne déjà, son propre port peut être signalé occupé : ce résultat est attendu pendant son fonctionnement.
 
 Procédure détaillée sur deux PC de l’école, à compléter sur place : [docs/SCHOOL_CHECKLIST.md](docs/SCHOOL_CHECKLIST.md).
 
@@ -349,7 +402,7 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest -q
 python3 tools/stress_test.py --clients 200
 ```
 
-Les tests créent seulement des dossiers temporaires pour la configuration et l’installation. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, DND, invitations, instance unique, XDG, configuration endommagée, badge, interface et absence de persistance. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
+La suite locale comprend **99 tests réussis** pour la version 1.2.0. Les tests créent seulement des dossiers temporaires pour la configuration, l’installation et les pièces jointes. Ils couvrent notamment TCP réel, UDP multicast réel, ACK perdu, déduplication, 40 clients de relais, messages privés, reconnexion après redémarrage, anti-spam, Wizz global, DND avec pauses actives, blocage des pauses après trois demandes, transfert et intégrité des fichiers, annulation, instance unique, XDG, configuration endommagée, badge, interface et absence de persistance. Un environnement qui interdit les sockets ne peut pas exécuter ces tests d’intégration sans autorisation adaptée.
 
 Les résultats locaux et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
 
@@ -358,6 +411,8 @@ Les résultats locaux et leurs limites sont consignés dans [docs/VALIDATION.md]
 Le catalogue d’emojis utilise [Unicode Emoji 16.0](https://www.unicode.org/Public/emoji/16.0/emoji-test.txt) et les annotations françaises [CLDR 46.1](https://github.com/unicode-org/cldr-json/tree/46.1.0). La licence est fournie dans `assets/emoji/UNICODE_LICENSE.txt`. `tools/build_emoji_catalog.py` permet de reconstruire les données ; l’application utilise directement le catalogue embarqué.
 
 ## Confidentialité et limites de confiance
+
+Les fichiers explicitement enregistrés par leur destinataire sont conservés à l’emplacement choisi. Les transferts incomplets sont supprimés lors d’un échec traité, d’une annulation, d’une expiration ou d’un arrêt normal. Un arrêt brutal peut laisser un fichier temporaire `.fortytchat-*.part`, jamais publié sous le nom final.
 
 Aucune base, aucun fichier de conversation, aucun historique serveur ni journal contenant le texte des messages. Le cache est borné à 200 messages par conversation, 64 conversations et 4 000 messages en tout ; chaque fenêtre dessine au plus les 180 derniers messages. L’arrêt complet abandonne ces données. Les messages déjà reçus restent en mémoire chez les autres participants jusqu’à leur propre arrêt.
 

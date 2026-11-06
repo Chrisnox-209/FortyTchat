@@ -17,7 +17,7 @@ JSON UTF-8 avec un saut de ligne terminal, **16 384 octets maximum, délimiteur 
 Exemple de présence (valeurs illustratives) :
 
 ```json
-{"v":1,"type":"hello","sid":"dbe8e2c83e144a78890e277489f1d07d3","nick":"CosmicOtter0042","status":"online","port":39742,"caps":["chat","wizz","pause","probe","avatar","avatar_image","friends","c:AAAAAAAAAAAAAAAAAAAAAQ"],"avatar":5,"avatar_hash":""}
+{"v":1,"type":"hello","sid":"dbe8e2c83e144a78890e277489f1d07d3","nick":"CosmicOtter0042","status":"online","port":39742,"caps":["files","wizz","pause","probe","avatar","avatar_image","friends","c:AAAAAAAAAAAAAAAAAAAAAQ"],"avatar":5,"avatar_hash":""}
 ```
 
 | Type logique | Type sur le fil | Rôle |
@@ -44,14 +44,14 @@ Au relais, l’ACK signifie **acceptation dans la file de transmission du relais
 
 L’ACK n’est pas une garantie de livraison exactement une fois dans toutes les situations. Le cache d’IDs est borné ; les reconnexions et redémarrages ne rejouent rien. Les nouveaux arrivants reçoivent seulement la liste des sessions actuellement présentes. Aucun nouvel arrivant ne reçoit les événements des files d’autres sessions.
 
-Le client n’écrit que l’allowlist de préférences. Les files serveur, messages, caches d’IDs et invitations restent en RAM. Les files sortantes sont limitées à 576 trames par connexion ; les clients lents sont déconnectés. Limite de 512 sessions au relais.
+Le client conserve les préférences autorisées et les fichiers que le destinataire choisit explicitement d’enregistrer. Les files serveur, messages, caches d’IDs et invitations restent en RAM. Les files sortantes sont limitées à 576 trames par connexion ; les clients lents sont déconnectés. Limite de 512 sessions au relais.
 
 ## Débit et protection
 
 - Messages/actions : seau de 8 jetons, recharge de 0,75 jeton/seconde, côté émetteur, récepteur et relais.
 - Wizz : 2 520 secondes entre envois, tous destinataires confondus. Réservation du délai local sur disque avant l’envoi ; limite serveur par session retenue pendant les reconnexions, uniquement en RAM.
 - Réception Wizz : limite par expéditeur et garde globale de 10 secondes, préférence de désactivation et DND.
-- Invitations : 60 secondes entre envois, référence liée au destinataire, expiration après 120 secondes, réponses uniques.
+- Invitations : trois demandes successives par destinataire, puis blocage des pauses pendant 300 secondes à la quatrième ; remise à zéro après 300 secondes sans demande. Vérification à l’envoi, à la réception et au relais, avec identifiant de contact si disponible. Référence liée au destinataire, expiration après 120 secondes, réponses uniques. Les pauses restent actives en DND.
 - Réponses de découverte : temporisation aléatoire, au plus une réponse de groupe toutes les 5 secondes par client. Heartbeat toutes les 25 ± 2 secondes, expiration par défaut à 90 secondes plus au maximum une période de nettoyage.
 - Aucun `pickle`, `eval`, commande réseau ou exécution de code reçu. Aucun texte de conversation dans les erreurs techniques.
 
@@ -65,7 +65,7 @@ En `auto`, un relais connecté est préféré pour les pairs qu’il connaît. L
 
 ## Diagnostic
 
-Le diagnostic intégré observe les sockets de l’instance (sans essayer de réserver à nouveau ses ports), annonce sa présence, attend deux secondes et peut sonder un pair découvert annonçant `probe`. Si le relais est actif, le handshake réussi et les heartbeats attestent la connexion. Les tests de bind CLI ne donnent qu’une disponibilité locale. Un résultat « aucun pair » n’est pas automatiquement un pare-feu : aucun autre client ne tourne peut-être.
+Aucun bouton ni onglet de diagnostic réseau n’est exposé dans l’interface. Les commandes `python3 main.py --diagnose` et `python3 tools/network_probe.py` inspectent les interfaces et la disponibilité locale des ports. Elles ne valident pas la communication entre deux postes. Le cœur réseau conserve aussi une méthode de diagnostic interne pour la maintenance ; si le relais est actif, son handshake et ses heartbeats attestent la connexion. Un résultat « aucun pair » peut simplement signifier qu’aucun autre client ne tourne.
 
 ## Images de profil personnelles
 
@@ -93,3 +93,17 @@ Le profil conserve un identifiant de contact aléatoire de 128 bits, indépendan
 Pour conserver la compatibilité avec les anciennes annonces v1, l’identifiant est publié dans une extension de capacité `c:` suivie des 22 caractères base64url de ses 16 octets (sans padding). La capacité `friends` annonce la fonction. Une seule extension de contact canonique est acceptée, sous les limites de taille existantes. Les anciens clients ignorent ces capacités supplémentaires et continuent à échanger des messages.
 
 Le relais transmet cette métadonnée avec la présence. Le routage reste fondé exclusivement sur le SID temporaire de la session actuellement en ligne. L’identifiant de profil est public et ne constitue pas une authentification ; un client modifié peut en revendiquer un autre. Les risques d’usurpation du LAN restent donc applicables aux contacts. Conserver le profil conserve cette identité ; `uninstall.sh --purge` la supprime.
+
+## Pièces jointes (1.2.0)
+
+La capacité `files` est annoncée dans la présence et négociée avec le relais dans son premier `pong`. Les anciens clients restent compatibles pour les messages et les avatars ; aucune trame de fichier n’est adressée à un client ou un relais qui n’annonce pas cette capacité. Le marqueur historique `chat`, qui n’était pas interrogé par le routage, laisse sa place à `files` pour conserver la limite de huit capacités.
+
+Une offre `file_offer` contient un nom simple, une taille de 0 à 20 Mio et un SHA-256. Aucun chemin du système de l’expéditeur n’est transmis. L’offre peut viser une conversation privée ou le salon général ; dans ce dernier cas, chaque destinataire décide séparément de la télécharger. Les offres expirent après dix minutes. Le calcul de l’empreinte et les lectures/écritures de contenu se font hors du thread graphique et de la boucle réseau.
+
+Le destinataire doit accepter et choisir un chemin de sauvegarde. Un fichier existant est refusé. L’acceptation crée alors un fichier temporaire personnel `.fortytchat-*.part`, à côté de la destination choisie. Le nom distant n’intervient jamais dans la construction du chemin local. Après `file_accept`, l’expéditeur transmet des `file_chunk` privés de 6 Kio maximum, encodés en base64 strict, avec une référence d’offre et un offset exact. Une connexion TCP directe est réutilisée pour le flux ; le relais garde seulement les trames dans ses files bornées et les métadonnées de consentement en mémoire.
+
+`file_end` déclenche la vérification de la longueur exacte et de l’empreinte du contenu reçu. Seul un fichier complet et conforme est publié au chemin demandé, par lien atomique qui refuse aussi un fichier apparu à cet emplacement pendant le transfert. `file_done` confirme la vérification au client expéditeur ; la simple acceptation par la file du relais ne suffit donc pas à afficher une réussite. Le téléchargement n’ouvre et n’exécute aucun fichier.
+
+`file_decline` et `file_cancel` permettent le refus ou l’annulation. Un échec, une expiration ou un arrêt normal supprime le temporaire. Une coupure sans nouveau bloc expire après 60 secondes, plus au maximum une période de nettoyage réseau. Un arrêt brutal du système peut laisser un `.part` incomplet, jamais publié sous le nom final. Aucun transfert ni offre ne reprend automatiquement après un redémarrage.
+
+Limites locales : huit offres sortantes, 32 offres entrantes et quatre flux actifs dans chaque sens ; progression graphique regroupée au plus toutes les 150 ms (plus l’état final). Le relais limite aussi les offres (256 globalement, huit par session), les blocs, les tailles cumulées et les files. Les fichiers gardent les mêmes limites de confidentialité que le texte : réseau LAN en clair ou relais TLS, sans chiffrement de bout en bout. Les fichiers enregistrés volontairement restent sur disque après la fermeture de l’application.

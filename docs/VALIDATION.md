@@ -1,10 +1,10 @@
 # Validation locale de FortyTchat
 
-Validation initiale le **5 novembre 2026**, puis extension aux images personnelles le **6 novembre 2026** dans l’environnement de développement. Python 3.14.4 et Qt/PySide6 6.10.2 lors de la validation initiale. Aucun PC du cluster de l’École 42 n’était accessible.
+Validation initiale le **5 novembre 2026**, étendue à la version **1.2.0 le 6 novembre 2026** dans l’environnement de développement. Python 3.14.4 et Qt/PySide6 6.10.2 pour la suite automatisée ; vérifications graphiques complémentaires avec Qt 6.12.0. Le créateur signale un essai réussi d’une version précédente en cluster. Les résultats ci-dessous concernent les tests locaux, sans mesure indépendante des nouveautés 1.2.0 à l’école.
 
 ## Résultats
 
-- Suite automatisée actualisée : **70 tests**, tous réussis avec les amis, les emojis étendus, la désinstallation, les correctifs d’affichage et les fonctionnalités existantes (**36,01 s** le 6 novembre 2026).
+- Suite automatisée actualisée : **99 tests réussis** en **38,23 s** le 6 novembre 2026, couvrant les fonctionnalités 1.2.0 et les régressions des versions précédentes.
 - Charge du relais sur loopback : **200 clients réels asyncio**, roster complet, **199 réceptions uniques** pour un message général, aucune réception en double, en **1,13 s** pour cette exécution. Le test ne mesure pas la charge de 200 utilisateurs envoyant continuellement en parallèle.
 - Découverte UDP multicast réelle entre deux clients locaux, puis livraison TCP et annonce de départ : réussies.
 - ACK direct supprimé après réception : une nouvelle tentative, un seul message affiché.
@@ -16,7 +16,7 @@ Validation initiale le **5 novembre 2026**, puis extension aux images personnell
 - Configuration et XDG : premier lancement, sauvegarde atomique à permissions restreintes, état réel du fichier, désactivation conservée, entrée supprimée non recréée et configuration endommagée vérifiés.
 - Installation dans des chemins XDG temporaires avec espaces et caractère `$` : copie, lanceur `--version`, entrée de menu validée par `desktop-file-validate`, réinstallation sans réactiver un choix désactivé.
 - Interface Qt hors écran : envoi clavier, texte brut, emojis/recherche, thème clair, fermeture réduite, **clic sur une personne en ligne → fenêtre privée indépendante**, réponse TCP depuis cette fenêtre, fermeture/réouverture dans la même session et badge **1** puis effacement à la consultation. Le sélecteur propose 24 avatars, un mode automatique et l’import d’une image personnelle.
-- Non-persistance : aucune conversation dans les fichiers de configuration ; aucun chemin de stockage dans les services réseau ; nouveau processus sans historique ; cache en mémoire abandonné à la fermeture complète.
+- Non-persistance : aucune conversation dans les fichiers de configuration ; aucun stockage de conversation dans les services réseau ; pièces jointes enregistrées uniquement après consentement ; nouveau processus sans historique ; cache en mémoire abandonné à la fermeture complète.
 
 Les tests d’images personnelles vérifient aussi : les trois formats annoncés (PNG, JPEG, WebP), l’aperçu et l’annulation, le zoom et le recadrage, le chargement hors du thread graphique, la fermeture pendant le chargement, la suppression des métadonnées, la sauvegarde de la seule miniature personnelle, le rendu chez un destinataire, l’absence de sauvegarde des images reçues, la découverte UDP suivie du transfert TCP, le relais et la reconnexion, le refus de l’usurpation d’une autre session, les tailles et empreintes invalides, le rejet des dimensions excessives avant décodage, le retrait de l’image et la compatibilité des messages avec un ancien relais sans cette capacité. Les fichiers d’entrée sont des images synthétiques de test.
 
@@ -47,9 +47,20 @@ La réinstallation est testée dans une installation XDG temporaire : code et ic
 
 Pour le signalement persistant de texte tronqué, l’instance réelle observée avait été lancée avant le correctif, alors que les fichiers sur disque avaient été remplacés. Un rendu frais a aussi été vérifié avec **Qt 6.12.0 de l’interpréteur installé**, à 150 %, sans utiliser le profil personnel. Les fichiers `friends-1.1.0.png`, `emojis-1.1.0.png` et `settings-installed-qt-1.1.0.png` montrent ces widgets avec des données de démonstration. La désinstallation ferme la copie installée avant sa suppression ; une installation suivante charge réellement le nouveau code.
 
+## Version 1.2.0 : pauses, fichiers et barre supérieure
+
+- TCP et relais réels : les invitations et leurs réponses restent reçues en Ne pas déranger, les Wizz restent refusés. Trois demandes passent ; la quatrième bloque les pauses pendant cinq minutes. La protection reste liée au profil après un changement de pseudo ou de session. Les doublons réseau ne comptent qu’une fois et 20 tentatives bloquées laissent les messages disponibles.
+- Popups : cartes centrées, boutons Oui/Non, fermeture et expiration ; retour bleu pour une acceptation, rouge pour un refus. Le changement de DND ne ferme pas les invitations en cours.
+- Pièces jointes privées et générales : consentement, SHA-256, longueur et ordre des blocs, fichier vide, refus, quotas, annulation et suppression des temporaires. Une livraison partielle dans le général conserve l’offre pour les destinataires joints. Les fichiers existants, spéciaux, trop grands ou modifiés sont refusés. Les écritures courtes et les accès concurrents sont vérifiés.
+- Interface complète : envoi et réception via le bouton de pièce jointe et le choix de destination, conservation de l’état après fermeture/réouverture d’une fenêtre, refus d’une offre générale et retour de pause en DND. Le Wizz ouvre la conversation au bas des messages et anime ses deux axes pendant 2,8 secondes.
+- Barre et paramètres : icône rouge à réception d’un message non lu puis noire après lecture, ouverture par doubleclic, retrait des accès réseau. L’installateur crée `network.json` à la première installation et reprend une configuration existante lors de la suivante.
+- README : installation SSH ou HTTPS dans `~/.FortyTchat`, mise à jour par `git pull --ff-only` puis `install.sh`, profil et choix d’autostart conservés. Les messages de la session restent éphémères.
+
+Les aperçus `friends-1.2.0.png`, `files-1.2.0.png` et `pause-*-1.2.0.png` sont des rendus Qt 6.12.0 avec des données de démonstration. Les paramètres sont également vérifiés aux facteurs 100 %, 150 % et 200 % dans les deux thèmes. L’onglet À propos présente la version, l’auteur et le lien du dépôt, ainsi que les fonctions et données conservées.
+
 ## Ce qui n’est pas validé par ces essais
 
-- Communication sur deux ordinateurs physiques ou sur le réseau `10.12.0.0/16` de l’école.
+- Mesure indépendante des nouveautés 1.2.0 sur deux ordinateurs physiques à l’école ; le retour positif du créateur porte sur une version précédente.
 - Broadcast entre zones, filtrage multicast, VLAN, pare-feu ou politiques d’isolation du cluster.
 - Disponibilité d’une machine relais autorisée, de son DNS et de son certificat TLS de production.
 - Rendu de l’icône, de son compteur et des clics dans la session GNOME réelle de l’école ; l’ordre près de Discord reste contrôlé par l’environnement.
