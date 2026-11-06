@@ -1,4 +1,4 @@
-# Réseau et chiffrement de FortyTchat 1.8.0
+# Réseau et chiffrement de FortyTchat 1.8.1
 
 ## Amis et alertes de présence (1.8.0)
 
@@ -31,6 +31,8 @@ Les capacités restent limitées à huit : `files`, `choices`, `cards`, `probe`,
 ### Premier contact et changement de clé
 
 La première clé publique d’un contact est mémorisée automatiquement (**TOFU**). Cette étape ne protège pas contre une substitution active au premier contact. Le cadenas permet de comparer l’empreinte SHA-256 complète de la clé d’identité, par groupes hexadécimaux, avec celle donnée en personne ou par un autre canal de confiance. La correspondance complète marque l’identité comme vérifiée.
+
+Les empreintes sont publiques et affichées sans masquage. Les clés privées ne sont jamais montrées dans ce dialogue. Les échanges restent chiffrés sans comparaison manuelle ; cette comparaison confirme l’identité derrière la clé et ne change pas le protocole de chiffrement.
 
 Un UUID déjà connu présentant une autre clé reste visible avec **Clé modifiée**, mais ne peut ni envoyer ni recevoir de contenu. Sa nouvelle empreinte doit être comparée et saisie explicitement pour remplacer la clé mémorisée ; les autres sessions utilisant la clé remplacée sont alors bloquées. Le rattachement automatique d’une fenêtre d’ami ignore les sessions bloquées. Une modification de pseudo ou de SID avec la même identité n’annule pas la vérification.
 

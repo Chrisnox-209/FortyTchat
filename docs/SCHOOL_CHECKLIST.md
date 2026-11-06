@@ -1,6 +1,6 @@
 # Retour à l’École 42 : essais sur place
 
-Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.8.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.8.1 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
 ## Préparer deux postes
 
@@ -50,6 +50,7 @@ Ne pas scanner le `/16`, modifier le pare-feu ou réutiliser un port de service 
 ## Chiffrement et identité
 
 - Mettre à jour les deux clients et le relais éventuel en 1.7.0 minimum. Comparer les empreintes en personne via le cadenas, puis vérifier le statut **Identité vérifiée** sur chacun des postes.
+- Avec le client 1.8.1, vérifier que les empreintes et le champ de comparaison sont visibles, sans masquage. Le dialogue doit expliquer leur caractère public et leur rôle contre l’usurpation d’identité ; aucun changement du chiffrement n’est attendu.
 - Quitter puis relancer l’un des clients : conserver son pseudo, ses amis, sa clé d’identité et la vérification, avec un nouveau SID et une nouvelle clé de session. Aucun historique réseau ne doit arriver.
 - Vérifier les messages privés, le général, les fichiers et les cartes via les deux routes autorisées. Le général reste lisible par tous ses participants.
 - Pour un essai de remplacement de clé, employer uniquement des profils de développement jetables : la session modifiée doit rester bloquée jusqu’à comparaison de sa nouvelle empreinte. Ne pas supprimer les clés du profil personnel.
@@ -97,14 +98,14 @@ Un test réussi sur deux machines ne valide pas à lui seul 200 postes ni plusie
 
 | Vérification | Date / postes | Résultat réel |
 | --- | --- | --- |
-| IPv4/interface/masque | À compléter | À vérifier en 1.8.0 |
-| Découverte même zone | À compléter | À vérifier en 1.8.0 |
-| Découverte entre zones | À compléter | À vérifier en 1.8.0 |
-| TCP général et privé | À compléter | À vérifier en 1.8.0 |
-| Empreintes comparées, identité conservée | À compléter | À vérifier en 1.8.0 |
-| Contenu chiffré TCP et relais | À compléter | À vérifier en 1.8.0 |
+| IPv4/interface/masque | À compléter | À vérifier en 1.8.1 |
+| Découverte même zone | À compléter | À vérifier en 1.8.1 |
+| Découverte entre zones | À compléter | À vérifier en 1.8.1 |
+| TCP général et privé | À compléter | À vérifier en 1.8.1 |
+| Empreintes comparées, identité conservée | À compléter | À vérifier en 1.8.1 |
+| Contenu chiffré TCP et relais | À compléter | À vérifier en 1.8.1 |
 | TLS/relais autorisé | À compléter | Aucun déploiement présumé |
-| Amis de barre et alertes de connexion | À compléter | À vérifier sur la session école en 1.8.0 |
-| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.8.0 |
-| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.8.0 |
-| Autostart après connexion | À compléter | À vérifier sur la session école en 1.8.0 |
+| Amis de barre et alertes de connexion | À compléter | À vérifier sur la session école en 1.8.1 |
+| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.8.1 |
+| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.8.1 |
+| Autostart après connexion | À compléter | À vérifier sur la session école en 1.8.1 |

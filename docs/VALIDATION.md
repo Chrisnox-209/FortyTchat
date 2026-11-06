@@ -1,14 +1,23 @@
-# Validation locale de FortyTchat 1.8.0
+# Validation locale de FortyTchat 1.8.1
 
-Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.8.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
+Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.8.1 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
 
 ## Résultats automatisés
 
-- **168 tests réussis en 30,48 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- **168 tests réussis en 29,31 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
 - Mesure de diffusion E2EE réalisée en 1.5.0 sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
 - Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
 Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
+
+## Empreintes publiques et présentation (1.8.1)
+
+- Empreintes de l’utilisateur et du contact visibles et sélectionnables, sans masquage ni bouton œil. Le champ de comparaison reste en affichage normal. Le dialogue explique que les empreintes sont publiques, que les clés privées ne sont jamais affichées et que les échanges restent chiffrés sans comparaison manuelle.
+- Texte d’explication ajouté : « La comparaison sert à confirmer que la clé appartient bien à ton ami, pour éviter une usurpation d’identité. Un pseudo ou un avatar connu ne suffit pas à le prouver. » Les vérifications et le blocage d’une clé modifiée restent identiques.
+- Mention d’auteur retirée de l’onglet À propos. README réorganisé : installation et mise à jour en premier, captures réparties par fonction, détails secondaires repliables et liens locaux vérifiés. Son aperçu Markdown a été inspecté dans le navigateur ; le style final reste celui de GitHub.
+- Les dialogues restent vérifiés à 100 %, 150 % et 200 %, dans les deux thèmes et sur de petites fenêtres, avec paragraphes défilables sans compression.
+
+`security-1.8.1.png` et `about-1.8.1.png` montrent les widgets Qt réellement rendus avec un profil de démonstration. Les empreintes de la capture sont celles de clés publiques temporaires de démonstration ; aucune clé privée ni donnée de profil personnel n’est incluse.
 
 ## Amis depuis l’icône et alertes Ubuntu (1.8.0)
 
