@@ -22,6 +22,8 @@ class Peer:
     contact_id: str = ''
     bucket: object = field(default=None, repr=False)
     wizz: object = field(default=None, repr=False)
+    social_bucket: object = field(default=None, repr=False)
+    typing_bucket: object = field(default=None, repr=False)
 
     @property
     def direct(self):

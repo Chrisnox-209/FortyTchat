@@ -73,6 +73,9 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
 QFrame#incoming { background: $incoming; border: none; border-radius: 20px; }
 QFrame#outgoing { background: $outgoing; border: none; border-radius: 20px; }
+QFrame#replyPreview { background: $accentSoft; border-left: 3px solid $accent; border-radius: 7px; }
+QPushButton#reactionPill { background: $surface; color: $text; border: 1px solid $border; }
+QPushButton#reactionPill[mine="true"] { background: $accentSoft; color: $accentText; border-color: $accent; }
 QLabel#messageText { font-size: 14px; background: transparent; }
 QLabel#messageName { color: $text; font-size: 12px; font-weight: 650; background: transparent; }
 QLabel#system { color: $subtle; font-size: 11px; padding: 6px; }

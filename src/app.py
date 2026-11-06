@@ -10,6 +10,7 @@ from .autostart import Autostart
 from .config import ConfigStore, config_home
 from .identity import valid_nickname, valid_contact_id
 from .features.friends import MAX_FRIENDS, contact_from_key, friend_key, online_contact
+from .features.social import TypingState, PendingReactions, preview
 from .avatar_data import avatar_hash, AvatarError
 from .instance import SingleInstance
 from .memory import Conversations, Message
@@ -43,6 +44,7 @@ class Application(QObject):
         self.history, self.popups = Conversations(), {}
         self.reply_popups = {}
         self.file_transfers = {}
+        self.typing_state, self.pending_reactions = TypingState(), PendingReactions()
         self.private_windows = {}
         self.peer_avatars = {}
         self.contact_sessions = {}
@@ -83,7 +85,8 @@ class Application(QObject):
         self.tray.quit_requested.connect(self.quit)
         self.tray.status_requested.connect(self.set_status)
         self.tray.timer.timeout.connect(self.refresh_integration)
-        self.window.send_requested.connect(lambda target, text: self.worker.send('message', target, text=text))
+        self.window.send_requested.connect(self.send_message)
+        self.bind_interactions(self.window)
         self.window.file_requested.connect(self.choose_file)
         self.window.chat.file_action.connect(self.file_action)
         self.window.wizz_requested.connect(lambda target: self.worker.send('wizz', target))
@@ -114,6 +117,10 @@ class Application(QObject):
         self.peer_timer = QTimer(self)
         self.peer_timer.setSingleShot(True)
         self.peer_timer.timeout.connect(self.flush_peers)
+        self.typing_timer = QTimer(self)
+        self.typing_timer.setInterval(350)
+        self.typing_timer.timeout.connect(self.refresh_typing)
+        self.typing_timer.start()
         self.refresh_integration()
         self.worker.start()
         self.apply_network_preferences()
@@ -175,7 +182,8 @@ class Application(QObject):
         self.private_windows[sid] = view
         view.set_peer(peer, sid in self.window.sidebar.blocked)
         view.set_friend(contact_id in self.preferences.friends)
-        view.send_requested.connect(lambda target, text: self.worker.send('message', target, text=text))
+        view.send_requested.connect(self.send_message)
+        self.bind_interactions(view)
         view.file_requested.connect(self.choose_file)
         view.chat.file_action.connect(self.file_action)
         view.wizz_requested.connect(lambda target: self.worker.send('wizz', target))
@@ -186,7 +194,54 @@ class Application(QObject):
         view.closed.connect(self.close_private)
         self.window.sidebar.refresh()
         view.open_window()
+        self.refresh_typing()
         return view
+
+    def bind_interactions(self, view):
+        view.chat.actor_id = self.preferences.contact_id
+        for _, _, message in view.chat.message_rows.values():
+            view.chat.update_reactions(message)
+        view.chat.reply_requested.connect(lambda reference: self.begin_reply(view.current, reference))
+        view.chat.reaction_requested.connect(lambda reference, emoji: self.react(view.current, reference, emoji))
+        view.chat.quote_missing.connect(lambda: view.show_notice('Le message cité n’est plus disponible dans cette session.'))
+        view.composer.typing_changed.connect(lambda active: self.send_typing(view.current, active))
+
+    def send_message(self, target, text):
+        view = self.view_for(target)
+        reply_to = view.composer.reply_to if view else ''
+        self.worker.send('message', target, text=text, **({'reply_to': reply_to} if reply_to else {}))
+
+    def begin_reply(self, target, reference):
+        message = self.history.find(target, reference)
+        view = self.view_for(target)
+        if view and message:
+            view.composer.set_reply(reference, 'Vous' if message.outgoing else message.nickname, message.text)
+
+    def react(self, target, reference, emoji):
+        message = self.history.find(target, reference)
+        if not message:
+            return
+        current = message.reactions.get(self.preferences.contact_id, {}).get('emoji', '')
+        self.worker.send('reaction', target, message=reference, emoji='' if current == emoji else emoji)
+
+    def apply_reaction(self, target, reference, actor, emoji, nickname):
+        message = self.history.react(target, reference, actor, emoji, nickname)
+        if message is None:
+            self.pending_reactions.add(target, reference, actor, emoji, nickname)
+        else:
+            view = self.view_for(target)
+            if view:
+                view.chat.update_reactions(message)
+
+    def send_typing(self, target, active):
+        if not self.stopping:
+            self.worker.send('typing', target, active=active)
+
+    def refresh_typing(self):
+        self.pending_reactions.prune()
+        self.window.chat.typing.set_typers(self.typing_state.names('general'))
+        for sid, view in self.private_windows.items():
+            view.chat.typing.set_typers(self.typing_state.names(sid))
 
     def close_private(self, sid):
         view = self.private_windows.pop(sid, None)
@@ -231,6 +286,7 @@ class Application(QObject):
 
     def move_private(self, old_sid, new_sid):
         self.history.move(old_sid, new_sid)
+        self.typing_state.remove(old_sid)
         for metadata in self.file_transfers.values():
             if metadata['target'] == old_sid:
                 metadata['target'] = new_sid
@@ -282,7 +338,13 @@ class Application(QObject):
         self.window.show_notice('Ami ajouté : il restera reconnu même si son pseudo change.' if added else 'Contact retiré des amis.')
 
     def add_message(self, target, message):
+        if message.reply_to:
+            original = self.history.find(target, message.reply_to)
+            message.reply_name = ('Vous' if original.outgoing else original.nickname) if original else ''
+            message.reply_text = preview(original.text) if original else 'Message plus disponible'
         self.history.append(target, message)
+        for actor, emoji, nickname in self.pending_reactions.take(target, message.id):
+            self.history.react(target, message.id, actor, emoji, nickname)
         if not message.system:
             self.window.sidebar.previews[target] = message.text.replace('\n', ' ')[:80]
             while len(self.window.sidebar.previews) > 65:
@@ -290,6 +352,13 @@ class Application(QObject):
         view = self.view_for(target)
         if view:
             view.chat.append(message)
+        if message.id:
+            for existing in self.history.get(target):
+                if existing.reply_to == message.id and not existing.reply_name:
+                    existing.reply_name = 'Vous' if message.outgoing else message.nickname
+                    existing.reply_text = preview(message.text)
+                    if view:
+                        view.chat.update_quote(existing)
         if target != 'general':
             nick = (message.nickname if not message.outgoing and message.nickname
                     else self.window.known_names.get(target, 'Étudiant'))
@@ -319,6 +388,9 @@ class Application(QObject):
         elif kind in ('joined', 'left'):
             nick = data['peer']['nick']
             self.system_message('general', f'{nick} a rejoint le cluster.' if kind == 'joined' else f'{nick} s’est déconnecté·e.')
+            if kind == 'left':
+                self.typing_state.remove(data['peer']['sid'])
+                self.refresh_typing()
         elif kind == 'identity':
             self.preferences.nickname = data['nickname']
             self.window.sidebar.set_nickname(data['nickname'])
@@ -355,14 +427,18 @@ class Application(QObject):
             frame = data['frame']
             target = frame['to']
             view = self.view_for(target)
-            if view:
+            if view and frame['type'] == 'message':
                 view.send_button.setEnabled(True)
             if frame['type'] == 'message':
                 if view and view.input.toPlainText().strip() == frame['text']:
                     view.input.clear()
+                    if view.composer.reply_to == frame.get('reply_to', ''):
+                        view.composer.clear_reply()
                 self.add_message(target, Message(self.worker.client.sid, self.preferences.nickname, frame['text'], outgoing=True,
                                                  id=frame['id'], avatar=self.preferences.avatar,
-                                                 avatar_image=self.preferences.avatar_image))
+                                                 avatar_image=self.preferences.avatar_image, reply_to=frame.get('reply_to', '')))
+            elif frame['type'] == 'reaction':
+                self.apply_reaction(target, frame['message'], self.preferences.contact_id, frame['emoji'], self.preferences.nickname)
             elif frame['type'] == 'wizz':
                 self.system_message(target, 'ϟ Tu as envoyé un Wizz. Prochain Wizz dans 42 minutes.')
             elif frame['type'] == 'break_invite':
@@ -370,17 +446,26 @@ class Application(QObject):
             elif frame['type'] == 'break_reply':
                 self.system_message(target, '☕ Tu as accepté la pause.' if frame['answer'] == 'accepted' else '☕ Tu as décliné la pause.')
         elif kind == 'event':
-            self.receive_event(data['frame'], data['nickname'], data.get('avatar', -1), data.get('avatar_image', ''))
+            self.receive_event(data['frame'], data['nickname'], data.get('avatar', -1), data.get('avatar_image', ''), data.get('contact_id', ''))
 
-    def receive_event(self, frame, nickname, avatar=-1, avatar_image=''):
+    def receive_event(self, frame, nickname, avatar=-1, avatar_image='', contact_id=''):
         target = 'general' if frame['to'] == 'general' else frame['from']
         self.window.known_names[frame['from']] = nickname
         kind = frame['type']
+        if kind in ('reaction', 'typing') and frame['from'] in self.window.sidebar.blocked:
+            return
         if kind == 'message':
             self.add_message(target, Message(frame['from'], nickname, frame['text'], id=frame['id'],
-                                             avatar=avatar, avatar_image=avatar_image))
+                                             avatar=avatar, avatar_image=avatar_image, reply_to=frame.get('reply_to', '')))
+            self.typing_state.update(target, frame['from'], nickname, False)
+            self.refresh_typing()
             if not self.preferences.dnd and not self.is_viewed(target):
                 self.notifications.show(f'{nickname} · nouveau message')
+        elif kind == 'reaction':
+            self.apply_reaction(target, frame['message'], contact_id or frame['from'], frame['emoji'], nickname)
+        elif kind == 'typing':
+            self.typing_state.update(target, frame['from'], nickname, frame['active'])
+            self.refresh_typing()
         elif kind == 'wizz':
             self.system_message(target, f'ϟ {nickname} t’a envoyé un Wizz !')
             view = self.open_private(target)
@@ -398,7 +483,7 @@ class Application(QObject):
             self.popups[frame['id']] = (target, popup)
             popup.finished.connect(lambda result, key=frame['id']: self.remove_popup(key))
             popup.show()
-            self.notifications.show(f'{nickname} te propose une pause !')
+            self.notifications.show(f'{nickname} : on fait une pause ?')
         elif kind == 'break_reply':
             text = f'{nickname} a accepté ta proposition de pause.' if frame['answer'] == 'accepted' else f'{nickname} n’est pas disponible pour le moment.'
             self.system_message(target, '☕ ' + text)
@@ -633,6 +718,8 @@ class Application(QObject):
         self.worker.call('block', sid, value)
         if value:
             self.window.sidebar.blocked.add(sid)
+            self.typing_state.remove(sid)
+            self.refresh_typing()
             for peer, popup in list(self.popups.values()):
                 if peer == sid:
                     popup.expire()
@@ -651,6 +738,9 @@ class Application(QObject):
         if self.stopping:
             return
         self.stopping = True
+        self.typing_timer.stop()
+        self.window.composer.stop_typing()
+        self.window.chat.typing.set_typers([])
         self.window.quitting_now = True
         self.notifications.stop()
         self.tray.icon.hide()
@@ -663,4 +753,6 @@ class Application(QObject):
         self.worker.stop()
         self.history.clear()
         self.file_transfers.clear()
+        self.typing_state.peers.clear()
+        self.pending_reactions.items.clear()
         self.instance.close()

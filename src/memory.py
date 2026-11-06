@@ -16,6 +16,10 @@ class Message:
     avatar_image: str = ''
     time: datetime = field(default_factory=datetime.now)
     attachment: dict | None = None
+    reply_to: str = ''
+    reply_name: str = ''
+    reply_text: str = ''
+    reactions: dict = field(default_factory=dict)
 
 
 class Conversations:
@@ -41,6 +45,21 @@ class Conversations:
 
     def clear(self):
         self.chats.clear()
+
+    def find(self, chat, reference):
+        return next((message for message in reversed(self.chats.get(chat, ()))
+                     if message.id and message.id == reference and not message.system), None)
+
+    def react(self, chat, reference, actor, emoji, nickname):
+        message = self.find(chat, reference)
+        if message is None:
+            return None
+        if emoji:
+            if actor in message.reactions or len(message.reactions) < 512:
+                message.reactions[actor] = {'emoji': emoji, 'nickname': nickname}
+        else:
+            message.reactions.pop(actor, None)
+        return message
 
     def move(self, source, target):
         """Retarget a still-open friend's RAM-only conversation after reconnection."""

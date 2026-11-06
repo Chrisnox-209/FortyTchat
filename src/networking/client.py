@@ -10,13 +10,14 @@ import time
 from ..features.file_transfer import FileTransfers, FILE_EVENTS, CHUNK_SIZE, disk, fingerprint, open_source
 from ..features.break_request import Invitations, BreakRateLimit
 from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
+from ..features.social import SOCIAL_EVENTS, SocialOrder
 from ..identity import session_id, unique_nickname, valid_nickname, contact_capability, contact_from_caps
 from ..avatar_data import avatar_hash, avatar_frame
 from .discovery import Discovery, PORT
 from .interfaces import interfaces
 from .diagnostics import socket_error
 from .presence import Peer, HEARTBEAT, PEER_TIMEOUT
-from .protocol import MAX_FRAME, MAX_PEERS, ProtocolError, ack, encode, event, read_frame
+from .protocol import MAX_FRAME, MAX_PEERS, EVENTS, ProtocolError, ack, encode, event, read_frame
 
 
 class ChatClient:
@@ -35,6 +36,7 @@ class ChatClient:
         self.avatar_reads = TokenBucket(32, 8)
         self.relay_images = False
         self.relay_files = False
+        self.relay_social = False
         self.callback = callback or (lambda kind, data: None)
         self.discovery_enabled, self.discovery_port = discovery, discovery_port
         self.relay_host, self.relay_port, self.tls = relay_host, relay_port, tls
@@ -47,6 +49,8 @@ class ChatClient:
         self.peers, self.blocked = {}, set()
         self.seen, self.outgoing_invites, self.incoming_invites = SeenMessages(), Invitations(), Invitations()
         self.message_bucket = TokenBucket()
+        self.social_bucket, self.typing_bucket = TokenBucket(12, 3), TokenBucket(4, 1)
+        self.social_order, self.social_sequence = SocialOrder(), 0
         self.wizz_cooldown = Cooldown(WIZZ_INTERVAL)
         self.outgoing_break_limit, self.incoming_break_limit = BreakRateLimit(), BreakRateLimit()
         remaining = min(WIZZ_INTERVAL, max(0, WIZZ_INTERVAL - (time.time() - last_wizz_at))) if last_wizz_at else 0
@@ -77,7 +81,7 @@ class ChatClient:
     def hello(self, kind='hello'):
         return {'v': 1, 'type': kind, 'sid': self.sid, 'nick': self.nickname,
                 'status': self.status, 'port': self.port,
-                'caps': ['files', 'wizz', 'pause', 'probe', 'avatar', 'avatar_image', 'friends', contact_capability(self.contact_id)],
+                'caps': ['files', 'wizz', 'pause', 'probe', 'social', 'avatar_image', 'friends', contact_capability(self.contact_id)],
                 'avatar': self.avatar, 'avatar_hash': self.avatar_hash}
 
     def network_state(self):
@@ -146,7 +150,8 @@ class ChatClient:
         if peer is None:
             if len(self.peers) >= MAX_PEERS:
                 return
-            peer = Peer(sid, data['nick'], timeout=self.peer_timeout, bucket=TokenBucket(), wizz=Cooldown(WIZZ_INTERVAL))
+            peer = Peer(sid, data['nick'], timeout=self.peer_timeout, bucket=TokenBucket(), wizz=Cooldown(WIZZ_INTERVAL),
+                        social_bucket=TokenBucket(12, 3), typing_bucket=TokenBucket(4, 1))
             self.peers[sid] = peer
             new = True
         else:
@@ -323,7 +328,12 @@ class ChatClient:
         kind = frame['type']
         if kind == 'break_invite' and self.incoming_break_limit.remaining(peer.contact_id or sender):
             return False, 'Demandes de pause bloquées pendant 5 minutes'
-        if not peer.bucket.allow():
+        if kind in SOCIAL_EVENTS and 'social' not in peer.caps:
+            return False, 'Interaction incompatible'
+        if kind in SOCIAL_EVENTS and not self.social_order.newer(frame):
+            return True, ''
+        bucket = (peer.typing_bucket if kind == 'typing' else peer.social_bucket) if kind in SOCIAL_EVENTS else peer.bucket
+        if not bucket.allow():
             return False, 'Trop de messages'
         if kind == 'wizz':
             if not self.wizz_enabled or self.dnd or peer.wizz.remaining() or self.receive_wizz.remaining():
@@ -338,9 +348,12 @@ class ChatClient:
         if kind == 'break_reply' and not self.outgoing_invites.consume(frame['request'], sender):
             return False, 'Invitation expirée'
         self.seen.add(frame['id'])
+        if kind in SOCIAL_EVENTS:
+            self.social_order.remember(frame)
         # Keep only validated fields; never trust a network-provided display name.
-        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'text', 'request', 'answer') if k in frame}
-        self.emit('event', frame=payload, nickname=peer.nick, avatar=peer.avatar, avatar_image=peer.avatar_image)
+        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active') if k in frame}
+        self.emit('event', frame=payload, nickname=peer.nick, avatar=peer.avatar, avatar_image=peer.avatar_image,
+                  contact_id=peer.contact_id)
         return True, ''
 
     async def _handle_direct(self, reader, writer):
@@ -373,7 +386,7 @@ class ChatClient:
                     return
                 if frame['type'] in FILE_EVENTS:
                     ok, reason = await self.files.receive(frame)
-                elif frame['type'] in ('message', 'wizz', 'break_invite', 'break_reply'):
+                elif frame['type'] in EVENTS:
                     ok, reason = self._receive(frame)
                 else:
                     return
@@ -443,6 +456,8 @@ class ChatClient:
     async def _send(self, kind, target, **payload):
         if self._closing:
             return None
+        if kind in SOCIAL_EVENTS:
+            return await self._send_social(kind, target, **payload)
         if self._queued >= 16:
             self.emit('notice', text='Trop de messages en attente. Réessayez dans un instant.')
             return None
@@ -498,6 +513,47 @@ class ChatClient:
             success = bool(results) and all(r is True for r in results)
             self.emit('delivery', id=frame['id'], target=target, ok=success,
                       local_only=not results and target == 'general')
+            return frame['id']
+        finally:
+            self._queued -= 1
+
+    async def _send_social(self, kind, target, **payload):
+        if self._queued >= 16:
+            return None
+        self.social_sequence += 1
+        frame = event(kind, self.sid, target, **{**payload, 'seq': self.social_sequence})
+        try:
+            encode(frame)
+        except ProtocolError as exc:
+            self.emit('notice', text=str(exc))
+            return None
+        peers = [peer for peer in self.peers.values()
+                 if peer.sid not in self.blocked and 'social' in peer.caps
+                 and (target == 'general' or peer.sid == target)]
+        if target != 'general' and not peers:
+            if kind == 'reaction':
+                self.emit('notice', text='Les réactions nécessitent un contact en ligne avec FortyTchat 1.3.0.')
+            return None
+        bucket = self.typing_bucket if kind == 'typing' else self.social_bucket
+        if not bucket.allow():
+            if kind == 'reaction':
+                self.emit('notice', text='Trop de réactions à la fois. Réessaie dans un instant.')
+            return None
+        self.seen.add(frame['id'])
+        if kind == 'reaction':
+            self.emit('sent', frame=frame)
+        self._queued += 1
+        try:
+            routes = []
+            relayed = [peer for peer in peers if peer.relay and self.relay_writer and self.relay_social]
+            if relayed:
+                routes.append(self._send_relay(frame))
+            for peer in peers:
+                if peer not in relayed and peer.direct:
+                    routes.append(self._send_direct(peer, frame))
+            results = await asyncio.gather(*routes, return_exceptions=True) if routes else []
+            if kind == 'reaction' and peers and (not results or any(result is not True for result in results)):
+                self.emit('notice', text='Réaction non confirmée : vérifie que les clients et le relais sont actualisés.')
             return frame['id']
         finally:
             self._queued -= 1
@@ -631,6 +687,7 @@ class ChatClient:
                 self.relay_writer = writer
                 self.relay_images = isinstance(welcome.get('caps'), list) and 'avatar_image' in welcome['caps']
                 self.relay_files = isinstance(welcome.get('caps'), list) and 'files' in welcome['caps']
+                self.relay_social = isinstance(welcome.get('caps'), list) and 'social' in welcome['caps']
                 self._publish_avatar()
                 self.emit('network', **self.network_state())
                 delay = 2
@@ -649,7 +706,7 @@ class ChatClient:
                         ok, _ = await self.files.receive(frame)
                         if not ok and kind in ('file_chunk', 'file_end'):
                             self.task(self.deliver_file(self.files.control('file_cancel', frame['from'], frame['request'])))
-                    elif kind in ('message', 'wizz', 'break_invite', 'break_reply'):
+                    elif kind in EVENTS:
                         self._receive(frame)
             except (OSError, ConnectionError, ProtocolError, asyncio.TimeoutError):
                 if not self._closing:
@@ -658,6 +715,7 @@ class ChatClient:
                 self.relay_writer = None
                 self.relay_images = False
                 self.relay_files = False
+                self.relay_social = False
                 if writer:
                     writer.close()
                     with contextlib.suppress(OSError):

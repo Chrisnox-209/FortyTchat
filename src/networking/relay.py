@@ -10,8 +10,9 @@ import time
 from ..features.file_transfer import FILE_EVENTS, OFFER_LIFETIME
 from ..features.break_request import Invitations, BreakRateLimit
 from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
+from ..features.social import SOCIAL_EVENTS, SocialOrder
 from ..identity import contact_from_caps
-from .protocol import MAX_FRAME, MAX_PEERS, ProtocolError, ack, encode, read_frame
+from .protocol import MAX_FRAME, MAX_PEERS, EVENTS, ProtocolError, ack, encode, read_frame
 
 
 @dataclass
@@ -26,6 +27,9 @@ class Connection:
     avatar_image: dict | None = None
     image_updates: TokenBucket = field(default_factory=lambda: TokenBucket(3, 0.1))
     file_bucket: TokenBucket = field(default_factory=lambda: TokenBucket(256, 1024))
+    social_bucket: TokenBucket = field(default_factory=lambda: TokenBucket(12, 3))
+    typing_bucket: TokenBucket = field(default_factory=lambda: TokenBucket(4, 1))
+    social_order: SocialOrder = field(default_factory=SocialOrder)
     image_requests: TokenBucket = field(default_factory=lambda: TokenBucket(MAX_PEERS, 16))
 
 
@@ -72,6 +76,24 @@ class RelayServer:
         if target != 'general' and (recipient is None or target == sid):
             return ack(mid, False, 'Utilisateur hors ligne')
         kind = data['type']
+        if kind in SOCIAL_EVENTS:
+            if 'social' not in connection.hello.get('caps', ()):
+                return ack(mid, False, 'Interaction incompatible')
+            if not connection.social_order.newer(data):
+                return ack(mid)
+            bucket = connection.typing_bucket if kind == 'typing' else connection.social_bucket
+            if not bucket.allow():
+                return ack(mid, False, 'Trop d’interactions')
+            if target == 'general':
+                for other_sid, other in list(self.clients.items()):
+                    if other_sid != sid and 'social' in other.hello.get('caps', ()):
+                        self.put(other, data)
+                success = True
+            else:
+                success = 'social' in recipient.hello.get('caps', ()) and self.put(recipient, data)
+            connection.seen.add(mid)
+            connection.social_order.remember(data)
+            return ack(mid, success, '')
         if kind == 'break_invite':
             sender_contact = contact_from_caps(connection.hello.get('caps', ())) or sid
             target_contact = contact_from_caps(recipient.hello.get('caps', ())) or target
@@ -194,7 +216,7 @@ class RelayServer:
             self.wizz_sessions[hello['sid']] = (now, gate)
             connection = Connection(dict(hello), writer, wizz=gate)
             # Roster contains identities only, never previous messages.
-            self.put(connection, {'v': 1, 'type': 'pong', 'caps': ['avatar_image', 'files']})
+            self.put(connection, {'v': 1, 'type': 'pong', 'caps': ['avatar_image', 'files', 'social']})
             for other in self.clients.values():
                 self.put(connection, {**other.hello, 'type': 'presence'})
             sid = hello['sid']
@@ -233,7 +255,7 @@ class RelayServer:
                     self.put(connection, {'v': 1, 'type': 'pong'})
                 elif kind in FILE_EVENTS:
                     self.put(connection, self.route_file(connection, data))
-                elif kind in ('message', 'wizz', 'break_invite', 'break_reply'):
+                elif kind in EVENTS:
                     self.put(connection, self.route(connection, data))
                 else:
                     raise ProtocolError('Type inattendu')

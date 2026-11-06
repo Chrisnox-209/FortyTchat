@@ -6,10 +6,16 @@ from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QTextEdit
 from ..features.emojis import EmojiPicker
 from ..features.wizz import wizz_label
 from .widgets import button, label
+from .social import ReplyPreview
 
 
 class ComposeEdit(QTextEdit):
     submitted = Signal()
+    focus_lost = Signal()
+
+    def focusOutEvent(self, event):
+        self.focus_lost.emit()
+        super().focusOutEvent(event)
 
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
@@ -28,6 +34,7 @@ class Composer(QFrame):
     wizz_requested = Signal()
     break_requested = Signal()
     file_requested = Signal()
+    typing_changed = Signal(bool)
 
     def __init__(self, private=False, parent=None):
         super().__init__(parent)
@@ -36,6 +43,16 @@ class Composer(QFrame):
         box = QVBoxLayout(self)
         box.setContentsMargins(12, 5, 12, 12)
         box.setSpacing(4)
+        self.reply_to, self.reply_preview = '', None
+        self.reply_banner = QFrame()
+        self.reply_box = QHBoxLayout(self.reply_banner)
+        self.reply_box.setContentsMargins(4, 4, 4, 0)
+        cancel_reply = button('×', 'flat', 'Annuler la réponse', 28)
+        cancel_reply.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        cancel_reply.clicked.connect(self.clear_reply)
+        self.reply_box.addWidget(cancel_reply)
+        self.reply_banner.hide()
+        box.addWidget(self.reply_banner)
         self.input = ComposeEdit()
         self.input.setObjectName('input')
         self.input.setAcceptRichText(False)
@@ -43,6 +60,7 @@ class Composer(QFrame):
         self.input.setPlaceholderText('Ton message…' if private else 'Écrire au cluster…')
         self.input.submitted.connect(self.submit)
         self.input.textChanged.connect(self.text_changed)
+        self.input.focus_lost.connect(self.stop_typing)
         box.addWidget(self.input)
         actions = QHBoxLayout()
         actions.setSpacing(8)
@@ -57,7 +75,7 @@ class Composer(QFrame):
         self.wizz_button = button('ϟ Wizz', 'soft', 'Un Wizz toutes les 42 minutes, sans son')
         self.wizz_button.clicked.connect(self.wizz_requested)
         actions.addWidget(self.wizz_button)
-        self.break_button = button('On va en pause ?', 'break', 'Envoyer une invitation de pause')
+        self.break_button = button('On fait une pause ?', 'break', 'Envoyer une invitation de pause')
         self.break_button.clicked.connect(self.break_requested)
         actions.addWidget(self.break_button)
         actions.addStretch()
@@ -72,6 +90,38 @@ class Composer(QFrame):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_actions)
         self.timer.start(1000)
+        self.typing_active, self.last_typing = False, 0.0
+        self.typing_quiet = QTimer(self)
+        self.typing_quiet.setSingleShot(True)
+        self.typing_quiet.setInterval(2500)
+        self.typing_quiet.timeout.connect(self.stop_typing)
+
+    def set_reply(self, reference, nickname, text):
+        self.clear_reply()
+        self.reply_to = reference
+        self.reply_preview = ReplyPreview(reference, nickname, text)
+        self.reply_box.insertWidget(0, self.reply_preview, 1)
+        self.reply_banner.show()
+        self.input.setFocus()
+
+    def clear_reply(self):
+        self.reply_to = ''
+        if self.reply_preview:
+            self.reply_box.removeWidget(self.reply_preview)
+            self.reply_preview.deleteLater()
+            self.reply_preview = None
+        self.reply_banner.hide()
+
+    def stop_typing(self):
+        if self.typing_active:
+            self.typing_active = False
+            self.typing_changed.emit(False)
+        self.typing_quiet.stop()
+
+    def hideEvent(self, event):
+        if hasattr(self, 'typing_quiet'):
+            self.stop_typing()
+        super().hideEvent(event)
 
     def submit(self):
         text = self.input.toPlainText().strip()
@@ -93,6 +143,14 @@ class Composer(QFrame):
         self.counter.setText(f'{count}/2000' if count > 1600 else '')
         self.counter.setStyleSheet('color: #ff9cb4;' if count > 2000 else '')
         self.send_button.setToolTip('Message limité à 2 000 caractères' if count > 2000 else 'Entrée pour envoyer')
+        if self.input.toPlainText().strip() and self.available and self.input.hasFocus():
+            now = time.monotonic()
+            if not self.typing_active or now - self.last_typing >= 2:
+                self.typing_active, self.last_typing = True, now
+                self.typing_changed.emit(True)
+            self.typing_quiet.start()
+        else:
+            self.stop_typing()
 
     def update_actions(self):
         remaining = max(0, self.deadline - time.monotonic())
@@ -101,8 +159,10 @@ class Composer(QFrame):
         self.wizz_button.setToolTip(full + ' · sans son')
         self.wizz_button.setEnabled(self.available and remaining <= 0)
         self.break_button.setEnabled(self.available)
-        self.break_button.setText('Pause' if self.width() < 520 else 'On va en pause ?')
+        self.break_button.setText('Pause' if self.width() < 520 else 'On fait une pause ?')
         self.file_button.setEnabled(self.available)
+        if not self.available:
+            self.stop_typing()
 
     def emojis(self):
         picker = EmojiPicker(self)

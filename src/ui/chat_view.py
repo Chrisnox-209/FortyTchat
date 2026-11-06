@@ -3,11 +3,16 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QVBoxLayout, QScrollArea,
                                QWidget, QGraphicsOpacityEffect)
 from .widgets import Avatar, label
 from .file_card import FileCard
+from .social import ElidedLabel, ReplyPreview, ReactionBar, TypingIndicator, reaction_menu
+from .widgets import button
 from ..features.emojis import emoji_fallback
 
 
 class ChatView(QFrame):
     file_action = Signal(str, object)
+    reply_requested = Signal(str)
+    reaction_requested = Signal(str, str)
+    quote_missing = Signal()
 
     def __init__(self, private=False):
         super().__init__()
@@ -26,11 +31,15 @@ class ChatView(QFrame):
         self.messages.setContentsMargins(0, 8, 0, 12)
         self.scroll.setWidget(self.body)
         layout.addWidget(self.scroll, 1)
+        self.typing = TypingIndicator()
+        layout.addWidget(self.typing)
         self.rows = []
         self.bubbles = []
         self.empty = None
         self.animation = None
         self.file_cards = {}
+        self.actor_id = ''
+        self.message_rows, self.reaction_bars, self.quote_previews = {}, {}, {}
         self.reset([], 'private' if private else 'general')
 
     def reset(self, messages, chat):
@@ -42,6 +51,7 @@ class ChatView(QFrame):
         self.rows = []
         self.bubbles = []
         self.file_cards = {}
+        self.message_rows, self.reaction_bars, self.quote_previews = {}, {}, {}
         self.empty = None
         if not messages:
             self.empty = QWidget()
@@ -103,10 +113,24 @@ class ChatView(QFrame):
             content.setContentsMargins(14, 10, 14, 11)
             content.setSpacing(6)
             heading = QHBoxLayout()
-            heading.addWidget(label('Vous' if message.outgoing else message.nickname, 'messageName'))
-            heading.addStretch()
+            heading.addWidget(ElidedLabel('Vous' if message.outgoing else message.nickname, 'messageName'), 1)
             heading.addWidget(label(message.time.strftime('%H:%M'), 'caption'))
+            if message.id:
+                for text, tooltip, callback in (
+                    ('↩', 'Répondre à ce message', lambda checked=False, mid=message.id: self.reply_requested.emit(mid)),
+                    ('☺', 'Réagir avec un emoji', lambda checked=False, mid=message.id: self.pick_reaction(mid)),
+                ):
+                    control = button(text, 'flat', tooltip)
+                    control.setFixedSize(25, 24)
+                    control.setStyleSheet('padding: 0; font-size: 17px; border-radius: 7px;')
+                    control.clicked.connect(callback)
+                    heading.addWidget(control)
             content.addLayout(heading)
+            if message.reply_to:
+                quote = ReplyPreview(message.reply_to, message.reply_name, message.reply_text, bubble)
+                quote.activated.connect(self.focus_message)
+                content.addWidget(quote)
+                self.quote_previews[message.id] = quote
             if message.attachment:
                 card = FileCard(message.attachment, bubble)
                 card.action_requested.connect(self.file_action)
@@ -120,7 +144,16 @@ class ChatView(QFrame):
                     text.setToolTip('Certains emojis sont remplacés par leur nom : la police ne les prend pas en charge.')
                 text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                 content.addWidget(text)
-                bubble.desired_width = max(170, min(580, max((text.fontMetrics().horizontalAdvance(line) for line in rendered.split('\n')), default=0) + 34))
+                bubble.desired_width = max(240 if message.id else 170, min(580, max((text.fontMetrics().horizontalAdvance(line) for line in rendered.split('\n')), default=0) + 34))
+            if message.reply_to:
+                bubble.desired_width = max(300, bubble.desired_width)
+            if message.id:
+                reactions = ReactionBar(bubble)
+                reactions.chosen.connect(lambda emoji, mid=message.id: self.reaction_requested.emit(mid, emoji))
+                reactions.update_reactions(message.reactions, self.actor_id)
+                content.addWidget(reactions)
+                self.message_rows[message.id] = (row, bubble, message)
+                self.reaction_bars[message.id] = reactions
             self.bubbles.append((row, bubble))
             row_box.addWidget(bubble)
             if not message.outgoing:
@@ -134,6 +167,9 @@ class ChatView(QFrame):
             oldest.deleteLater()
             self.bubbles = [(owner, bubble) for owner, bubble in self.bubbles if owner is not oldest]
             self.file_cards = {key: value for key, value in self.file_cards.items() if value[0] is not oldest}
+            self.message_rows = {key: value for key, value in self.message_rows.items() if value[0] is not oldest}
+            self.reaction_bars = {key: value for key, value in self.reaction_bars.items() if key in self.message_rows}
+            self.quote_previews = {key: value for key, value in self.quote_previews.items() if key in self.message_rows}
         self.adjust_bubbles()
         if animate:
             effect = QGraphicsOpacityEffect(row)
@@ -162,6 +198,40 @@ class ChatView(QFrame):
         entry = self.file_cards.get(metadata['id'])
         if entry:
             entry[1].update_transfer(metadata)
+
+    def update_reactions(self, message):
+        bar = self.reaction_bars.get(message.id)
+        if bar:
+            at_bottom = self.scroll.verticalScrollBar().value() >= self.scroll.verticalScrollBar().maximum() - 60
+            bar.update_reactions(message.reactions, self.actor_id)
+            if at_bottom:
+                self.bottom()
+
+    def update_quote(self, message):
+        quote = self.quote_previews.get(message.id)
+        if quote:
+            quote.name.set_full_text('Réponse à ' + message.reply_name)
+            quote.text.set_full_text(message.reply_text)
+
+    def pick_reaction(self, reference):
+        reaction_menu(self, lambda emoji: self.reaction_requested.emit(reference, emoji))
+
+    def focus_message(self, reference):
+        entry = self.message_rows.get(reference)
+        if not entry:
+            self.quote_missing.emit()
+            return
+        row, bubble, _ = entry
+        self.scroll.ensureWidgetVisible(row, 0, 40)
+        from .theme import colors
+        bubble.setStyleSheet(f'QFrame#{bubble.objectName()} {{ border: 1px solid {colors()["accent"]}; }}')
+        timer = getattr(bubble, 'quote_timer', None)
+        if timer is None:
+            timer = QTimer(bubble)
+            timer.setSingleShot(True)
+            timer.timeout.connect(lambda: bubble.setStyleSheet(''))
+            bubble.quote_timer = timer
+        timer.start(1200)
 
     def wizz(self):
         from .attention import shake_window

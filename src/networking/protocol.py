@@ -9,13 +9,14 @@ from ..identity import valid_nickname, session_id, contact_from_caps
 from ..avatar_data import avatar_hash, valid_avatar_hash, AvatarError
 
 from ..features.file_transfer import FILE_EVENTS, CHUNK_SIZE, MAX_FILE_SIZE, valid_filename
+from ..features.social import SOCIAL_EVENTS, valid_reaction
 
 VERSION = 1
 MAX_FRAME = 16384
 MAX_MESSAGE = 2000
 MAX_PEERS = 512
 ID = re.compile(r'[a-f0-9]{32}\Z')
-EVENTS = {'message', 'wizz', 'break_invite', 'break_reply'}
+EVENTS = {'message', 'wizz', 'break_invite', 'break_reply'} | SOCIAL_EVENTS
 
 
 class ProtocolError(ValueError):
@@ -108,8 +109,18 @@ def validate(data):
             raise ProtocolError('Identifiant invalide')
         if data.get('to') != 'general' and not valid_id(data.get('to')):
             raise ProtocolError('Destinataire invalide')
-        if kind != 'message' and data['to'] == 'general':
+        if kind not in {'message'} | SOCIAL_EVENTS and data['to'] == 'general':
             raise ProtocolError('Action privée uniquement')
+        if kind in SOCIAL_EVENTS:
+            fields = {'message', 'emoji', 'seq'} if kind == 'reaction' else {'active', 'seq'}
+            if set(data) != {'v', 'type', 'id', 'from', 'to'} | fields:
+                raise ProtocolError('Interaction invalide')
+            if type(data['seq']) is not int or not 0 <= data['seq'] <= 2 ** 53 - 1:
+                raise ProtocolError('Ordre de l’interaction invalide')
+            if kind == 'reaction' and (not valid_id(data['message']) or not valid_reaction(data['emoji'])):
+                raise ProtocolError('Réaction invalide')
+            if kind == 'typing' and type(data['active']) is not bool:
+                raise ProtocolError('Indicateur de saisie invalide')
         if kind == 'message':
             value = data.get('text')
             if (not isinstance(value, str) or not value.strip() or len(value) > MAX_MESSAGE
@@ -117,6 +128,8 @@ def validate(data):
                     or len(value.encode('utf-8')) > 8000
                     or any(ord(c) < 32 and c not in '\n\t' for c in value)):
                 raise ProtocolError('Message invalide (1 à 2000 caractères)')
+            if 'reply_to' in data and not valid_id(data['reply_to']):
+                raise ProtocolError('Référence de réponse invalide')
         if kind == 'break_reply':
             if not valid_id(data.get('request')) or data.get('answer') not in ('accepted', 'declined', 'dismissed'):
                 raise ProtocolError('Réponse invalide')

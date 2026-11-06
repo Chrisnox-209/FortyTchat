@@ -133,13 +133,13 @@ class BreakPopup(_PauseCard):
     def __init__(self, nickname, callback, parent=None):
         super().__init__('Une pause ?', parent=parent)
         self.callback, self.answered = callback, False
-        self.add_text('LE CODE PEUT ATTENDRE', 'pauseEyebrow')
-        self.add_text('Une pause ensemble ?', 'pauseTitle')
-        self.add_text(f'{nickname} te propose une petite pause.\nTu viens ?', 'pauseBody')
+        self.add_text('ÇA TE DIT ?', 'pauseEyebrow')
+        self.add_text('On fait une pause ?', 'pauseTitle')
+        self.add_text(f'{nickname} te propose de décrocher un peu.\nOn bouge ?', 'pauseBody')
         controls = QHBoxLayout()
         controls.setSpacing(12)
-        self.no_button = button('Non, merci', 'pauseSecondary')
-        self.yes_button = button('Oui, j’arrive !', 'pausePrimary')
+        self.no_button = button('Non je bosse !!', 'pauseSecondary')
+        self.yes_button = button('yessss !!', 'pausePrimary')
         self.no_button.clicked.connect(lambda: self.answer('declined'))
         self.yes_button.clicked.connect(lambda: self.answer('accepted'))
         controls.addWidget(self.no_button, 1)
@@ -178,9 +178,9 @@ class BreakReplyPopup(_PauseCard):
         super().__init__('Réponse à ta pause', 'blue' if accepted else 'red',
                          '✓' if accepted else '×', parent)
         self.add_text('UNE PETITE PAUSE, UNE RÉPONSE', 'pauseEyebrow')
-        self.add_text('C’est un oui !' if accepted else 'Une prochaine fois !', 'pauseTitle')
-        text = (f'{nickname} a accepté ta pause.\nLe café n’attend plus que vous !' if accepted else
-                f'{nickname} a décliné ta pause.\nOn se retrouve un peu plus tard.' if answer == 'declined' else
+        self.add_text('yessss !!' if accepted else 'Non je bosse !!' if answer == 'declined' else 'Une prochaine fois !', 'pauseTitle')
+        text = (f'{nickname} est chaud pour une pause.\nÀ tout de suite !' if accepted else
+                f'{nickname} est en plein boulot.\nOn remet ça à plus tard !' if answer == 'declined' else
                 f'{nickname} a fermé l’invitation.\nCette pause n’a pas été confirmée.')
         self.add_text(text, 'pauseBody')
         self.close_button = button('Super !' if accepted else 'Compris', 'pausePrimary')
