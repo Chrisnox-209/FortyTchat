@@ -25,7 +25,7 @@ for theme in ('dark', 'light'):
     dialog.show()
     for width, height in ((570, 590), (460, 420)):
         dialog.resize(width, height)
-        for tab in range(3):
+        for tab in range(dialog.tabs.count()):
             dialog.tabs.setCurrentIndex(tab)
             for _ in range(4):
                 app.processEvents()
@@ -50,7 +50,7 @@ for theme in ('dark', 'light'):
                 assert position.y() >= 0
                 assert position.y() + dialog.theme.height() <= page.viewport().height()
                 assert page.verticalScrollBar().maximum() > 0
-            if tab == 2:
+            if tab == dialog.tabs.count() - 1:
                 paragraphs = [x for x in content.findChildren(QLabel) if x.objectName() == 'muted']
                 last = paragraphs[-1]
                 page.ensureWidgetVisible(last)

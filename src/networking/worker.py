@@ -50,6 +50,18 @@ class NetworkWorker(QObject):
     def send(self, kind, target, **payload):
         return self.submit(self.client.send(kind, target, **payload))
 
+    def offer_file(self, target, path):
+        return self.submit(self.client.offer_file(target, path))
+
+    def accept_file(self, request, sender, path):
+        return self.submit(self.client.accept_file(request, sender, path))
+
+    def decline_file(self, request, sender):
+        return self.submit(self.client.decline_file(request, sender))
+
+    def cancel_file(self, request, peer='general'):
+        return self.submit(self.client.cancel_file(request, peer))
+
     def stop(self):
         if not self.thread.is_alive():
             return

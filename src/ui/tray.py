@@ -1,5 +1,5 @@
-from PySide6.QtCore import Qt, QObject, Signal, QTimer
-from PySide6.QtGui import QIcon, QPainter, QColor, QPixmap, QFont
+from PySide6.QtCore import Qt, QObject, Signal, QTimer, QRectF
+from PySide6.QtGui import QIcon, QPainter, QColor, QPixmap, QFont, QPainterPath
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu
 
 
@@ -14,7 +14,8 @@ class Tray(QObject):
         self.base = QIcon(icon_path)
         self.icon = QSystemTrayIcon(self.base, self)
         self.menu = QMenu()
-        self.menu.addAction('Ouvrir FortyTchat', self.open_requested.emit)
+        self.open_action = self.menu.addAction('Ouvrir FortyTchat', self.open_requested.emit)
+        self.menu.setDefaultAction(self.open_action)
         self.unread_action = self.menu.addAction('Aucun message non lu')
         self.unread_action.setEnabled(False)
         self.menu.addSeparator()
@@ -56,16 +57,35 @@ class Tray(QObject):
             pixmap.fill(Qt.GlobalColor.transparent)
             painter = QPainter(pixmap)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            self.base.paint(painter, 0, 0, 64, 64)
-            painter.setBrush(QColor('#7891ff'))
-            painter.setPen(QColor('#000000'))
-            painter.drawEllipse(37, 0, 27, 27)
-            painter.setPen(QColor('white'))
+            # The whole FT background turns red; the white mark remains legible
+            # even on GNOME bars too small to read the unread counter.
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor('#e04453'))
+            painter.drawRoundedRect(QRectF(0, 0, 64, 64), 15, 15)
+            painter.save()
+            painter.scale(2 / 3, 2 / 3)
+            mark = QPainterPath()
+            mark.moveTo(18, 26)
+            for x, y in ((44, 26), (44, 35), (28, 35), (28, 47), (42, 47),
+                         (42, 56), (28, 56), (28, 72), (18, 72)):
+                mark.lineTo(x, y)
+            mark.closeSubpath()
+            mark.moveTo(49, 26)
+            for x, y in ((79, 26), (79, 36), (69, 36), (69, 72),
+                         (59, 72), (59, 36), (49, 36)):
+                mark.lineTo(x, y)
+            mark.closeSubpath()
+            painter.fillPath(mark, QColor('white'))
+            painter.restore()
+            painter.setBrush(QColor('white'))
+            painter.setPen(QColor('#e04453'))
+            painter.drawEllipse(39, 0, 25, 25)
+            painter.setPen(QColor('#c12e40'))
             font = QFont('DejaVu Sans')
             font.setWeight(QFont.Weight.Bold)
-            font.setPixelSize(15)
+            font.setPixelSize(14 if count < 10 else 11)
             painter.setFont(font)
-            painter.drawText(37, 0, 27, 27, Qt.AlignmentFlag.AlignCenter, str(min(99, count)))
+            painter.drawText(39, 0, 25, 25, Qt.AlignmentFlag.AlignCenter, '99+' if count > 99 else str(count))
             painter.end()
             self.icon.setIcon(QIcon(pixmap))
         else:

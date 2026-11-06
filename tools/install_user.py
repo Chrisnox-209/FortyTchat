@@ -68,6 +68,8 @@ def install(args):
                 deployment = app_dir / 'network.json'
             if deployment.is_file():
                 shutil.copy2(deployment, stage / 'network.json')
+            elif (stage / 'network.example.json').is_file():
+                shutil.copy2(stage / 'network.example.json', stage / 'network.json')
             if backup.exists():
                 shutil.rmtree(backup)
             if app_dir.exists():

@@ -27,6 +27,7 @@ class Composer(QFrame):
     submitted = Signal(str)
     wizz_requested = Signal()
     break_requested = Signal()
+    file_requested = Signal()
 
     def __init__(self, private=False, parent=None):
         super().__init__(parent)
@@ -49,6 +50,10 @@ class Composer(QFrame):
         emoji.setStyleSheet('font-size: 24px;')
         emoji.clicked.connect(self.emojis)
         actions.addWidget(emoji)
+        self.file_button = button('＋', 'flat', 'Joindre un fichier (20 Mio maximum)', 34)
+        self.file_button.setStyleSheet('font-size: 23px; padding: 0;')
+        self.file_button.clicked.connect(self.file_requested)
+        actions.addWidget(self.file_button)
         self.wizz_button = button('ϟ Wizz', 'soft', 'Un Wizz toutes les 42 minutes, sans son')
         self.wizz_button.clicked.connect(self.wizz_requested)
         actions.addWidget(self.wizz_button)
@@ -96,6 +101,8 @@ class Composer(QFrame):
         self.wizz_button.setToolTip(full + ' · sans son')
         self.wizz_button.setEnabled(self.available and remaining <= 0)
         self.break_button.setEnabled(self.available)
+        self.break_button.setText('Pause' if self.width() < 520 else 'On va en pause ?')
+        self.file_button.setEnabled(self.available)
 
     def emojis(self):
         picker = EmojiPicker(self)

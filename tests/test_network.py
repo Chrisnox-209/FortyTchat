@@ -68,11 +68,11 @@ def test_three_real_tcp_clients_general_private_rename_block_and_wizz(tmp_path):
             assert len(received(be, 'break_invite')) == 1
             await b.send('break_reply', a.sid, request=invitation, answer='accepted')
             assert received(ae, 'break_reply')[0]['answer'] == 'accepted'
-            assert await a.send('break_invite', b.sid) is None
+            assert await a.send('break_invite', b.sid) is not None
             b.preferences(wizz_enabled=False, dnd=True)
             forged_wizz = event('wizz', a.sid, b.sid)
             assert not b._receive(forged_wizz)[0]
-            assert not b._receive(event('break_invite', c.sid, b.sid))[0]
+            assert b._receive(event('break_invite', c.sid, b.sid))[0]
         finally:
             await asyncio.gather(*(x.stop() for x in clients))
     asyncio.run(scenario())

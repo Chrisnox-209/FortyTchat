@@ -1,6 +1,9 @@
-from PySide6.QtCore import Signal, Qt
+from pathlib import Path
+
+from PySide6.QtCore import Signal, Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
-                               QCheckBox, QLineEdit, QComboBox, QPlainTextEdit, QScrollArea,
+                               QCheckBox, QLineEdit, QComboBox, QScrollArea,
                                QFrame, QLayout, QSizePolicy)
 from .widgets import button, label, Avatar
 from .. import __version__
@@ -62,7 +65,7 @@ class SettingsDialog(QDialog):
         self.dnd = QCheckBox('Ne pas déranger')
         self.dnd.setChecked(preferences.dnd)
         form.addWidget(self.dnd)
-        form.addWidget(label('En mode Ne pas déranger, les messages arrivent sans\nnotification ; les Wizz et invitations sont refusés.', 'caption', True))
+        form.addWidget(label('En mode Ne pas déranger, les messages restent silencieux et les Wizz sont refusés. Les demandes de pause restent actives.', 'caption', True))
         theme_row = QHBoxLayout()
         theme_row.addWidget(label('Apparence'))
         self.theme = QComboBox()
@@ -74,33 +77,34 @@ class SettingsDialog(QDialog):
         form.addLayout(theme_row)
         form.addStretch()
         self.tabs.addTab(self.scroll_page(general), 'Général')
-        network_page = QWidget()
-        network_box = QVBoxLayout(network_page)
-        network_box.setContentsMargins(18, 18, 18, 15)
-        network_box.setSpacing(12)
-        network_box.setSizeConstraint(QLayout.SizeConstraint.SetMinAndMaxSize)
-        network_box.addWidget(label('RÉSEAU → DIAGNOSTIC', 'eyebrow'))
-        self.network_info = QPlainTextEdit()
-        self.network_info.setReadOnly(True)
-        self.network_info.setMinimumHeight(180)
-        network_box.addWidget(self.network_info, 1)
-        self.test_button = button('Tester le réseau', 'primary')
-        self.test_button.clicked.connect(self.run_diagnostic)
-        network_box.addWidget(self.test_button)
-        self.diagnostic = label('Le test contacte uniquement un pair découvert ou le relais\nconfiguré. Il ne scanne aucune adresse.', 'caption', True)
-        network_box.addWidget(self.diagnostic)
-        self.tabs.addTab(self.scroll_page(network_page), 'Réseau')
         privacy = QWidget()
         privacy_box = QVBoxLayout(privacy)
         privacy_box.setContentsMargins(20, 23, 20, 20)
         privacy_box.setSpacing(18)
         privacy_box.setSizeConstraint(QLayout.SizeConstraint.SetMinAndMaxSize)
-        privacy_box.addWidget(label(f'FortyTchat {__version__}', 'eyebrow'))
+        brand = QHBoxLayout()
+        brand.setSpacing(14)
+        logo = label('')
+        logo.setPixmap(QIcon(str(Path(__file__).resolve().parents[2] / 'assets/icons/fortytchat.svg')).pixmap(56, 56))
+        logo.setFixedSize(56, 56)
+        brand.addWidget(logo)
+        identity = QVBoxLayout()
+        identity.setSpacing(5)
+        identity.addWidget(label(f'FortyTchat {__version__}', 'title', True))
+        identity.addWidget(label('Par Chrisnox-209 · pour le cluster 42', 'caption', True))
+        brand.addLayout(identity, 1)
+        privacy_box.addLayout(brand)
+        repository = button('Voir le dépôt GitHub ↗', 'soft', 'Code source, installation et mises à jour')
+        repository.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://github.com/Chrisnox-209/FortyTchat')))
+        privacy_box.addWidget(repository)
         for title, text in [
-            ('Une conversation éphémère', 'Les messages restent uniquement dans la mémoire du processus, en quantité limitée. Quitter complètement FortyTchat les efface de l’application. Fermer la fenêtre garde l’application ouverte.'),
-            ('Une identité d’affichage', 'Le pseudo et l’identifiant d’ami reconnaissent un profil sans authentifier un étudiant. Le LAN direct n’est pas chiffré. Le relais utilise TLS en production, sans chiffrement de bout en bout.'),
-            ('Ubuntu et la barre supérieure', 'L’icône dépend du support StatusNotifier/AppIndicator de la session GNOME. Sans support, la fermeture réduit la fenêtre et le démarrage reste visible. Aucune extension ni règle système n’est installée.'),
-            ('Le réseau de l’école reste à tester', 'Une écoute locale ou un test sur un seul PC ne garantit pas la communication entre les postes. Le mode relais nécessite une machine autorisée et une configuration DNS préétablie.'),
+            ('Le cluster, en direct', 'Une messagerie locale pour discuter dans le salon général ou dans une fenêtre privée. Aucun compte à créer : les personnes présentes sur le réseau sont découvertes automatiquement.'),
+            ('Tes amis, ton image, tes emojis', 'Les amis restent reconnus après un changement de pseudo. Choisis un avatar ou importe ta photo, puis exprime-toi parmi 3 781 emojis avec recherche et catégories.'),
+            ('Des fichiers à partager', 'Envoie un fichier de 20 Mio maximum dans le général ou en privé. Le destinataire choisit de l’enregistrer ou de le refuser. Les fichiers enregistrés restent à l’emplacement choisi.'),
+            ('Un Wizz, une pause', 'Le Wizz fait vibrer la conversation pendant 2,8 secondes et montre les derniers messages, sans son. Un envoi toutes les 42 minutes. Les pauses restent actives en Ne pas déranger : trois demandes successives, puis cinq minutes de blocage à la quatrième. La réponse apparaît en bleu pour oui et en rouge pour non.'),
+            ('Ton profil reste, les messages s’effacent', 'Pseudo, amis, photo et préférences restent sur ton espace utilisateur. Les messages restent en mémoire : Quitter complètement les efface de ce processus. Fermer la fenêtre garde l’application active.'),
+            ('Une identité d’affichage', 'Le pseudo et l’identifiant d’ami reconnaissent un profil sans authentifier un étudiant. Le LAN direct n’est pas chiffré. Le relais utilise TLS, sans chiffrement de bout en bout.'),
+            ('Ubuntu et la barre supérieure', 'L’icône FT devient rouge quand des messages sont non lus. Le doubleclic, son placement et la mise au premier plan dépendent du bureau. Sans barre compatible, FortyTchat reste accessible dans le dock.'),
         ]:
             privacy_box.addWidget(label(title, 'title', True))
             privacy_box.addWidget(label(text, 'muted', True))
@@ -115,7 +119,6 @@ class SettingsDialog(QDialog):
         self.wizz.toggled.connect(lambda value: self.preference_changed.emit('wizz_enabled', value))
         self.dnd.toggled.connect(lambda value: self.preference_changed.emit('dnd', value))
         self.theme.currentIndexChanged.connect(lambda index: self.preference_changed.emit('theme', self.theme.itemData(index)))
-        self.update_network(network)
 
     @staticmethod
     def scroll_page(content):
@@ -126,30 +129,10 @@ class SettingsDialog(QDialog):
         page.setWidget(content)
         return page
 
-    def run_diagnostic(self):
-        self.test_button.setEnabled(False)
-        self.test_button.setText('Test en cours…')
-        self.diagnostic.setText('Vérification des services et recherche de pairs…')
-        self.diagnostic_requested.emit()
-
     def update_network(self, data):
-        interface = data.get('interface') or {}
-        mode = 'Relais connecté' if data.get('relay') else ('LAN / P2P — découverte active' if data.get('direct') else 'Services indisponibles ou en démarrage')
-        rows = [f'Mode : {mode}',
-                f'Interface : {interface.get("name", "aucune sélectionnée")}' + (' (secours non physique)' if interface and not interface.get('physical') else ''),
-                f'IPv4 : {interface.get("address", "—")}', f'Sous-réseau : {interface.get("subnet", "—")}',
-                f'Broadcast : {interface.get("broadcast", "—")}',
-                f'UDP : {data.get("udp_port", 39741)}', f'TCP : {data.get("port", "—")} · {"écoute active" if data.get("tcp_listening") else "indisponible"}',
-                f'Erreurs d’envoi UDP : {data.get("udp_errors", 0)}',
-                f'Autres utilisateurs : {data.get("peers", 0)}',
-                f'Relais : {data.get("relay_host") or "non configuré"}',
-                'Dernières erreurs :'] + (data.get('errors') or ['Aucune erreur enregistrée.'])
-        self.network_info.setPlainText('\n'.join(rows))
+        # Kept for controllers receiving background network state. Configuration is
+        # deployment-owned (network.json), with no network controls in preferences.
+        pass
 
     def diagnostic_result(self, rows):
-        self.test_button.setEnabled(True)
-        self.test_button.setText('Tester le réseau')
-        self.diagnostic.setText('\n'.join(rows))
-        # Results can be long; the main text area scrolls without growing the dialog.
-        self.network_info.appendPlainText('\nRésultat du test :\n' + '\n'.join(rows))
-        self.diagnostic.setText('Test terminé. Les résultats figurent ci-dessus.\nUne validation sur deux postes reste nécessaire.')
+        pass

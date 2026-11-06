@@ -1,11 +1,14 @@
 """Async network core, independent of Qt. All mutable network state lives on one loop."""
 import asyncio
+import base64
+import os
 import contextlib
 import ssl
 import random
 import time
 
-from ..features.break_request import Invitations, INVITE_INTERVAL
+from ..features.file_transfer import FileTransfers, FILE_EVENTS, CHUNK_SIZE, disk, fingerprint, open_source
+from ..features.break_request import Invitations, BreakRateLimit
 from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
 from ..identity import session_id, unique_nickname, valid_nickname, contact_capability, contact_from_caps
 from ..avatar_data import avatar_hash, avatar_frame
@@ -31,6 +34,7 @@ class ChatClient:
         self.avatar_slots = asyncio.Semaphore(4)
         self.avatar_reads = TokenBucket(32, 8)
         self.relay_images = False
+        self.relay_files = False
         self.callback = callback or (lambda kind, data: None)
         self.discovery_enabled, self.discovery_port = discovery, discovery_port
         self.relay_host, self.relay_port, self.tls = relay_host, relay_port, tls
@@ -43,12 +47,12 @@ class ChatClient:
         self.peers, self.blocked = {}, set()
         self.seen, self.outgoing_invites, self.incoming_invites = SeenMessages(), Invitations(), Invitations()
         self.message_bucket = TokenBucket()
-        self.wizz_cooldown, self.invite_cooldown = Cooldown(WIZZ_INTERVAL), Cooldown(INVITE_INTERVAL)
+        self.wizz_cooldown = Cooldown(WIZZ_INTERVAL)
+        self.outgoing_break_limit, self.incoming_break_limit = BreakRateLimit(), BreakRateLimit()
         remaining = min(WIZZ_INTERVAL, max(0, WIZZ_INTERVAL - (time.time() - last_wizz_at))) if last_wizz_at else 0
         if remaining:
             self.wizz_cooldown.last = time.monotonic() - WIZZ_INTERVAL + remaining
         self.receive_wizz = Cooldown(10)
-        self.receive_invite = Cooldown(5)
         self.wizz_enabled, self.dnd = True, False
         self.server, self.discovery, self.relay_writer = None, None, None
         self.tasks, self.connections, self.acks = set(), set(), {}
@@ -57,6 +61,7 @@ class ChatClient:
         self._outgoing = asyncio.Semaphore(24)
         self._queued = 0
         self.port = 0
+        self.files = FileTransfers(self)
 
     def emit(self, kind, **data):
         self.callback(kind, data)
@@ -72,7 +77,7 @@ class ChatClient:
     def hello(self, kind='hello'):
         return {'v': 1, 'type': kind, 'sid': self.sid, 'nick': self.nickname,
                 'status': self.status, 'port': self.port,
-                'caps': ['chat', 'wizz', 'pause', 'probe', 'avatar', 'avatar_image', 'friends', contact_capability(self.contact_id)],
+                'caps': ['files', 'wizz', 'pause', 'probe', 'avatar', 'avatar_image', 'friends', contact_capability(self.contact_id)],
                 'avatar': self.avatar, 'avatar_hash': self.avatar_hash}
 
     def network_state(self):
@@ -141,7 +146,7 @@ class ChatClient:
         if peer is None:
             if len(self.peers) >= MAX_PEERS:
                 return
-            peer = Peer(sid, data['nick'], timeout=self.peer_timeout, bucket=TokenBucket(), wizz=Cooldown(WIZZ_INTERVAL), invitation=Cooldown(INVITE_INTERVAL))
+            peer = Peer(sid, data['nick'], timeout=self.peer_timeout, bucket=TokenBucket(), wizz=Cooldown(WIZZ_INTERVAL))
             self.peers[sid] = peer
             new = True
         else:
@@ -196,6 +201,7 @@ class ChatClient:
         while not self._closing:
             await self._start_local()
             self._announce()
+            self.files.prune()
             now = time.monotonic()
             for sid, peer in list(self.peers.items()):
                 if not peer.relay and now - peer.direct_seen > self.peer_timeout:
@@ -315,6 +321,8 @@ class ChatClient:
         if frame['id'] in self.seen.ids:
             return True, ''
         kind = frame['type']
+        if kind == 'break_invite' and self.incoming_break_limit.remaining(peer.contact_id or sender):
+            return False, 'Demandes de pause bloquées pendant 5 minutes'
         if not peer.bucket.allow():
             return False, 'Trop de messages'
         if kind == 'wizz':
@@ -323,9 +331,10 @@ class ChatClient:
             peer.wizz.take()
             self.receive_wizz.take()
         if kind == 'break_invite':
-            if self.dnd or self.receive_invite.remaining() or not peer.invitation.take() or not self.incoming_invites.add(frame['id'], sender):
+            if not self.incoming_break_limit.allow(peer.contact_id or sender):
+                return False, 'Demandes de pause bloquées pendant 5 minutes'
+            if not self.incoming_invites.add(frame['id'], sender):
                 return False, 'Invitation indisponible'
-            self.receive_invite.take()
         if kind == 'break_reply' and not self.outgoing_invites.consume(frame['request'], sender):
             return False, 'Invitation expirée'
         self.seen.add(frame['id'])
@@ -359,11 +368,22 @@ class ChatClient:
                     writer.write(encode(avatar_frame(self.sid, self.avatar_image)))
                     await asyncio.wait_for(writer.drain(), 3)
                 return
-            if frame['type'] not in ('message', 'wizz', 'break_invite', 'break_reply') or not peer or peer.host != host or not peer.direct:
-                return
-            ok, reason = self._receive(frame)
-            writer.write(encode(ack(frame['id'], ok, reason)))
-            await asyncio.wait_for(writer.drain(), 3)
+            while True:
+                if not peer or peer.host != host or not peer.direct:
+                    return
+                if frame['type'] in FILE_EVENTS:
+                    ok, reason = await self.files.receive(frame)
+                elif frame['type'] in ('message', 'wizz', 'break_invite', 'break_reply'):
+                    ok, reason = self._receive(frame)
+                else:
+                    return
+                writer.write(encode(ack(frame['id'], ok, reason)))
+                await asyncio.wait_for(writer.drain(), 3)
+                if frame['type'] not in FILE_EVENTS or not ok or frame['type'] == 'file_end':
+                    return
+                frame = await read_frame(reader, 15)
+                if frame.get('from') != peer.sid:
+                    return
         except (OSError, ConnectionError, ProtocolError, asyncio.TimeoutError):
             pass
         finally:
@@ -436,6 +456,9 @@ class ChatClient:
         if target != 'general' and not peers:
             self.emit('notice', text='Cet utilisateur est hors ligne.')
             return None
+        if kind == 'break_invite' and self.outgoing_break_limit.remaining(peers[0].contact_id or target):
+            self.emit('notice', text='Pauses bloquées vers cette personne pendant 5 minutes. Les messages restent disponibles.')
+            return None
         if not self.message_bucket.allow():
             self.emit('notice', text='Un peu trop rapide… Patientez un instant.')
             return None
@@ -453,8 +476,8 @@ class ChatClient:
             self.wizz_cooldown.take()
             self.emit('wizz_used', timestamp=stamp)
         if kind == 'break_invite':
-            if not self.invite_cooldown.take():
-                self.emit('notice', text='Une invitation par minute maximum.')
+            if not self.outgoing_break_limit.allow(peers[0].contact_id or target):
+                self.emit('notice', text='Trois demandes successives maximum : pauses bloquées vers cette personne pendant 5 minutes.')
                 return None
             self.outgoing_invites.add(frame['id'], target)
         if kind == 'break_reply' and not self.incoming_invites.consume(payload.get('request'), target):
@@ -479,6 +502,118 @@ class ChatClient:
         finally:
             self._queued -= 1
 
+    def file_recipients(self, target):
+        return [peer for peer in self.peers.values()
+                if peer.sid not in self.blocked and 'files' in peer.caps
+                and (target == 'general' or target == peer.sid)
+                and (peer.direct or (peer.relay and self.relay_writer and self.relay_files))]
+
+    async def deliver_file(self, frame, peers=None, report=False):
+        if self._closing:
+            return {} if report else False
+        if 'v' not in frame:
+            frame = event(frame['type'], self.sid, frame['to'], request=frame['request'])
+        peers = self.file_recipients(frame['to']) if peers is None else peers
+        routes, groups = [], []
+        relayed = [peer for peer in peers if peer.relay and self.relay_writer and self.relay_files]
+        if relayed:
+            routes.append(self._send_relay(frame))
+            groups.append([peer.sid for peer in relayed])
+        for peer in peers:
+            if peer.direct and peer not in relayed:
+                routes.append(self._send_direct(peer, frame))
+                groups.append([peer.sid])
+        results = await asyncio.gather(*routes, return_exceptions=True) if routes else []
+        if report:
+            return {sid: result is True for group, result in zip(groups, results) for sid in group}
+        return bool(results) and all(result is True for result in results)
+
+    async def _file_operation(self, operation):
+        task = asyncio.current_task()
+        self.operations.add(task)
+        try:
+            if not self._closing:
+                return await operation
+            operation.close()
+        finally:
+            self.operations.discard(task)
+
+    async def offer_file(self, target, path):
+        return await self._file_operation(self.files.offer(target, path))
+
+    async def accept_file(self, request, sender, path):
+        return await self._file_operation(self.files.accept(request, sender, path))
+
+    async def decline_file(self, request, sender):
+        return await self._file_operation(self.files.decline(request, sender))
+
+    async def cancel_file(self, request, peer='general'):
+        return await self._file_operation(self.files.cancel(request, peer))
+
+    async def stream_file(self, offer, sid):
+        writer, source = None, None
+        try:
+            peer = self.peers.get(sid)
+            if not peer or sid in self.blocked:
+                raise ConnectionError()
+            relay = peer.relay and self.relay_writer and self.relay_files
+            if not relay:
+                if not peer.direct:
+                    raise ConnectionError()
+                reader, writer = await asyncio.wait_for(asyncio.open_connection(peer.host, peer.port, limit=MAX_FRAME), 3)
+                self.connections.add(writer)
+                writer.write(encode(self.hello()))
+                await asyncio.wait_for(writer.drain(), 3)
+            source = await disk(open_source, offer['path'])
+            if fingerprint(os.fstat(source.fileno())) != offer['fingerprint']:
+                raise ValueError('Le fichier source a été modifié. Propose-le de nouveau.')
+
+            async def transmit(frame):
+                if relay:
+                    return await self._send_relay(frame)
+                writer.write(encode(frame))
+                await asyncio.wait_for(writer.drain(), 5)
+                reply = await read_frame(reader, 12)
+                return reply['type'] == 'ack' and reply['id'] == frame['id'] and reply['ok']
+
+            offset = 0
+            self.files.progress(offer, sid, True, amount=0)
+            while chunk := await disk(source.read, CHUNK_SIZE):
+                frame = event('file_chunk', self.sid, sid, request=offer['id'], offset=offset,
+                              data=base64.b64encode(chunk).decode('ascii'))
+                if not await transmit(frame):
+                    raise ConnectionError()
+                offset += len(chunk)
+                if relay:
+                    await asyncio.sleep(.001)
+                self.files.progress(offer, sid, True, amount=offset)
+            if relay:
+                self.files.receipts[(offer['id'], sid)] = asyncio.get_running_loop().create_future()
+            if offset != offer['size'] or not await transmit(event('file_end', self.sid, sid, request=offer['id'])):
+                raise ConnectionError()
+            if relay and not await asyncio.wait_for(self.files.receipts[(offer['id'], sid)], 20):
+                raise ConnectionError()
+            self.files.finish(offer, sid)
+            self.files.emit('file_complete', offer, sid, True, path='')
+        except asyncio.CancelledError:
+            raise
+        except (OSError, ConnectionError, ValueError, ProtocolError, asyncio.TimeoutError) as exc:
+            self.files.emit('file_failed', offer, sid, True,
+                            reason=str(exc) if isinstance(exc, ValueError) else 'Transfert interrompu ou fichier refusé.')
+            await self.deliver_file(self.files.control('file_cancel', sid, offer['id']))
+            self.files.finish(offer, sid)
+        finally:
+            self.files.receipts.pop((offer['id'], sid), None)
+            if source:
+                source.close()
+            if writer:
+                writer.close()
+                with contextlib.suppress(OSError):
+                    await writer.wait_closed()
+                self.connections.discard(writer)
+            if offer['active'].get(sid) is asyncio.current_task():
+                offer['active'].pop(sid, None)
+
     async def _relay_loop(self):
         delay = 2
         while not self._closing:
@@ -495,6 +630,7 @@ class ChatClient:
                     raise ProtocolError('Relais incompatible')
                 self.relay_writer = writer
                 self.relay_images = isinstance(welcome.get('caps'), list) and 'avatar_image' in welcome['caps']
+                self.relay_files = isinstance(welcome.get('caps'), list) and 'files' in welcome['caps']
                 self._publish_avatar()
                 self.emit('network', **self.network_state())
                 delay = 2
@@ -509,6 +645,10 @@ class ChatClient:
                         future = self.acks.get(frame['id'])
                         if future and not future.done():
                             future.set_result(frame['ok'])
+                    elif kind in FILE_EVENTS:
+                        ok, _ = await self.files.receive(frame)
+                        if not ok and kind in ('file_chunk', 'file_end'):
+                            self.task(self.deliver_file(self.files.control('file_cancel', frame['from'], frame['request'])))
                     elif kind in ('message', 'wizz', 'break_invite', 'break_reply'):
                         self._receive(frame)
             except (OSError, ConnectionError, ProtocolError, asyncio.TimeoutError):
@@ -517,6 +657,7 @@ class ChatClient:
             finally:
                 self.relay_writer = None
                 self.relay_images = False
+                self.relay_files = False
                 if writer:
                     writer.close()
                     with contextlib.suppress(OSError):
@@ -586,6 +727,7 @@ class ChatClient:
         await asyncio.gather(*pending, return_exceptions=True)
         if self.relay_writer:
             self.relay_writer.close()
+        self.files.stop()
         self.peers.clear()
         self.avatar_fetches.clear()
         self.avatar_attempts.clear()

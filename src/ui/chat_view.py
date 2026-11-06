@@ -1,11 +1,14 @@
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QPoint
+from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, Signal
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QVBoxLayout, QScrollArea,
                                QWidget, QGraphicsOpacityEffect)
 from .widgets import Avatar, label
+from .file_card import FileCard
 from ..features.emojis import emoji_fallback
 
 
 class ChatView(QFrame):
+    file_action = Signal(str, object)
+
     def __init__(self, private=False):
         super().__init__()
         layout = QVBoxLayout(self)
@@ -27,6 +30,7 @@ class ChatView(QFrame):
         self.bubbles = []
         self.empty = None
         self.animation = None
+        self.file_cards = {}
         self.reset([], 'private' if private else 'general')
 
     def reset(self, messages, chat):
@@ -37,6 +41,7 @@ class ChatView(QFrame):
                 item.widget().deleteLater()
         self.rows = []
         self.bubbles = []
+        self.file_cards = {}
         self.empty = None
         if not messages:
             self.empty = QWidget()
@@ -102,13 +107,20 @@ class ChatView(QFrame):
             heading.addStretch()
             heading.addWidget(label(message.time.strftime('%H:%M'), 'caption'))
             content.addLayout(heading)
-            rendered, missing = emoji_fallback(message.text, self.font())
-            text = label(rendered, 'messageText', True)
-            if missing:
-                text.setToolTip('Certains emojis sont remplacés par leur nom : la police ne les prend pas en charge.')
-            text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            content.addWidget(text)
-            bubble.desired_width = max(170, min(580, max((text.fontMetrics().horizontalAdvance(line) for line in rendered.split('\n')), default=0) + 34))
+            if message.attachment:
+                card = FileCard(message.attachment, bubble)
+                card.action_requested.connect(self.file_action)
+                content.addWidget(card)
+                self.file_cards[message.id] = (row, card)
+                bubble.desired_width = 360
+            else:
+                rendered, missing = emoji_fallback(message.text, self.font())
+                text = label(rendered, 'messageText', True)
+                if missing:
+                    text.setToolTip('Certains emojis sont remplacés par leur nom : la police ne les prend pas en charge.')
+                text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                content.addWidget(text)
+                bubble.desired_width = max(170, min(580, max((text.fontMetrics().horizontalAdvance(line) for line in rendered.split('\n')), default=0) + 34))
             self.bubbles.append((row, bubble))
             row_box.addWidget(bubble)
             if not message.outgoing:
@@ -121,6 +133,7 @@ class ChatView(QFrame):
             oldest.hide()
             oldest.deleteLater()
             self.bubbles = [(owner, bubble) for owner, bubble in self.bubbles if owner is not oldest]
+            self.file_cards = {key: value for key, value in self.file_cards.items() if value[0] is not oldest}
         self.adjust_bubbles()
         if animate:
             effect = QGraphicsOpacityEffect(row)
@@ -145,13 +158,13 @@ class ChatView(QFrame):
             self.adjust_bubbles()
             QTimer.singleShot(0, self.adjust_bubbles)
 
+    def update_transfer(self, metadata):
+        entry = self.file_cards.get(metadata['id'])
+        if entry:
+            entry[1].update_transfer(metadata)
+
     def wizz(self):
-        # Shake inside the window: this also works when Wayland forbids moving windows.
-        widget = self.scroll.viewport()
-        origin = widget.pos()
-        self.animation = QPropertyAnimation(widget, b'pos', self)
-        self.animation.setDuration(420)
-        for index, offset in enumerate((0, -9, 9, -7, 7, -4, 4, 0)):
-            self.animation.setKeyValueAt(index / 7, origin + QPoint(offset, 0))
-        self.animation.setEasingCurve(QEasingCurve.Type.Linear)
-        self.animation.start()
+        from .attention import shake_window
+        self.bottom()
+        QTimer.singleShot(80, self.bottom)
+        self.animation = shake_window(self.window(), self.window().centralWidget())

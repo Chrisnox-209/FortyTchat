@@ -15,6 +15,7 @@ class Message:
     avatar: int = -1
     avatar_image: str = ''
     time: datetime = field(default_factory=datetime.now)
+    attachment: dict | None = None
 
 
 class Conversations:

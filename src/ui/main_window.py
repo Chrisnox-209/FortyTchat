@@ -11,6 +11,7 @@ from .widgets import button, label
 
 class MainWindow(QMainWindow):
     send_requested = Signal(str, str)
+    file_requested = Signal(str)
     private_requested = Signal(str)
     avatar_requested = Signal()
     friend_requested = Signal(str, bool)
@@ -67,7 +68,6 @@ class MainWindow(QMainWindow):
         rail_box.addWidget(chats)
         rail_box.addWidget(rail_button('online.svg', 'Utilisateurs en ligne', self.sidebar.focus_online))
         rail_box.addStretch()
-        rail_box.addWidget(rail_button('network.svg', 'Diagnostic réseau', lambda: self.settings_requested.emit(1)))
         rail_box.addWidget(rail_button('settings.svg', 'Paramètres', lambda: self.settings_requested.emit(0)))
         body.addWidget(rail)
         body.addWidget(self.sidebar)
@@ -113,12 +113,13 @@ class MainWindow(QMainWindow):
         self.input, self.send_button = self.composer.input, self.composer.send_button
         self.wizz_button, self.break_button = self.composer.wizz_button, self.composer.break_button
         self.composer.submitted.connect(lambda text: self.send_requested.emit('general', text))
+        self.composer.file_requested.connect(lambda: self.file_requested.emit('general'))
         footer_box.addWidget(self.composer)
         details = QHBoxLayout()
-        self.network_label = button('◌  Recherche du cluster…', 'flat', 'Réseau et diagnostic')
-        self.network_label.setStyleSheet('font-size: 11px; padding: 0; text-align: left;')
-        self.network_label.clicked.connect(lambda: self.settings_requested.emit(1))
-        details.addWidget(self.network_label)
+        # Background status remains available to the controller, outside the UI.
+        self.network_label = label('', 'caption')
+        self.network_label.setParent(self)
+        self.network_label.hide()
         details.addStretch()
         details.addWidget(label('↵ Envoyer  ·  ⇧↵ Nouvelle ligne', 'caption'))
         footer_box.addLayout(details)
@@ -163,7 +164,7 @@ class MainWindow(QMainWindow):
 
     def chat_menu(self):
         menu = QMenu(self)
-        menu.addAction('Réseau et diagnostic', lambda: self.settings_requested.emit(1))
+        menu.addAction('Paramètres', lambda: self.settings_requested.emit(0))
         menu.addAction('Quitter complètement', self.quitting.emit)
         menu.exec(QCursor.pos())
 

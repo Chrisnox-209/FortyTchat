@@ -1,10 +1,14 @@
 """Small, bounded JSON-line protocol. Never deserialize Python objects."""
 import asyncio
+import base64
+import binascii
 import json
 import re
 
 from ..identity import valid_nickname, session_id, contact_from_caps
 from ..avatar_data import avatar_hash, valid_avatar_hash, AvatarError
+
+from ..features.file_transfer import FILE_EVENTS, CHUNK_SIZE, MAX_FILE_SIZE, valid_filename
 
 VERSION = 1
 MAX_FRAME = 16384
@@ -68,6 +72,37 @@ def validate(data):
                     raise AvatarError('Image invalide')
             except (AvatarError, TypeError) as exc:
                 raise ProtocolError('Miniature d’avatar invalide') from exc
+    elif kind in FILE_EVENTS:
+        base = {'v', 'type', 'id', 'from', 'to'}
+        fields = {'file_offer': {'name', 'size', 'sha256'},
+                  'file_chunk': {'request', 'offset', 'data'}}.get(kind, {'request'})
+        if set(data) != base | fields:
+            raise ProtocolError('Champs du transfert invalides')
+        if not valid_id(data.get('id')) or not valid_id(data.get('from')):
+            raise ProtocolError('Identifiant de transfert invalide')
+        if data.get('to') != 'general' and not valid_id(data.get('to')):
+            raise ProtocolError('Destinataire de transfert invalide')
+        if kind != 'file_offer' and data['to'] == 'general':
+            raise ProtocolError('Données de fichier privées uniquement')
+        if kind == 'file_offer':
+            if (not valid_filename(data['name']) or type(data['size']) is not int
+                    or not 0 <= data['size'] <= MAX_FILE_SIZE
+                    or not isinstance(data['sha256'], str)
+                    or not re.fullmatch(r'[a-f0-9]{64}', data['sha256'])):
+                raise ProtocolError('Métadonnées de fichier invalides (20 Mo maximum)')
+        else:
+            if not valid_id(data['request']):
+                raise ProtocolError('Référence de fichier invalide')
+            if kind == 'file_chunk':
+                if (type(data['offset']) is not int or not 0 <= data['offset'] <= MAX_FILE_SIZE
+                        or not isinstance(data['data'], str) or not 0 < len(data['data']) <= ((CHUNK_SIZE + 2) // 3) * 4):
+                    raise ProtocolError('Bloc de fichier invalide')
+                try:
+                    raw = base64.b64decode(data['data'], validate=True)
+                except (binascii.Error, ValueError) as exc:
+                    raise ProtocolError('Encodage de fichier invalide') from exc
+                if not 0 < len(raw) <= CHUNK_SIZE:
+                    raise ProtocolError('Taille du bloc invalide')
     elif kind in EVENTS:
         if not valid_id(data.get('id')) or not valid_id(data.get('from')):
             raise ProtocolError('Identifiant invalide')

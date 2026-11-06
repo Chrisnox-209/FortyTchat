@@ -1,13 +1,16 @@
 """Optional authorized relay. RAM-only, bounded queues, no conversation logs."""
 import argparse
+import base64
 import asyncio
 import contextlib
 from dataclasses import dataclass, field
 import ssl
 import time
 
-from ..features.break_request import Invitations, INVITE_INTERVAL
+from ..features.file_transfer import FILE_EVENTS, OFFER_LIFETIME
+from ..features.break_request import Invitations, BreakRateLimit
 from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
+from ..identity import contact_from_caps
 from .protocol import MAX_FRAME, MAX_PEERS, ProtocolError, ack, encode, read_frame
 
 
@@ -18,11 +21,11 @@ class Connection:
     queue: asyncio.Queue = field(default_factory=lambda: asyncio.Queue(MAX_PEERS + 64))
     bucket: TokenBucket = field(default_factory=TokenBucket)
     wizz: Cooldown = field(default_factory=lambda: Cooldown(WIZZ_INTERVAL))
-    invite: Cooldown = field(default_factory=lambda: Cooldown(INVITE_INTERVAL))
     invitations: Invitations = field(default_factory=Invitations)
     seen: SeenMessages = field(default_factory=lambda: SeenMessages(512))
     avatar_image: dict | None = None
     image_updates: TokenBucket = field(default_factory=lambda: TokenBucket(3, 0.1))
+    file_bucket: TokenBucket = field(default_factory=lambda: TokenBucket(256, 1024))
     image_requests: TokenBucket = field(default_factory=lambda: TokenBucket(MAX_PEERS, 16))
 
 
@@ -30,6 +33,8 @@ class RelayServer:
     def __init__(self):
         self.clients, self.handlers = {}, set()
         self.wizz_sessions = {}
+        self.break_limit = BreakRateLimit(maximum=8192)
+        self.file_offers = {}
         self.server, self.handshakes, self.closing = None, 0, False
 
     async def start(self, host='127.0.0.1', port=39743, ssl_context=None):
@@ -62,20 +67,27 @@ class RelayServer:
             return ack(mid, False, 'Session incorrecte')
         if mid in connection.seen.ids:
             return ack(mid)
-        if not connection.bucket.allow():
-            return ack(mid, False, 'Trop de messages')
         target = data['to']
         recipient = self.clients.get(target)
         if target != 'general' and (recipient is None or target == sid):
             return ack(mid, False, 'Utilisateur hors ligne')
         kind = data['type']
+        if kind == 'break_invite':
+            sender_contact = contact_from_caps(connection.hello.get('caps', ())) or sid
+            target_contact = contact_from_caps(recipient.hello.get('caps', ())) or target
+            if self.break_limit.remaining((sender_contact, target_contact)):
+                return ack(mid, False, 'Demandes de pause bloquées pendant 5 minutes')
+        if not connection.bucket.allow():
+            return ack(mid, False, 'Trop de messages')
         if kind == 'wizz':
             if not connection.wizz.take():
                 return ack(mid, False, 'Un Wizz toutes les 42 minutes')
             self.wizz_sessions[sid] = (time.monotonic(), connection.wizz)
         if kind == 'break_invite':
-            if not connection.invite.take():
-                return ack(mid, False, 'Une invitation par minute')
+            sender_contact = contact_from_caps(connection.hello.get('caps', ())) or sid
+            target_contact = contact_from_caps(recipient.hello.get('caps', ())) or target
+            if not self.break_limit.allow((sender_contact, target_contact)):
+                return ack(mid, False, 'Demandes de pause bloquées pendant 5 minutes')
             connection.invitations.add(mid, target)
         if kind == 'break_reply' and not recipient.invitations.consume(data['request'], sid):
             return ack(mid, False, 'Invitation expirée')
@@ -84,6 +96,78 @@ class RelayServer:
             self.broadcast(data, exclude=sid)
             return ack(mid)
         return ack(mid, self.put(recipient, data), '')
+
+    def route_file(self, connection, data):
+        sid, mid, target, kind = connection.hello['sid'], data['id'], data['to'], data['type']
+        if data['from'] != sid or 'files' not in connection.hello.get('caps', ()):
+            return ack(mid, False, 'Session ou capacité incorrecte')
+        if mid in connection.seen.ids:
+            return ack(mid)
+        if not connection.file_bucket.allow():
+            return ack(mid, False, 'Trop de données de fichier')
+        now = time.monotonic()
+        self.file_offers = {key: value for key, value in self.file_offers.items() if value['expires'] > now}
+        if kind == 'file_offer':
+            if (sid, mid) in self.file_offers:
+                return ack(mid)
+            if (not connection.bucket.allow() or len(self.file_offers) >= 256
+                    or sum(owner == sid for owner, request in self.file_offers) >= 8):
+                return ack(mid, False, 'Trop de fichiers proposés')
+            recipients = {other_sid for other_sid, other in self.clients.items()
+                          if other_sid != sid and (target == 'general' or other_sid == target)
+                          and 'files' in other.hello.get('caps', ())}
+            if not recipients:
+                return ack(mid, False, 'Destinataire incompatible ou hors ligne')
+            self.file_offers[(sid, mid)] = dict(size=data['size'], recipients=recipients,
+                                               active={}, expires=now + OFFER_LIFETIME)
+            delivered = {other for other in recipients if self.put(self.clients[other], data)}
+            self.file_offers[(sid, mid)]['recipients'] = delivered
+            success = bool(delivered)
+            if not delivered:
+                self.file_offers.pop((sid, mid), None)
+        else:
+            recipient = self.clients.get(target)
+            if not recipient or target == sid or 'files' not in recipient.hello.get('caps', ()):
+                return ack(mid, False, 'Destinataire incompatible ou hors ligne')
+            receiver_control = kind in ('file_accept', 'file_decline', 'file_done')
+            key = (target, data['request']) if receiver_control else (sid, data['request'])
+            if kind == 'file_cancel' and key not in self.file_offers:
+                key = (target, data['request'])
+                receiver_control = True
+            offer = self.file_offers.get(key)
+            receiver = sid if receiver_control else target
+            if not offer or receiver not in offer['recipients']:
+                return ack(mid, False, 'Proposition de fichier expirée')
+            active = offer['active']
+            if kind == 'file_accept':
+                active.setdefault(receiver, [0, False])
+            elif kind == 'file_chunk':
+                state = active.get(receiver)
+                if not state or state[1] or data['offset'] != state[0]:
+                    return ack(mid, False, 'Fichier non accepté ou bloc incorrect')
+                length = len(base64.b64decode(data['data'], validate=True))
+                if state[0] + length > offer['size']:
+                    return ack(mid, False, 'Fichier trop long')
+                state[0] += length
+            elif kind == 'file_end':
+                state = active.get(receiver)
+                if not state or state[0] != offer['size']:
+                    return ack(mid, False, 'Fichier incomplet')
+                state[1] = True
+            elif kind == 'file_done':
+                state = active.get(receiver)
+                if not state or not state[1]:
+                    return ack(mid, False, 'Fichier incomplet')
+                offer['recipients'].discard(receiver)
+                active.pop(receiver, None)
+            elif kind in ('file_decline', 'file_cancel'):
+                offer['recipients'].discard(receiver)
+                active.pop(receiver, None)
+            success = self.put(recipient, data)
+            if not offer['recipients']:
+                self.file_offers.pop(key, None)
+        connection.seen.add(mid)
+        return ack(mid, success, '')
 
     async def handle(self, reader, writer):
         task = asyncio.current_task()
@@ -110,7 +194,7 @@ class RelayServer:
             self.wizz_sessions[hello['sid']] = (now, gate)
             connection = Connection(dict(hello), writer, wizz=gate)
             # Roster contains identities only, never previous messages.
-            self.put(connection, {'v': 1, 'type': 'pong', 'caps': ['avatar_image']})
+            self.put(connection, {'v': 1, 'type': 'pong', 'caps': ['avatar_image', 'files']})
             for other in self.clients.values():
                 self.put(connection, {**other.hello, 'type': 'presence'})
             sid = hello['sid']
@@ -147,6 +231,8 @@ class RelayServer:
                         self.put(connection, owner.avatar_image)
                 elif kind == 'ping':
                     self.put(connection, {'v': 1, 'type': 'pong'})
+                elif kind in FILE_EVENTS:
+                    self.put(connection, self.route_file(connection, data))
                 elif kind in ('message', 'wizz', 'break_invite', 'break_reply'):
                     self.put(connection, self.route(connection, data))
                 else:
@@ -159,6 +245,14 @@ class RelayServer:
             if connection:
                 sid = connection.hello['sid']
                 self.clients.pop(sid, None)
+                for key, offer in list(self.file_offers.items()):
+                    if key[0] == sid:
+                        self.file_offers.pop(key, None)
+                    else:
+                        offer['recipients'].discard(sid)
+                        offer['active'].pop(sid, None)
+                        if not offer['recipients']:
+                            self.file_offers.pop(key, None)
                 self.broadcast({'v': 1, 'type': 'bye', 'sid': sid})
             if pump:
                 pump.cancel()
@@ -180,6 +274,7 @@ class RelayServer:
         await asyncio.gather(*self.handlers, return_exceptions=True)
         self.clients.clear()
         self.wizz_sessions.clear()
+        self.file_offers.clear()
 
 
 async def run(args):

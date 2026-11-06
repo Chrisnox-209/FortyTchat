@@ -10,6 +10,7 @@ from .widgets import Avatar, button, label
 
 class PrivateWindow(QMainWindow):
     send_requested = Signal(str, str)
+    file_requested = Signal(str)
     wizz_requested = Signal(str)
     break_requested = Signal(str)
     block_requested = Signal(str, bool)
@@ -68,6 +69,7 @@ class PrivateWindow(QMainWindow):
         self.composer = Composer(private=True)
         self.composer.deadline = deadline
         self.composer.submitted.connect(lambda text: self.send_requested.emit(self.current, text))
+        self.composer.file_requested.connect(lambda: self.file_requested.emit(self.current))
         self.composer.wizz_requested.connect(lambda: self.wizz_requested.emit(self.current))
         self.composer.break_requested.connect(lambda: self.break_requested.emit(self.current))
         self.input, self.send_button = self.composer.input, self.composer.send_button

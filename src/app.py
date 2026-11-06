@@ -3,8 +3,8 @@ import time
 import ssl
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Signal, QTimer, QSignalBlocker
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QObject, Signal, QTimer, QSignalBlocker, QStandardPaths
+from PySide6.QtWidgets import QApplication, QFileDialog
 
 from .autostart import Autostart
 from .config import ConfigStore, config_home
@@ -15,7 +15,7 @@ from .instance import SingleInstance
 from .memory import Conversations, Message
 from .networking.settings import NetworkConfig
 from .networking.worker import NetworkWorker
-from .ui.break_popup import BreakPopup
+from .ui.break_popup import BreakPopup, BreakReplyPopup
 from .ui.avatar_picker import AvatarPicker
 from .ui.main_window import MainWindow
 from .ui.private_window import PrivateWindow
@@ -41,6 +41,8 @@ class Application(QObject):
             raise AlreadyRunning()
         self.activation_requested.connect(self.activate)
         self.history, self.popups = Conversations(), {}
+        self.reply_popups = {}
+        self.file_transfers = {}
         self.private_windows = {}
         self.peer_avatars = {}
         self.contact_sessions = {}
@@ -82,6 +84,8 @@ class Application(QObject):
         self.tray.status_requested.connect(self.set_status)
         self.tray.timer.timeout.connect(self.refresh_integration)
         self.window.send_requested.connect(lambda target, text: self.worker.send('message', target, text=text))
+        self.window.file_requested.connect(self.choose_file)
+        self.window.chat.file_action.connect(self.file_action)
         self.window.wizz_requested.connect(lambda target: self.worker.send('wizz', target))
         self.window.break_requested.connect(lambda target: self.worker.send('break_invite', target))
         self.window.settings_requested.connect(self.show_settings)
@@ -172,6 +176,8 @@ class Application(QObject):
         view.set_peer(peer, sid in self.window.sidebar.blocked)
         view.set_friend(contact_id in self.preferences.friends)
         view.send_requested.connect(lambda target, text: self.worker.send('message', target, text=text))
+        view.file_requested.connect(self.choose_file)
+        view.chat.file_action.connect(self.file_action)
         view.wizz_requested.connect(lambda target: self.worker.send('wizz', target))
         view.break_requested.connect(lambda target: self.worker.send('break_invite', target))
         view.block_requested.connect(self.block)
@@ -225,6 +231,9 @@ class Application(QObject):
 
     def move_private(self, old_sid, new_sid):
         self.history.move(old_sid, new_sid)
+        for metadata in self.file_transfers.values():
+            if metadata['target'] == old_sid:
+                metadata['target'] = new_sid
         sidebar = self.window.sidebar
         count = sidebar.unread.pop(old_sid, 0)
         if count:
@@ -297,6 +306,9 @@ class Application(QObject):
 
     def on_network(self, kind, data):
         if self.stopping:
+            return
+        if kind.startswith('file_'):
+            self.file_event(kind, data)
             return
         if kind == 'peers':
             self.latest_peers = data['peers']
@@ -390,8 +402,114 @@ class Application(QObject):
         elif kind == 'break_reply':
             text = f'{nickname} a accepté ta proposition de pause.' if frame['answer'] == 'accepted' else f'{nickname} n’est pas disponible pour le moment.'
             self.system_message(target, '☕ ' + text)
-            if not self.preferences.dnd:
-                self.notifications.show(text)
+            popup = BreakReplyPopup(nickname, frame['answer'], self.window)
+            self.reply_popups[frame['id']] = popup
+            popup.finished.connect(lambda result, key=frame['id']: self.remove_reply_popup(key))
+            if len(self.reply_popups) > 8:
+                self.reply_popups[next(iter(self.reply_popups))].close()
+            popup.show()
+
+    def remove_reply_popup(self, key):
+        popup = self.reply_popups.pop(key, None)
+        if popup:
+            popup.deleteLater()
+
+    def choose_file(self, target):
+        view = self.view_for(target) or self.window
+        path, _ = QFileDialog.getOpenFileName(view, 'Joindre un fichier · 20 Mio maximum')
+        if path:
+            self.worker.offer_file(target, path)
+
+    def refresh_file_card(self, metadata):
+        view = self.view_for(metadata['target'])
+        if view:
+            view.chat.update_transfer(metadata)
+
+    def file_action(self, action, data):
+        metadata = self.file_transfers.get(data['id'])
+        if not metadata:
+            return
+        view = self.view_for(metadata['target']) or self.window
+        sender = metadata['from']
+        if action == 'accept' and metadata['status'] == 'offered' and not metadata['outgoing']:
+            folder = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or str(Path.home()))
+            suggestion = folder / metadata['name']
+            index = 1
+            while suggestion.exists() or suggestion.is_symlink():
+                suggestion = folder / f'{Path(metadata["name"]).stem} ({index}){Path(metadata["name"]).suffix}'
+                index += 1
+            path, _ = QFileDialog.getSaveFileName(view, 'Enregistrer le fichier reçu', str(suggestion))
+            if not path or metadata['status'] != 'offered':
+                return
+            if Path(path).exists() or Path(path).is_symlink():
+                view.show_notice('Ce nom existe déjà. Choisis un autre nom pour enregistrer le fichier.')
+                return
+            metadata.update(status='transferring', detail='Préparation du téléchargement…')
+            self.refresh_file_card(metadata)
+            self.worker.accept_file(metadata['id'], sender, path)
+        elif action == 'decline' and metadata['status'] == 'offered' and not metadata['outgoing']:
+            metadata.update(status='declined', detail='Fichier refusé.')
+            self.refresh_file_card(metadata)
+            self.worker.decline_file(metadata['id'], sender)
+        elif action == 'cancel' and metadata['status'] in ('offered', 'transferring'):
+            peer = metadata['to'] if metadata['outgoing'] else sender
+            self.worker.cancel_file(metadata['id'], peer)
+
+    def file_event(self, kind, data):
+        key = data['id']
+        if kind == 'file_offer':
+            if key in self.file_transfers:
+                return
+            while len(self.file_transfers) >= 128:
+                victim = next((k for k, m in self.file_transfers.items() if m['status'] != 'transferring'), None)
+                if victim is None:
+                    return
+                del self.file_transfers[victim]
+            outgoing = data.get('outgoing', False)
+            target = data['to'] if outgoing or data['to'] == 'general' else data['from']
+            metadata = {**data, 'target': target, 'status': 'offered', 'received': 0}
+            if outgoing and target == 'general':
+                metadata['recipients_state'] = {sid: {'status': 'offered', 'received': 0} for sid in data.get('recipients', [])}
+            self.file_transfers[key] = metadata
+            self.add_message(target, Message(data['from'], data['nickname'], '↧ ' + data['name'],
+                                             outgoing=outgoing, id=key, attachment=metadata))
+            if not outgoing and not self.preferences.dnd and not self.is_viewed(target):
+                self.notifications.show(f'{data["nickname"]} · fichier proposé', 'Ouvre la conversation pour choisir où l’enregistrer.')
+            return
+        metadata = self.file_transfers.get(key)
+        if not metadata:
+            return
+        if kind == 'file_deferred':
+            metadata.update(status='offered', detail=data.get('reason', 'Réessaie le téléchargement.'))
+            self.refresh_file_card(metadata)
+            (self.view_for(metadata['target']) or self.window).show_notice(metadata['detail'])
+            return
+        status = {'file_progress': 'transferring', 'file_complete': 'complete',
+                  'file_declined': 'declined', 'file_failed': 'failed'}.get(kind)
+        if not status:
+            return
+        if metadata['outgoing'] and metadata['target'] == 'general' and metadata.get('recipients_state'):
+            recipients = metadata['recipients_state']
+            peer = data.get('peer')
+            if peer in recipients and recipients[peer]['status'] not in ('complete', 'declined', 'failed'):
+                recipients[peer].update(status=status, received=data.get('received', metadata['size'] if status == 'complete' else 0))
+            elif peer == 'general':
+                for state in recipients.values():
+                    if state['status'] not in ('complete', 'declined', 'failed'):
+                        state.update(status=status)
+            active = sum(p['status'] == 'transferring' for p in recipients.values())
+            pending = sum(p['status'] == 'offered' for p in recipients.values())
+            complete = sum(p['status'] == 'complete' for p in recipients.values())
+            failed = len(recipients) - active - pending - complete
+            metadata['status'] = 'transferring' if active else ('offered' if pending else ('complete' if complete else status))
+            metadata['detail'] = f'{complete} reçu(s) · {pending} en attente · {active} en cours' + (f' · {failed} refusé(s) ou interrompu(s)' if failed else '')
+            metadata['received'] = round(sum(p['received'] for p in recipients.values()) / len(recipients))
+        else:
+            if metadata['status'] in ('complete', 'declined', 'failed'):
+                return
+            metadata.update(status=status, detail=data.get('reason', ''),
+                            received=data.get('received', metadata['size'] if status == 'complete' else metadata['received']))
+        self.refresh_file_card(metadata)
 
     def remove_popup(self, key):
         value = self.popups.pop(key, None)
@@ -425,7 +543,6 @@ class Application(QObject):
         dialog.nickname_requested.connect(self.rename)
         dialog.avatar_requested.connect(self.show_avatar_picker)
         dialog.preference_changed.connect(self.change_preference)
-        dialog.diagnostic_requested.connect(lambda: self.worker.submit(self.worker.client.diagnose()))
         dialog.finished.connect(self.close_settings)
         dialog.show()
 
@@ -500,9 +617,6 @@ class Application(QObject):
                          status=self.status, avatar=self.preferences.avatar, avatar_image=self.preferences.avatar_image)
         shown = 'Ne pas déranger' if self.preferences.dnd else ('Absent·e' if self.status == 'away' else 'En ligne')
         self.window.sidebar.status_button.setText('●  ' + shown)
-        if self.preferences.dnd:
-            for _, popup in list(self.popups.values()):
-                popup.expire()
 
     def set_status(self, status):
         self.preferences.dnd = status == 'dnd'
@@ -542,8 +656,11 @@ class Application(QObject):
         self.tray.icon.hide()
         for _, popup in list(self.popups.values()):
             popup.expire()
+        for popup in list(self.reply_popups.values()):
+            popup.close()
         for view in list(self.private_windows.values()):
             view.close()
         self.worker.stop()
         self.history.clear()
+        self.file_transfers.clear()
         self.instance.close()

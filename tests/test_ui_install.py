@@ -188,6 +188,11 @@ def test_reinstall_preserves_profile_in_isolated_xdg_paths(qt, tmp_path):
     assert target.is_file()
     assert (target.parent / 'uninstall.sh').is_file()
     assert not (target.parent / 'update.sh').exists()
+    network_path = target.parent / 'network.json'
+    deployment = json.loads(network_path.read_text())
+    assert deployment['mode'] == 'auto'
+    deployment['udp_port'] = 39801
+    network_path.write_text(json.dumps(deployment))
     menu_entry = data / 'applications/fr.fortytchat.FortyTchat.desktop'
     assert menu_entry.is_file()
     if shutil.which('desktop-file-validate'):
@@ -215,6 +220,7 @@ def test_reinstall_preserves_profile_in_isolated_xdg_paths(qt, tmp_path):
     for key in ('nickname', 'theme', 'avatar', 'avatar_image', 'autostart'):
         assert restored[key] == prefs[key]
     assert target.read_text() == (ROOT / 'main.py').read_text()
+    assert json.loads(network_path.read_text())['udp_port'] == 39801
     assert (target.parent / 'assets/icons/fortytchat.svg').read_text() == (ROOT / 'assets/icons/fortytchat.svg').read_text()
     assert 'Hidden=true' in entry.read_text()
     assert not list(data.rglob('.git'))
