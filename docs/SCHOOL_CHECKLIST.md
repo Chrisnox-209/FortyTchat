@@ -1,6 +1,6 @@
 # Retour à l’École 42 : essais sur place
 
-Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 1.8.1 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 2.0.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
 ## Préparer deux postes
 
@@ -80,6 +80,15 @@ Ne pas scanner le `/16`, modifier le pare-feu ou réutiliser un port de service 
 - Désactiver **Notifier la connexion de mes amis**, puis tester DND séparément : pas de bannière ni de rattrapage en réactivant. Au démarrage de l’application, les cinq premières secondes de découverte restent silencieuses.
 - Relever la version de GNOME/AppIndicator, l’apparence des sous-menus, le placement de la bannière et le mode Ne pas déranger d’Ubuntu. Aucun placement n’est imposé au bureau.
 
+## Groupes, messages, sondages et images (2.0.0)
+
+- Mettre les participants en 2.0.0. Créer un groupe depuis la liste ; accepter sur un poste, laisser l’autre en attente : seul le premier doit recevoir le message. Accepter ensuite sans recevoir d’historique, puis tester un départ. Un poste non invité ne doit recevoir ni message, ni fichier ni sondage.
+- Modifier un texte envoyé et vérifier la mention Modifié ainsi que sa citation. Supprimer un texte, un sondage et une proposition de fichier. Vérifier Message supprimé, absence de nouveau vote et arrêt de la proposition ; le fichier déjà enregistré chez un destinataire doit rester sur son disque.
+- Créer un sondage dans le général puis dans le groupe ; voter, changer et retirer sa voix sur chacun des postes. Comparer les résultats. Un nouvel arrivant ne doit pas recevoir d’ancien sondage.
+- Joindre un PNG/JPEG/WebP de moins de 10 Mo et ouvrir son aperçu. Refuser ou enregistrer l’original ; vérifier le contenu reçu. Coller une capture avec Ctrl+V : annuler sans envoi, puis confirmer. Contrôler les formats réellement proposés par le presse-papiers Ubuntu sur les postes de l’école.
+- Bloquer un profil, changer son pseudo puis le relancer : messages, invitations et transferts doivent rester refusés. Vérifier l’arrêt d’un transfert déjà en cours et la liste Contacts bloqués après redémarrage. Débloquer depuis les paramètres, même hors ligne.
+- Tester le relais autorisé et le LAN selon les routes disponibles. Relever séparément l’acceptation des invitations, la livraison et les comportements de reconnexion ; aucun rattrapage d’historique ni de modification n’est attendu.
+
 ## Démarrage de session
 
 1. Vérifier la case activée et l’existence de l’entrée XDG personnelle, avec le bon Python absolu.
@@ -98,14 +107,14 @@ Un test réussi sur deux machines ne valide pas à lui seul 200 postes ni plusie
 
 | Vérification | Date / postes | Résultat réel |
 | --- | --- | --- |
-| IPv4/interface/masque | À compléter | À vérifier en 1.8.1 |
-| Découverte même zone | À compléter | À vérifier en 1.8.1 |
-| Découverte entre zones | À compléter | À vérifier en 1.8.1 |
-| TCP général et privé | À compléter | À vérifier en 1.8.1 |
-| Empreintes comparées, identité conservée | À compléter | À vérifier en 1.8.1 |
-| Contenu chiffré TCP et relais | À compléter | À vérifier en 1.8.1 |
+| IPv4/interface/masque | À compléter | À vérifier en 2.0.0 |
+| Découverte même zone | À compléter | À vérifier en 2.0.0 |
+| Découverte entre zones | À compléter | À vérifier en 2.0.0 |
+| TCP général et privé | À compléter | À vérifier en 2.0.0 |
+| Empreintes comparées, identité conservée | À compléter | À vérifier en 2.0.0 |
+| Contenu chiffré TCP et relais | À compléter | À vérifier en 2.0.0 |
 | TLS/relais autorisé | À compléter | Aucun déploiement présumé |
-| Amis de barre et alertes de connexion | À compléter | À vérifier sur la session école en 1.8.1 |
-| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 1.8.1 |
-| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 1.8.1 |
-| Autostart après connexion | À compléter | À vérifier sur la session école en 1.8.1 |
+| Amis de barre et alertes de connexion | À compléter | À vérifier sur la session école en 2.0.0 |
+| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 2.0.0 |
+| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 2.0.0 |
+| Autostart après connexion | À compléter | À vérifier sur la session école en 2.0.0 |

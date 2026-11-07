@@ -4,20 +4,23 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>1.8.1</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.0.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
   <a href="#mettre-à-jour">Mettre à jour</a> ·
   <a href="#aperçu">Aperçu</a> ·
   <a href="#amis">Amis</a> ·
+  <a href="#groupes-privés">Groupes</a> ·
   <a href="#chiffrement-de-bout-en-bout">Chiffrement</a> ·
   <a href="#désinstaller">Désinstaller</a>
 </p>
 
-**FortyTchat** est une messagerie pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées dans leurs propres fenêtres, des amis et des notifications animées. Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.
+**FortyTchat** est une messagerie pour les étudiants de 42 en cluster : un salon **#général**, des conversations privées, des **groupes sur invitation**, des amis et des notifications animées. Aucun compte à créer, aucune adresse IP à saisir, aucun sudo.
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
+
+La version 2.0.0 ajoute les **groupes**, la **modification/suppression de ses messages**, les **sondages**, les **aperçus d’images**, le **collage de captures avec Ctrl+V** et le **blocage persistant de contacts**. Mettre à jour les participants pour profiter de ces nouvelles fonctions ensemble.
 
 ## Installer et démarrer
 
@@ -101,7 +104,7 @@ Le profil, les amis, les modèles de notifications et les clés sont conservés.
 ## Aperçu
 
 <p align="center">
-  <a href="docs/friends-1.6.0.png"><img src="docs/friends-1.6.0.png" width="880" alt="Salon général de FortyTchat, amis et utilisateurs en ligne"></a>
+  <a href="docs/general-2.0.0.png"><img src="docs/general-2.0.0.png" width="880" alt="FortyTchat 2.0.0 : général, groupes, sondage en direct et contact bloqué"></a>
 </p>
 <p align="center"><em>Le général et les amis, dans le thème anthracite et bleu. Un thème clair est aussi disponible.</em></p>
 
@@ -146,6 +149,15 @@ Une fenêtre fermée, minimisée, inactive ou un message hors de la zone visible
 
 Ces interactions restent en mémoire avec la conversation. Une citation disparue de la mémoire affiche **Message plus disponible** ; aucun historique n’est téléchargé pour la reconstituer.
 
+## Modifier et supprimer ses messages
+
+Le bouton **···** sur un de tes messages propose :
+
+- **Modifier le message** pour corriger un texte. La mention **Modifié** reste visible ; les citations conservées dans la session suivent la correction.
+- **Supprimer pour les participants** pour remplacer ton message, sondage ou pièce jointe par **Message supprimé**. Les réactions sont retirées et un sondage supprimé ne reçoit plus de votes. Une pièce jointe retirée ne peut plus être téléchargée ; les fichiers déjà enregistrés par les destinataires restent sur leur disque.
+
+Ces changements sont transmis aux destinataires **connectés et compatibles qui avaient reçu l’original**, en privé, dans le général ou dans un groupe. Aucun changement n’est mis en attente pour une reconnexion ; l’application signale les destinataires absents ou anciens. Une personne peut avoir déjà copié ou capturé un message avant sa suppression. Seul l’auteur peut modifier ou supprimer son message.
+
 ## Amis
 
 Ajouter une personne avec **☆** dans sa conversation ou **clic droit → Ajouter aux amis** dans la liste. Les amis restent visibles **en ligne et hors ligne**, et sont reconnus après changement de pseudo ou redémarrage avec le même profil. Jusqu’à **256 amis** peuvent être conservés.
@@ -158,7 +170,7 @@ Ajouter une personne avec **☆** dans sa conversation ou **clic droit → Ajout
   <a href="docs/tray-friends-1.8.0.png"><img src="docs/tray-friends-1.8.0.png" width="640" alt="Menu FT : amis en ligne et hors ligne, puis Discuter ou Envoyer une popup"></a>
 </p>
 
-Une popup exige un ami connecté, non masqué et compatible, avec une clé autorisée. L’action retrouve sa session actuelle ; aucun envoi hors ligne n’est mis en attente. Une clé modifiée reste bloquée jusqu’à [vérification de l’empreinte](#chiffrement-de-bout-en-bout).
+Une popup exige un ami connecté, non bloqué et compatible, avec une clé autorisée. L’action retrouve sa session actuelle ; aucun envoi hors ligne n’est mis en attente. Une clé modifiée reste bloquée jusqu’à [vérification de l’empreinte](#chiffrement-de-bout-en-bout).
 
 ### Quand un ami se connecte
 
@@ -167,6 +179,34 @@ Une bannière native **« Pseudo est en ligne »** avertit de sa connexion, sans
 La découverte des cinq premières secondes, les changements de pseudo/statut, une deuxième session et l’ajout d’un ami déjà connecté restent silencieux. Les coupures de moins de cinq secondes sont ignorées ; un même ami ne déclenche pas plus d’une alerte par minute. Les sessions masquées et les clés modifiées ne déclenchent pas d’alerte.
 
 Les bannières utilisent `notify-send` lorsqu’il est disponible. Leur position et leur apparence sont gérées par Ubuntu/GNOME et son propre mode Ne pas déranger : [aide GNOME](https://help.gnome.org/gnome-help/shell-notifications.html.en), [service freedesktop](https://specifications.freedesktop.org/notification/latest-single/).
+
+### Bloquer un utilisateur
+
+**Clic droit sur une personne → Bloquer cet utilisateur**, ou menu **···** de sa conversation privée. Le blocage est lié à son **profil**, reste actif après changement de pseudo, reconnexion et redémarrage, et refuse ses messages, invitations et transferts. Les transferts déjà en cours avec ce contact sont arrêtés.
+
+**Paramètres → Contacts bloqués** permet de retrouver et débloquer les contacts, même hors ligne. La liste est personnelle et limitée à 256 profils. Le blocage concerne le profil connu, pas une authentification de la personne physique ; ses anciens messages restent dans la session.
+
+## Groupes privés
+
+1. Cliquer sur **＋ Créer un groupe** dans la liste des conversations.
+2. Choisir un nom et **1 à 31 personnes connectées** avec FortyTchat 2.0.0.
+3. Chaque destinataire voit une invitation dans **GROUPES** et choisit d’accepter ou de refuser en cliquant dessus.
+
+Le groupe dispose de sa **fenêtre indépendante**, de messages, fichiers, images, citations, réactions, saisie en direct et sondages. Son menu affiche les membres et permet de **Quitter le groupe**. Fermer simplement la fenêtre le laisse actif.
+
+<p align="center">
+  <a href="docs/group-chat-2.0.0.png"><img src="docs/group-chat-2.0.0.png" width="560" alt="Groupe privé : message modifié, sondage avec résultats et message supprimé"></a>
+</p>
+
+Voir aussi [l’écran de création du groupe](docs/group-editor-2.0.0.png). La composition est choisie à la création ; pour une autre composition, créer un nouveau groupe. Jusqu’à **32 groupes de 32 membres** peuvent être connus pendant la session.
+
+Seuls les membres ayant rejoint reçoivent les **nouveaux messages**, avec une copie chiffrée distincte par destinataire. Aucun ancien message n’est transmis après une arrivée ou une reconnexion. **Les groupes ne sont pas sauvegardés après l’arrêt complet de l’application** ; les membres encore connectés gardent leur propre session. Les identités peuvent être vérifiées depuis le cadenas des conversations individuelles.
+
+## Sondages dans le général et les groupes
+
+Le bouton **▥** du composeur ouvre un sondage : une question et **2 à 8 choix**. Les résultats sont actualisés dans la conversation. Chaque participant peut voter une fois, changer de choix ou cliquer à nouveau sur son choix pour retirer sa voix.
+
+Un sondage concerne les personnes compatibles présentes lors de sa création, avec **256 participants maximum**. Les nouveaux arrivants ne reçoivent aucun ancien sondage. Les votes sont authentifiés, chiffrés, modifiables uniquement par leur auteur et conservés en mémoire. Supprimer son propre sondage arrête les votes chez les destinataires qui reçoivent cette suppression.
 
 ## Avatars et images personnelles
 
@@ -236,13 +276,28 @@ Une demande expire après **deux minutes** et suit la limite des pauses. **Ne pa
 
 ## Envoyer un fichier
 
-Le bouton **＋** joint un fichier au général ou à une conversation privée. Le destinataire choisit **Enregistrer…**, son emplacement, ou refuse. Progression et annulation apparaissent dans le tchat.
+Le bouton **＋** joint un fichier au général, à une conversation privée ou à un groupe. Le destinataire choisit **Enregistrer…**, son emplacement, ou refuse. Progression et annulation apparaissent dans le tchat.
 
 Limite : **20 Mio**, offre valable **10 minutes**, clients et relais **1.5.0 minimum**. Nom, empreinte et contenu sont chiffrés. Aucun téléchargement ni ouverture automatique ; aucun fichier existant n’est écrasé. Les fichiers enregistrés restent sur disque après fermeture de l’application.
 
+### Aperçus d’images et captures collées
+
+Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature cliquable dans le tchat. Elle garde les proportions, ne contient pas les métadonnées de l’image et mesure au plus **320 × 320 pixels / 8 Kio**. L’original suit les limites normales de fichier et son enregistrement reste volontaire. Après enregistrement, l’aperçu peut afficher l’image locale en plus grand.
+
+**Ctrl+V** dans le champ de message prépare une capture copiée dans le presse-papiers. Une fenêtre montre l’image et demande **Envoyer la capture** ou **Annuler**. Avant validation, rien n’est envoyé. La capture originale reste en mémoire côté expéditeur, sans fichier temporaire ; limite **16 mégapixels et 20 Mio**.
+
+<table>
+<tr>
+<td align="center" width="50%" valign="top"><a href="docs/images-2.0.0.png"><img src="docs/images-2.0.0.png" width="340" alt="Aperçu d’image dans le tchat avec choix d’enregistrer ou refuser l’original"></a><p>Un aperçu dans la conversation.</p></td>
+<td align="center" width="50%" valign="top"><a href="docs/clipboard-2.0.0.png"><img src="docs/clipboard-2.0.0.png" width="340" alt="Validation d’une capture collée avec Ctrl+V avant son envoi"></a><p>Une capture à confirmer avant envoi.</p></td>
+</tr>
+</table>
+
+Les groupes, sondages, changements de messages et miniatures nécessitent **2.0.0 chez les participants**. Un relais chiffré **1.5.0 minimum** reste compatible. Les anciens clients peuvent toujours échanger les messages et fichiers classiques ; ils ne reçoivent pas les nouveaux événements et peuvent conserver l’original d’un message modifié ou supprimé.
+
 ## Chiffrement de bout en bout
 
-Le chiffrement est **toujours actif**, en direct et via le relais : messages, fichiers, citations, réactions, saisie, Wizz et notifications. Les clés de session sont renouvelées à chaque démarrage. Le relais transporte des enveloppes opaques et ne possède pas les clés pour les déchiffrer. Le général remet une copie chiffrée par destinataire ; ses participants peuvent naturellement lire ses messages.
+Le chiffrement est **toujours actif**, en direct et via le relais : messages, fichiers, groupes, sondages, modifications, suppressions, citations, réactions, saisie, Wizz et notifications. Les clés de session sont renouvelées à chaque démarrage. Le relais transporte des enveloppes opaques et ne possède pas les clés pour les déchiffrer. Le général remet une copie chiffrée par destinataire ; ses participants peuvent naturellement lire ses messages.
 
 ### Vérifier un contact avec le cadenas
 
@@ -268,13 +323,13 @@ L’intégration utilise **PyNaCl/libsodium**, Box Curve25519/XSalsa20/Poly1305 
 
 Dans **Paramètres**, choisir le pseudo, le thème, l’avatar, le démarrage automatique, les Wizz, les alertes d’amis et le partage des confirmations de lecture. **À propos** contient la version, les fonctions et le lien du dépôt.
 
-**Ne pas déranger** laisse recevoir les messages et fichiers sans notification, refuse les Wizz et les nouvelles cartes personnalisées. Les **demandes de pause et les réponses en cours restent actives**. Le menu `···` d’une conversation masque une session jusqu’à l’arrêt de l’application.
+**Ne pas déranger** laisse recevoir les messages et fichiers sans notification, refuse les Wizz et les nouvelles cartes personnalisées. Les **demandes de pause et les réponses en cours restent actives**. Le menu d’une personne permet de bloquer son profil ; ce choix reste actif après redémarrage et peut être annulé depuis **Contacts bloqués**.
 
 <details>
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-1.8.1.png"><img src="docs/about-1.8.1.png" width="560" alt="À propos de FortyTchat 1.8.1 avec le logo FT, les fonctions et le lien GitHub"></a>
+  <a href="docs/about-2.0.0.png"><img src="docs/about-2.0.0.png" width="560" alt="À propos de FortyTchat 2.0.0 avec le logo FT, les fonctions et le lien GitHub"></a>
 </p>
 
 Les onglets Général et À propos sont défilables pour rester lisibles sur les petits écrans.
@@ -286,7 +341,7 @@ Les onglets Général et À propos sont défilables pour rester lisibles sur les
 | `~/.FortyTchat/` | Dépôt source caché pour les mises à jour |
 | `~/.local/share/fortytchat/app/` | Copie installée ; son `network.json` contient le déploiement réseau |
 | `~/.local/share/fortytchat/venv/` | Python et dépendances dédiés |
-| `~/.config/fortytchat/` | Profil, amis, miniature, préférences, clés et modèles enregistrés volontairement |
+| `~/.config/fortytchat/` | Profil, amis, contacts bloqués, miniature, préférences, clés et modèles enregistrés volontairement |
 | `~/.local/bin/fortytchat` | Lanceur |
 | `~/.local/share/applications/fr.fortytchat.FortyTchat.desktop` | Entrée du menu des applications |
 | `~/.config/autostart/fr.fortytchat.FortyTchat.desktop` | Démarrage personnel réduit |
@@ -316,7 +371,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **1.8.1** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.0.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Icône absente ou mal placée | La session doit prendre en charge GNOME/StatusNotifier/AppIndicator. Utiliser le dock ou le lanceur sinon ; la place dans la barre dépend du bureau. |
 | Un clic ouvre le menu, le doubleclic ne marche pas | L’option **Compatibilité doubleclic de l’icône (GNOME)** tente de reconnaître l’ouverture/fermeture rapide du menu. Elle dépend des événements transmis par la barre. Utiliser **Ouvrir FortyTchat** si nécessaire. |
 | Une fermeture rapide du menu ouvre le tchat | Désactiver cette compatibilité dans Général. Échap peut être indistinguable d’un second clic sur certaines barres. Aucune extension du bureau n’est modifiée. |
@@ -324,7 +379,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 | Personne absente sur deux PC | Vérifier les autorisations de découverte UDP et TCP inter-postes. VLAN, Wi-Fi invité ou isolation réseau peuvent bloquer les échanges. |
 | Clé d’un contact modifiée | Ouvrir son cadenas et comparer sa nouvelle empreinte par un canal de confiance. Ne pas effacer les clés pour contourner le blocage. |
 | Aucune bannière de connexion | Vérifier l’option d’alerte, DND dans FortyTchat et Ubuntu, et `notify-send`. Le démarrage initial et les reconnexions rapprochées restent silencieux. |
-| Popup grisée dans les amis | L’ami doit être connecté, autorisé, non masqué et compatible ; le relais doit accepter les cartes sans route directe. |
+| Popup grisée dans les amis | L’ami doit être connecté, autorisé, non bloqué et compatible ; le relais doit accepter les cartes sans route directe. |
 | Application absente au début de session | Vérifier l’option de démarrage et la politique XDG de la session. |
 
 Les problèmes initiaux de texte tronqué sont documentés par les [captures Ubuntu fournies pendant les essais](docs/screenshots/). Les corrections de mise à l’échelle sont couvertes par les tests locaux ; le comportement réel de GNOME/Wayland sur les postes de l’école reste à vérifier.
@@ -386,7 +441,7 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest -q
 python3 tools/stress_test.py --clients 200
 ```
 
-Les **168 tests** couvrent le réseau réel local, le chiffrement, les fichiers, les amis, les cartes, les confirmations de lecture, l’installation et l’interface aux échelles **100 %, 150 % et 200 %**. Les profils sont temporaires et les essais hors écran n’envoient pas de notifications au bureau personnel. Les sockets doivent être autorisées pour les tests d’intégration. Résultats et limites : [docs/VALIDATION.md](docs/VALIDATION.md).
+Les **180 tests** couvrent le réseau réel local, le chiffrement, les fichiers, les amis, les cartes, les confirmations de lecture, l’installation et l’interface aux échelles **100 %, 150 % et 200 %**. Les profils sont temporaires et les essais hors écran n’envoient pas de notifications au bureau personnel. Les sockets doivent être autorisées pour les tests d’intégration. Résultats et limites : [docs/VALIDATION.md](docs/VALIDATION.md).
 
 ## Crédits des ressources
 

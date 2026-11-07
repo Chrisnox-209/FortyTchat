@@ -1,14 +1,27 @@
-# Validation locale de FortyTchat 1.8.1
+# Validation locale de FortyTchat 2.0.0
 
-Tests réalisés le **6 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 1.8.1 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
+Tests réalisés le **7 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 2.0.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
 
 ## Résultats automatisés
 
-- **168 tests réussis en 29,31 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- **180 tests réussis en 32,57 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
 - Mesure de diffusion E2EE réalisée en 1.5.0 sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
 - Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
 Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
+
+## Groupes et nouvelles interactions (2.0.0)
+
+- TCP direct et relais réels : création d’un groupe, invitation acceptée ou laissée en attente, messages reçus seulement après adhésion, absence d’historique à l’arrivée, départ puis refus des nouveaux envois. Le non-membre ne reçoit ni groupe, ni message, ni vote, ni fichier. Les trames inspectées au relais restent des enveloppes chiffrées, sans nom de groupe, texte, sondage ou contenu de capture en clair.
+- Modifications et suppressions : seul l’auteur de l’original peut agir dans sa conversation ; auteur ou contexte incorrect refusé. Les séquences anciennes et la résurrection après suppression sont ignorées. Un changement arrivé avant l’original reste borné et ne s’applique qu’après correspondance d’auteur et de conversation. Les citations suivent le texte corrigé ou supprimé ; les réactions sont retirées.
+- Sondages de groupe et du général : création, vote, changement, retrait, résultats identiques chez les participants et rejet d’un vote extérieur. Audience figée, choix validés, messages de contrôle bornés. Les anciens clients reçoivent toujours les messages classiques, mais aucun événement de collaboration inconnu.
+- Fichiers de groupe et captures en mémoire : offre ciblée, acceptation explicite, données transférées identiques, original déjà enregistré conservé après suppression de sa carte. Les propositions non acceptées sont retirées. Aucun fichier source temporaire n’est créé pour la capture.
+- Parcours Qt avec deux vrais contrôleurs : sélectionner les membres, accepter l’invitation depuis la liste, envoyer puis modifier et supprimer un message, voter dans le groupe et créer un sondage dans le général, coller une image avec la vraie commande Ctrl+V, annuler sans transfert, confirmer et enregistrer la capture reçue. Le presse-papiers de ce test appartient au backend hors écran et est nettoyé après l’essai.
+- Aperçus : JPEG de taille bornée, dimension supérieure à 320 pixels refusée avant décodage, métadonnées retirées des captures et miniatures, accès au fichier original uniquement après acceptation. Le champ de saisie accepte les images du presse-papiers malgré son mode texte brut.
+- Blocage du profil : préférence validée et rechargée, pseudo changé et nouveau SID toujours bloqués, envois refusés, offres et transferts arrêtés, gestion des contacts bloqués depuis les paramètres, déblocage effectif. Les choix sont limités à 256 profils ; le fichier de préférences est borné à 64 Kio et reste privé.
+- Dialogues et votes longs vérifiés à 100 %, 150 % et 200 %, dans les deux thèmes, avec petites fenêtres et sans débordement horizontal. La suite précédente reste incluse.
+
+Les captures `general-2.0.0.png`, `group-chat-2.0.0.png`, `group-editor-2.0.0.png`, `images-2.0.0.png`, `clipboard-2.0.0.png` et `about-2.0.0.png` montrent les widgets Qt réellement rendus, avec des états et profils de démonstration. Le terminal illustré est une image synthétique de démonstration ; les échanges réseau et le collage effectif sont vérifiés séparément par les tests.
 
 ## Empreintes publiques et présentation (1.8.1)
 
