@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import re
 import time
 
-CAPABILITY = 'rooms2'
+CAPABILITY = 'rooms3'
 GROUP_EVENTS = {'group_invite', 'group_join', 'group_leave', 'group_state', 'group_update', 'group_sync', 'group_popup_request', 'group_popup_grant', 'group_removed'}
 CHANGE_EVENTS = {'message_edit', 'message_delete'}
 POLL_EVENTS = {'poll_create', 'poll_vote'}

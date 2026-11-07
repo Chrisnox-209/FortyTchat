@@ -8,8 +8,24 @@ from ..avatar_data import avatar_hash, AvatarError
 from .collaboration import identifier, plain, MAX_GROUPS, MAX_MEMBERS
 
 POPUP_INTERVAL = 42 * 60
+MIN_POPUP_MINUTES, MAX_POPUP_MINUTES = 1, 24 * 60
 PROFILE_DOMAIN = b'FortyTchat group profile v1\0'
 PERMIT_DOMAIN = b'FortyTchat group popup v1\0'
+
+
+def valid_popup_interval(value):
+    return (type(value) is int and MIN_POPUP_MINUTES * 60 <= value <= MAX_POPUP_MINUTES * 60
+            and value % 60 == 0)
+
+
+def popup_interval(profile):
+    # Missing on signed profiles created before 2.2.0; do not alter their signature.
+    return profile.get('popup_interval', POPUP_INTERVAL)
+
+
+def popup_remaining(profile, now=None):
+    last = profile.get('popup_at', 0)
+    return max(0, last + popup_interval(profile) - (time.time() if now is None else now)) if last else 0
 
 
 def signed(identity, value, domain=PROFILE_DOMAIN):
@@ -28,7 +44,8 @@ def verify(value, key, domain=PROFILE_DOMAIN):
 def validate_profile(p):
     fields = {'id', 'owner', 'key', 'revision', 'name', 'members', 'admins', 'photo', 'avatar',
               'popup_at', 'popup_id', 'popup_sender', 'signature'}
-    if (not isinstance(p, dict) or set(p) != fields or not identifier(p['id']) or not identifier(p['owner'])
+    if (not isinstance(p, dict) or set(p) - {'popup_interval'} != fields
+            or not valid_popup_interval(popup_interval(p)) or not identifier(p['id']) or not identifier(p['owner'])
             or type(p['revision']) is not int or not 1 <= p['revision'] < 2**53
             or not plain(p['name'], 64) or any(c in p['name'] for c in '\n\t')
             or not isinstance(p['members'], list) or not 1 <= len(p['members']) <= MAX_MEMBERS
@@ -53,17 +70,20 @@ def validate_profile(p):
 def new_profile(identity, reference, name, members):
     return signed(identity, dict(id=reference, owner=identity.contact_id, key=identity.public, revision=1,
         name=name, members=list(members), admins=[], photo='', avatar=-1,
-        popup_at=0, popup_id='', popup_sender=''))
+        popup_at=0, popup_id='', popup_sender='', popup_interval=POPUP_INTERVAL))
 
 
 def popup_permit(identity, p):
-    return signed(identity, dict(room=p['id'], id=p['popup_id'], sender=p['popup_sender'], at=p['popup_at']), PERMIT_DOMAIN)
+    return signed(identity, dict(room=p['id'], id=p['popup_id'], sender=p['popup_sender'], at=p['popup_at'],
+                                 interval=popup_interval(p), revision=p['revision']), PERMIT_DOMAIN)
 
 
 def validate_permit(permit, profile, sender, now=None):
     now = time.time() if now is None else now
-    if (not isinstance(permit, dict) or set(permit) != {'room', 'id', 'sender', 'at', 'signature'}
+    if (not isinstance(permit, dict) or set(permit) != {'room', 'id', 'sender', 'at', 'interval', 'revision', 'signature'}
             or permit['room'] != profile['id'] or not identifier(permit['id']) or permit['sender'] != sender
+            or not valid_popup_interval(permit['interval'])
+            or type(permit['revision']) is not int or not 1 <= permit['revision'] < 2**53
             or type(permit['at']) not in (int, float) or not now - 120 <= permit['at'] <= now + 5):
         raise SecurityError('Autorisation de popup expirée ou invalide')
     verify(permit, profile['key'], PERMIT_DOMAIN)
@@ -135,7 +155,11 @@ class GroupStore:
     def receive_popup(self, reference, permit):
         def operation(records):
             record = records[reference]
-            if permit['id'] == record['seen_id'] or permit['at'] < record['seen_at'] + POPUP_INTERVAL:
-                raise SecurityError('Une seule popup de groupe toutes les 42 minutes')
+            validate_permit(permit, record['profile'], permit['sender'])
+            # The signed grant also carries the policy in case it arrives before group_state.
+            interval = (permit['interval'] if permit['revision'] >= record['profile']['revision']
+                        else popup_interval(record['profile']))
+            if permit['id'] == record['seen_id'] or record['seen_at'] and permit['at'] < record['seen_at'] + interval:
+                raise SecurityError(f'Une seule popup de groupe toutes les {interval // 60} minutes')
             record['seen_at'], record['seen_id'] = permit['at'], permit['id']
         self.update(operation)

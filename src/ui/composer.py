@@ -7,6 +7,7 @@ from ..features.emojis import EmojiPicker
 from ..features.wizz import wizz_label
 from .widgets import button, label
 from .social import ReplyPreview
+from ..features.group_profile import POPUP_INTERVAL, popup_remaining
 
 
 class ComposeEdit(QTextEdit):
@@ -252,10 +253,12 @@ class Composer(QFrame):
         self.break_button.setText('Pause' if self.width() < 520 or self.counter.text() else 'On fait une pause ?')
         self.file_button.setEnabled(self.available)
         group_at = getattr(self, 'group_popup_at', None)
-        group_wait = max(0, group_at + 42 * 60 - time.time()) if group_at else 0
+        interval = getattr(self, 'group_popup_interval', POPUP_INTERVAL)
+        group_wait = popup_remaining({'popup_at': group_at, 'popup_interval': interval}) if group_at is not None else 0
         self.card_button.setEnabled(self.available and group_wait <= 0)
         if group_at is not None:
-            self.card_button.setToolTip(f'Popup du groupe disponible dans {math.ceil(group_wait / 60)} min' if group_wait else 'Envoyer une popup à tout le groupe · une toutes les 42 min')
+            self.card_button.setToolTip(f'Popup du groupe disponible dans {math.ceil(group_wait / 60)} min · délai partagé : {interval // 60} min'
+                                       if group_wait else f'Envoyer une popup à tout le groupe · une toutes les {interval // 60} min')
         self.poll_button.setEnabled(self.available)
         if not self.available:
             self.stop_typing()

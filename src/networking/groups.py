@@ -5,7 +5,7 @@ from functools import wraps
 import time
 from ..features.collaboration import CAPABILITY, Room, MAX_GROUPS, MAX_MEMBERS, group_key, group_id, plain
 from ..features.group_profile import (GroupStore, new_profile, signed, validate_profile,
-    popup_permit, validate_permit, POPUP_INTERVAL)
+    popup_permit, validate_permit, popup_interval, popup_remaining, valid_popup_interval)
 from ..security import SecurityError
 from ..identity import session_id
 from .protocol import event, encode, ProtocolError
@@ -75,7 +75,7 @@ class GroupNetwork:
             self.emit('notice', text='Choisis un nom et 1 à 31 membres (32 groupes maximum).'); return None
         peers = [self.group_peer(cid) for cid in dict.fromkeys(contacts)]
         if not all(peers):
-            self.emit('notice', text='Les membres à inviter doivent être connectés avec FortyTchat 2.1.0.'); return None
+            self.emit('notice', text='Les membres à inviter doivent être connectés avec FortyTchat 2.2.0.'); return None
         gid = session_id()
         profile = new_profile(self.identity, gid, name.strip(), [self.contact_id] + list(dict.fromkeys(contacts)))
         room = Room(gid, profile['name'], self.contact_id, tuple(profile['members']), state='joined',
@@ -203,6 +203,9 @@ class GroupNetwork:
             if value not in p['admins']: p['admins'].append(value)
         elif action == 'demote':
             if value in p['admins']: p['admins'].remove(value)
+        elif action == 'popup_interval':
+            if not valid_popup_interval(value): return None
+            p[action] = value
         elif action in ('name', 'photo', 'avatar'):
             p[action] = value
             if action == 'avatar': p['photo'] = ''
@@ -234,8 +237,8 @@ class GroupNetwork:
         now = time.time()
         if room.owner != self.contact_id or actor not in room.joined or actor in room.left or actor not in room.members:
             raise SecurityError('Membre non autorisé')
-        if now < p['popup_at'] + POPUP_INTERVAL:
-            raise SecurityError('Une popup pour tout le groupe toutes les 42 minutes, tous expéditeurs confondus.')
+        if popup_remaining(p, now):
+            raise SecurityError(f'Une popup pour tout le groupe toutes les {popup_interval(p) // 60} minutes, tous expéditeurs confondus.')
         p.update(revision=p['revision'] + 1, popup_at=now, popup_id=batch, popup_sender=actor)
         p = signed(self.identity, p)
         self.group_store.save(p, 'joined' if room.state == 'restoring' else room.state, room.profile['revision'])
@@ -276,7 +279,7 @@ class GroupNetwork:
                 future = asyncio.get_running_loop().create_future()
                 self.group_requests[frame['id']] = (room.id, owner.contact_id, batch, future)
                 try:
-                    if not await self._send_to(owner, frame): raise SecurityError('Réservation refusée ou délai de 42 minutes en cours.')
+                    if not await self._send_to(owner, frame): raise SecurityError('Réservation refusée ou délai de popup du groupe en cours.')
                     permit = await asyncio.wait_for(future, 8)
                 finally: self.group_requests.pop(frame['id'], None)
                 validate_permit(permit, room.profile, self.contact_id)
@@ -292,7 +295,8 @@ class GroupNetwork:
             ids.append(frame['id'])
             frames.append(frame)
         results = await asyncio.gather(*(self._send_to(p, f) for p, f in zip(peers, frames)), return_exceptions=True)
-        self.emit('group_popup_sent', target=target, count=sum(r is True for r in results), total=len(peers), ids=ids)
+        self.emit('group_popup_sent', target=target, count=sum(r is True for r in results), total=len(peers), ids=ids,
+                  interval=popup_interval(room.profile))
         return batch
 
     def receive_group(self, frame, peer):

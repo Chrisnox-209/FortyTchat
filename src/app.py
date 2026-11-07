@@ -7,6 +7,7 @@ from PySide6.QtCore import QObject, Signal, QTimer, QSignalBlocker, QStandardPat
 from PySide6.QtWidgets import QApplication, QFileDialog
 from .collaboration import CollaborationController
 from .features.collaboration import group_id, chat_target
+from .features.group_profile import popup_interval, popup_remaining
 from .ui.images import ImageViewer
 
 from .autostart import Autostart
@@ -290,9 +291,8 @@ class Application(QObject, CollaborationController):
         peer = self.window.peers.get(target) or next((item for item in self.latest_peers if item['sid'] == target), None)
         room = self.groups.get(target) if group_id(target) and not request else None
         if room:
-            import time as _time
-            if room['state'] != 'joined' or _time.time() < room.get('popup_at', 0) + 42 * 60:
-                view.show_notice('Une popup collective toutes les 42 minutes, partagées par tous les membres.'); return None
+            if room['state'] != 'joined' or popup_remaining(room):
+                view.show_notice(f'Une popup collective toutes les {popup_interval(room) // 60} minutes, partagées par tous les membres.'); return None
             peer = {'nick':room['name'], 'caps':['choices']}
         elif target == 'general' or not self.cards_available(peer):
             view.show_notice('Les notifications animées nécessitent des clients et un relais compatibles 1.5.0, ou une connexion directe.')

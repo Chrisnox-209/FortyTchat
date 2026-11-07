@@ -249,6 +249,9 @@ def test_real_group_manager_custom_popup_multi_poll_mentions_and_file_batch(tmp_
         photo=encode_photo(image)
         manager.changed.emit({'photo':photo})
         until(qt,lambda:bv.avatar.image_data==photo)
+        manager.popup_delay.setValue(15);manager.popup_delay_button.click()
+        until(qt,lambda:b.groups[key]['popup_interval']==15*60)
+        assert a.groups[key]['popup_interval']==15*60
         assert av.composer.card_button.isVisible() and not a.window.composer.card_button.isVisible()
         until(qt,lambda:bc.nickname in av.input.mention_model.stringList())
         av.input.setPlainText('@'+bc.nickname+' voici mon code :\n```c\nprintf("safe");\n```');av.send_button.click()
@@ -268,7 +271,7 @@ def test_real_group_manager_custom_popup_multi_poll_mentions_and_file_batch(tmp_
         b.send_card_answer(ac.sid,request,'card_invite','accepted')
         until(qt,lambda:bool(a.reply_popups))
         until(qt,lambda:not av.composer.card_button.isEnabled())
-        assert '42' in av.composer.card_button.toolTip()
+        assert '15 min' in av.composer.card_button.toolTip()
         assert a.show_card_editor('general') is None
         # The actual input receives two file URLs; queue worker emits separate E2EE offers.
         files=[tmp_path/'one.txt',tmp_path/'two.txt']

@@ -49,7 +49,7 @@ class CollaborationController:
         peers = [p for p in self.latest_peers if p.get('encrypted') and CAPABILITY in p.get('caps', ())
                  and p['contact_id'] not in self.preferences.blocked_contacts and p['sid'] not in self.window.sidebar.blocked]
         if not peers:
-            self.window.show_notice('Une autre personne connectée avec FortyTchat 2.1.0 est nécessaire pour créer un groupe.')
+            self.window.show_notice('Une autre personne connectée avec FortyTchat 2.2.0 est nécessaire pour créer un groupe.')
             return None
         editor = GroupEditor(peers, self.window)
         editor.submitted.connect(lambda name, contacts:self.worker.submit(self.worker.client.create_group(name, contacts)))
@@ -256,7 +256,7 @@ class CollaborationController:
                 self.wanted_group = ''
                 self.open_group(wanted)
         elif kind == 'group_popup_sent':
-            self.system_message(data['target'], f'✦ Popup de groupe : {data["count"]}/{data["total"]} remises. Prochaine popup dans 42 minutes.')
+            self.system_message(data['target'], f'✦ Popup de groupe : {data["count"]}/{data["total"]} remises. Délai partagé : {data["interval"] // 60} minutes.')
         elif kind == 'group_created':
             self.open_group(data['group']['id'])
         elif kind == 'group_invitation':

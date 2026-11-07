@@ -2,10 +2,11 @@ import time
 import math
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QCursor
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QListWidget, QListWidgetItem, QMenu, QMessageBox, QSizePolicy
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QListWidget, QListWidgetItem, QMenu, QMessageBox, QSizePolicy, QSpinBox, QLayout
 from .widgets import label, button
 from .private_window import PrivateWindow
 from ..features.collaboration import MAX_MEMBERS
+from ..features.group_profile import popup_interval, MIN_POPUP_MINUTES, MAX_POPUP_MINUTES
 
 
 class GroupEditor(QDialog):
@@ -81,6 +82,7 @@ class GroupWindow(PrivateWindow):
         self.avatar.online = False
         self.avatar.update()
         self.composer.group_popup_at = room.get('popup_at', 0)
+        self.composer.group_popup_interval = popup_interval(room)
         if names is not None:
             self.member_names = names
         self.name_label.setText(self.name_label.fontMetrics().elidedText(room['name'], Qt.TextElideMode.ElideRight, max(100, self.width() - 150)))
@@ -99,7 +101,7 @@ class GroupWindow(PrivateWindow):
 
     def menu(self):
         menu = QMenu(self)
-        menu.addAction('Membres, rôles, nom et photo', lambda:self.manage_requested.emit(self.room['id']))
+        menu.addAction('Paramètres du groupe', lambda:self.manage_requested.emit(self.room['id']))
         if self.room['state'] == 'joined':
             menu.addAction('Quitter le groupe', self.leave)
         menu.addAction('Fermer la fenêtre', self.close)
@@ -134,8 +136,17 @@ class GroupManager(QDialog):
         self.setWindowTitle('Gérer le groupe · FortyTchat')
         self.resize(500, 660)
         self.setMinimumSize(390, 440)
-        box = QVBoxLayout(self)
-        box.setContentsMargins(22, 22, 22, 22)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(22, 22, 22, 22)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        page = QWidget()
+        box = QVBoxLayout(page)
+        box.setContentsMargins(0, 0, 0, 0)
+        box.setSpacing(12)
+        box.setSizeConstraint(QLayout.SizeConstraint.SetMinAndMaxSize)
         box.addWidget(label('Notre petit groupe.', 'title', True))
         box.addWidget(label('Créateur : attribue les rôles. Administrateurs : nom, photo et membres ordinaires. Le créateur doit être connecté pour valider les changements.', 'muted', True))
         self.picture = Avatar(room['name'], 64)
@@ -150,7 +161,25 @@ class GroupManager(QDialog):
         row = QHBoxLayout(); row.addWidget(self.name, 1); row.addWidget(rename)
         self.rename_button = rename
         box.addLayout(row)
+        box.addWidget(label('Délai entre les popups du groupe', 'eyebrow', True))
+        self.popup_delay = QSpinBox()
+        self.popup_delay.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.popup_delay.setRange(MIN_POPUP_MINUTES, MAX_POPUP_MINUTES)
+        self.popup_delay.setSuffix(' min')
+        self.popup_delay.setAccessibleName('Délai entre les popups du groupe, en minutes')
+        self.popup_delay.setToolTip('De 1 minute à 24 heures ; 42 minutes par défaut.')
+        self.popup_delay_button = button('Enregistrer', 'primary')
+        self.popup_delay_button.clicked.connect(lambda:self.changed.emit({'popup_interval': self.popup_delay.value() * 60}))
+        self.popup_less = button('−', 'soft', 'Réduire le délai d’une minute', 34)
+        self.popup_more = button('+', 'soft', 'Augmenter le délai d’une minute', 34)
+        self.popup_less.clicked.connect(self.popup_delay.stepDown)
+        self.popup_more.clicked.connect(self.popup_delay.stepUp)
+        row = QHBoxLayout(); row.addWidget(self.popup_delay, 1)
+        row.addWidget(self.popup_less); row.addWidget(self.popup_more); row.addWidget(self.popup_delay_button)
+        box.addLayout(row)
+        box.addWidget(label('Partagé entre tous les membres. Le nouveau délai est compté depuis la dernière popup et conservé après redémarrage.', 'caption', True))
         self.members = QListWidget()
+        self.members.setMinimumHeight(110)
         self.members.currentItemChanged.connect(self.selection_changed)
         box.addWidget(self.members, 1)
         row = QHBoxLayout()
@@ -168,7 +197,9 @@ class GroupManager(QDialog):
         row = QHBoxLayout(); row.addWidget(self.add_choice, 1); row.addWidget(self.add_button)
         box.addLayout(row)
         box.addWidget(label('Les nouveaux membres acceptent l’invitation. Un membre retiré ne reçoit plus les nouveaux échanges dès que son retrait est reçu. Aucun ancien message n’est envoyé.', 'caption', True))
-        close = button('Terminé'); close.clicked.connect(self.accept); box.addWidget(close)
+        scroll.setWidget(page)
+        outer.addWidget(scroll, 1)
+        close = button('Terminé'); close.clicked.connect(self.accept); outer.addWidget(close)
         self.set_group(room)
 
     def set_group(self, room):
@@ -176,8 +207,10 @@ class GroupManager(QDialog):
         self.name.setText(room['name'])
         self.picture.nickname, self.picture.avatar = room['name'], room.get('avatar', -1)
         self.picture.image_data = room.get('photo', ''); self.picture.update()
+        self.popup_delay.setValue(popup_interval(room) // 60)
         admin = room['state'] == 'joined' and (self.actor == room['owner'] or self.actor in room.get('admins', ()))
-        for control in (self.name, self.rename_button, self.photo_button, self.add_choice): control.setEnabled(admin)
+        for control in (self.name, self.rename_button, self.photo_button, self.add_choice,
+                        self.popup_delay, self.popup_less, self.popup_more, self.popup_delay_button): control.setEnabled(admin)
         old = self.members.currentItem().data(Qt.ItemDataRole.UserRole) if self.members.currentItem() else ''
         self.members.clear()
         for cid in room['members']:

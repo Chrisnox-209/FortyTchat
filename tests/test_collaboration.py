@@ -185,7 +185,7 @@ def test_legacy_contacts_receive_original_messages_without_unknown_collaboration
         a,b,old=clients
         original=old.hello
         def hello(kind='hello'):
-            frame=original(kind);frame['caps']=[c for c in frame['caps'] if c!='rooms2']
+            frame=original(kind);frame['caps']=['rooms2' if c == 'rooms3' else c for c in frame['caps']]
             return old.crypto.sign_presence(frame)
         old.hello=hello
         try:

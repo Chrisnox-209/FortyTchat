@@ -174,9 +174,12 @@ def validate(data):
                     changes = data['changes']
                     if (type(data['revision']) is not int or not 1 <= data['revision'] < 2**53
                             or not isinstance(changes, dict) or not 1 <= len(changes) <= 1
-                            or set(changes) - {'name', 'photo', 'avatar', 'add', 'remove', 'promote', 'demote'}):
+                            or set(changes) - {'name', 'photo', 'avatar', 'add', 'remove', 'promote', 'demote', 'popup_interval'}):
                         raise ProtocolError('Modification de groupe invalide')
                     key, value = next(iter(changes.items()))
+                    if key == 'popup_interval':
+                        from ..features.group_profile import valid_popup_interval
+                        if not valid_popup_interval(value): raise ProtocolError('Délai des popups invalide (1 à 1440 minutes)')
                     if key == 'name' and (not plain(value, 64) or any(c in value for c in '\n\t')):
                         raise ProtocolError('Nom du groupe invalide')
                     if key in ('add', 'remove', 'promote', 'demote') and not valid_id(value):
@@ -190,7 +193,7 @@ def validate(data):
                     raise ProtocolError('Popup de groupe invalide')
                 if kind == 'group_popup_grant':
                     permit = data['permit']
-                    if not valid_id(data['request']) or not isinstance(permit, dict) or len(permit) > 5:
+                    if not valid_id(data['request']) or not isinstance(permit, dict) or (permit and len(permit) != 7):
                         raise ProtocolError('Autorisation invalide')
             if kind in CHANGE_EVENTS and not valid_id(data['message']):
                 raise ProtocolError('Message à modifier invalide')
@@ -226,7 +229,7 @@ def validate(data):
             fields = {'title', 'text', 'emoji'} | ({'request', 'answer'} if kind == 'card_reply' else set())
             if kind == 'card_invite' and 'group' in data:
                 fields |= {'group', 'permit'}
-                if not isinstance(data.get('permit'), dict) or len(data['permit']) != 5:
+                if not isinstance(data.get('permit'), dict) or len(data['permit']) != 7:
                     raise ProtocolError('Autorisation de popup requise')
             if kind == 'card_invite' and 'responses' in data:
                 fields.add('responses')

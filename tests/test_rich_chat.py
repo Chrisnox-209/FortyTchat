@@ -115,9 +115,15 @@ window=GroupWindow(room,[Message('sender','Pote42','@Pote42 hello\\n```c\\n' + '
 window.resize(480,660);window.show()
 for _ in range(10):app.processEvents()
 assert manager.width() <= 430
-for control in (manager.name,manager.rename_button,manager.photo_button,manager.add_button,manager.promote):
+for control in (manager.name,manager.rename_button,manager.photo_button,manager.add_button,manager.promote,manager.popup_delay,manager.popup_delay_button):
     assert control.geometry().right() < manager.width()
     assert control.height() >= control.fontMetrics().height()
+from PySide6.QtWidgets import QScrollArea,QLineEdit
+scroll=manager.findChild(QScrollArea)
+assert scroll.horizontalScrollBar().maximum()==0
+scroll.ensureWidgetVisible(manager.popup_delay_button)
+app.processEvents()
+assert manager.popup_delay.findChild(QLineEdit).height() >= manager.popup_delay.fontMetrics().height()
 assert window.width()==480
 editor=window.chat.findChild(QPlainTextEdit)
 assert editor and editor.isReadOnly() and editor.width() < window.width()

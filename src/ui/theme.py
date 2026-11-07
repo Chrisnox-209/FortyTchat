@@ -49,8 +49,9 @@ QLabel#notice { background: $notice; color: $text; border: 1px solid $noticeBord
 QFrame#profile { background: $sidebar; border-top: 1px solid $border; }
 QFrame#composer { background: $surface; border: 1px solid $border; border-radius: 23px; }
 QTextEdit#input { background: transparent; border: none; padding: 10px 8px; font-size: 14px; selection-background-color: $accentSoft; }
-QLineEdit, QComboBox, QPlainTextEdit { background: $surface; border: 1px solid $border; border-radius: 11px; padding: 10px; selection-background-color: $accentSoft; }
-QLineEdit:focus, QComboBox:focus { border-color: $accent; }
+QLineEdit, QComboBox, QPlainTextEdit, QSpinBox { background: $surface; border: 1px solid $border; border-radius: 11px; padding: 10px; selection-background-color: $accentSoft; }
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus { border-color: $accent; }
+QSpinBox QLineEdit { background: transparent; border: none; padding: 0; }
 QPushButton { background: $surface; border: 1px solid transparent; border-radius: 12px; padding: 9px 13px; font-weight: 550; }
 QPushButton:hover { background: $hover; }
 QPushButton:pressed { background: $selected; }

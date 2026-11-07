@@ -1004,7 +1004,7 @@ class ChatClient(CollaborationNetwork):
             rows.append('Relais configuré mais inaccessible actuellement.')
         else:
             rows.append('Aucun relais configuré : une machine autorisée et un nom DNS seraient nécessaires.')
-        peer = next((p for p in self.peers.values() if p.direct and p.sid not in self.blocked and ('probe' in p.caps or 'rooms' in p.caps or CAPABILITY in p.caps)), None)
+        peer = next((p for p in self.peers.values() if p.direct and p.sid not in self.blocked and ('probe' in p.caps or 'rooms' in p.caps or 'rooms2' in p.caps or CAPABILITY in p.caps)), None)
         if peer:
             writer = None
             try:
