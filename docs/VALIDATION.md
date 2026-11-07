@@ -1,14 +1,23 @@
-# Validation locale de FortyTchat 2.1.0
+# Validation locale de FortyTchat 2.2.0
 
-Tests réalisés le **7 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 2.1.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
+Tests réalisés le **7 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 2.2.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
 
 ## Résultats automatisés
 
-- **199 tests réussis en 38,54 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- **216 tests réussis en 38,69 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
 - Mesure de diffusion E2EE réalisée en 1.5.0 sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
 - Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
 Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
+
+## Délai réglable des popups (2.2.0)
+
+- Délais valides de 1 à 1440 minutes ; booléens, chaînes, flottants, valeurs négatives, nulles, hors limites et secondes non entières en minutes refusés dans les profils, requêtes et permis signés.
+- Reprise d’un profil signé 2.1.0 sans modifier sa signature : défaut de 42 minutes, puis enregistrement et rechargement du réglage personnalisé.
+- Réduction et augmentation recalculées depuis le dernier envoi ; réservation refusée juste avant l’échéance puis acceptée à l’échéance. La même protection reste active après redémarrage. Un permis falsifié ou rejoué est refusé ; sa durée et sa révision signées permettent de recevoir la carte avant sa mise à jour de profil.
+- TCP direct et relais : modification par un admin, refus d’un membre ordinaire, synchronisation et persistance sur les trois profils, blocage du prochain expéditeur et exclusion du général.
+- Vrais contrôleurs Qt : saisie de 15 minutes puis clic sur Enregistrer, réception du nouveau délai et compte à rebours correspondant après la popup. Membres ordinaires en lecture seule ; contrôles défilables, sans texte comprimé, vérifiés à 100 %, 150 % et 200 % dans les deux thèmes.
+- Captures `group-manager-2.2.0.png` et `about-2.2.0.png` obtenues depuis les widgets Qt rendus, avec des profils de démonstration. La copie installée de l’utilisateur reste en place.
 
 ## Groupes, contenu et lots de fichiers (2.1.0)
 

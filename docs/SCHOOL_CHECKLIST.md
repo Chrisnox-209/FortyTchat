@@ -1,6 +1,6 @@
 # Retour à l’École 42 : essais sur place
 
-Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 2.1.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 2.2.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
 ## Préparer deux postes
 
@@ -80,7 +80,14 @@ Ne pas scanner le `/16`, modifier le pare-feu ou réutiliser un port de service 
 - Désactiver **Notifier la connexion de mes amis**, puis tester DND séparément : pas de bannière ni de rattrapage en réactivant. Au démarrage de l’application, les cinq premières secondes de découverte restent silencieuses.
 - Relever la version de GNOME/AppIndicator, l’apparence des sous-menus, le placement de la bannière et le mode Ne pas déranger d’Ubuntu. Aucun placement n’est imposé au bureau.
 
-## Nouveautés de groupe à vérifier sur plusieurs postes (2.1.0)
+## Délai configurable des popups de groupe (2.2.0)
+
+- Mettre tous les membres à jour. Depuis le menu ··· → Paramètres du groupe, vérifier 42 minutes par défaut. Le créateur et les administrateurs peuvent enregistrer entre 1 et 1440 minutes ; un membre ordinaire peut seulement voir la valeur.
+- Passer à 5 minutes ; vérifier la même valeur sur chaque poste et après redémarrage. Sans créateur connecté, la demande de changement doit être refusée clairement.
+- Envoyer une popup puis réduire à 1 minute : l’attente se recalcule depuis cet envoi, sans repartir de zéro. Augmenter à 60 minutes doit prolonger l’attente sur tous les postes. Les messages d’état et le bouton ✦ doivent indiquer le délai courant.
+- Tester deux expéditeurs simultanés, un changement pendant la préparation d’une carte et l’indépendance des autres groupes. Le général ne doit toujours accepter aucune popup collective. Vérifier le défilement des paramètres sur une petite fenêtre à 150 % et 200 %.
+
+## Nouveautés de groupe à vérifier sur plusieurs postes (2.2.0)
 
 - Créer un groupe, renommer, importer une photo et vérifier sa réception uniquement chez ses membres. Promouvoir puis rétrograder un administrateur ; vérifier qu’un membre ordinaire ne peut pas gérer le groupe et qu’un admin ne peut pas retirer le créateur ou un autre admin.
 - Ajouter un membre connecté : il doit accepter avant de discuter et ne reçoit aucun historique. Retirer un membre : il ne doit plus recevoir les nouveaux échanges ; ses transferts du groupe doivent s’arrêter.
@@ -90,9 +97,9 @@ Ne pas scanner le `/16`, modifier le pare-feu ou réutiliser un port de service 
 - Choisir plusieurs fichiers, glisser un lot dans le champ puis en enregistrer/refuser certains. Les sources ne doivent jamais être déplacées. Vérifier huit offres actives, les suivantes en attente, puis quatre transferts simultanés maximum.
 - Créer un sondage multiple dans le groupe et le général, choisir plusieurs options, valider, changer puis tout décocher/valider. Vérifier barres, voix et pourcentages des votants sur chaque poste.
 
-## Groupes, messages, sondages et images (2.1.0)
+## Groupes, messages, sondages et images (2.2.0)
 
-- Mettre les participants en 2.1.0. Créer un groupe depuis la liste ; accepter sur un poste, laisser l’autre en attente : seul le premier doit recevoir le message. Accepter ensuite sans recevoir d’historique, puis tester un départ. Un poste non invité ne doit recevoir ni message, ni fichier ni sondage.
+- Mettre les participants en 2.2.0. Créer un groupe depuis la liste ; accepter sur un poste, laisser l’autre en attente : seul le premier doit recevoir le message. Accepter ensuite sans recevoir d’historique, puis tester un départ. Un poste non invité ne doit recevoir ni message, ni fichier ni sondage.
 - Modifier un texte envoyé et vérifier la mention Modifié ainsi que sa citation. Supprimer un texte, un sondage et une proposition de fichier. Vérifier Message supprimé, absence de nouveau vote et arrêt de la proposition ; le fichier déjà enregistré chez un destinataire doit rester sur son disque.
 - Créer un sondage dans le général puis dans le groupe ; voter, changer et retirer sa voix sur chacun des postes. Comparer les résultats. Un nouvel arrivant ne doit pas recevoir d’ancien sondage.
 - Joindre un PNG/JPEG/WebP de moins de 10 Mo et ouvrir son aperçu. Refuser ou enregistrer l’original ; vérifier le contenu reçu. Coller une capture avec Ctrl+V : annuler sans envoi, puis confirmer. Contrôler les formats réellement proposés par le presse-papiers Ubuntu sur les postes de l’école.
@@ -117,14 +124,14 @@ Un test réussi sur deux machines ne valide pas à lui seul 200 postes ni plusie
 
 | Vérification | Date / postes | Résultat réel |
 | --- | --- | --- |
-| IPv4/interface/masque | À compléter | À vérifier en 2.1.0 |
-| Découverte même zone | À compléter | À vérifier en 2.1.0 |
-| Découverte entre zones | À compléter | À vérifier en 2.1.0 |
-| TCP général et privé | À compléter | À vérifier en 2.1.0 |
-| Empreintes comparées, identité conservée | À compléter | À vérifier en 2.1.0 |
-| Contenu chiffré TCP et relais | À compléter | À vérifier en 2.1.0 |
+| IPv4/interface/masque | À compléter | À vérifier en 2.2.0 |
+| Découverte même zone | À compléter | À vérifier en 2.2.0 |
+| Découverte entre zones | À compléter | À vérifier en 2.2.0 |
+| TCP général et privé | À compléter | À vérifier en 2.2.0 |
+| Empreintes comparées, identité conservée | À compléter | À vérifier en 2.2.0 |
+| Contenu chiffré TCP et relais | À compléter | À vérifier en 2.2.0 |
 | TLS/relais autorisé | À compléter | Aucun déploiement présumé |
-| Amis de barre et alertes de connexion | À compléter | À vérifier sur la session école en 2.1.0 |
-| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 2.1.0 |
-| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 2.1.0 |
-| Autostart après connexion | À compléter | À vérifier sur la session école en 2.1.0 |
+| Amis de barre et alertes de connexion | À compléter | À vérifier sur la session école en 2.2.0 |
+| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 2.2.0 |
+| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 2.2.0 |
+| Autostart après connexion | À compléter | À vérifier sur la session école en 2.2.0 |

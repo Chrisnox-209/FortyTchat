@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.1.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.2.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -20,7 +20,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.1.0** ajoute les **groupes conservés au démarrage**, leur **gestion des membres, rôles, nom et photo**, les **mentions**, les **blocs de code**, le **glisser-déposer et l’envoi de plusieurs fichiers**, les **sondages à choix multiples avec résultats visuels**, et les **popups de groupe limitées à une toutes les 42 minutes**. Mettre à jour les participants pour les utiliser ensemble.
+La version **2.2.0** rend le **délai des popups de groupe réglable** dans leurs paramètres. Elle conserve les **groupes au démarrage**, leur **gestion des membres, rôles, nom et photo**, les **mentions**, les **blocs de code**, le **glisser-déposer et l’envoi de plusieurs fichiers**, les **sondages à choix multiples avec résultats visuels**, et les **popups de groupe avec un délai partagé et personnalisable**. Mettre à jour les participants pour les utiliser ensemble.
 
 ## Installer et démarrer
 
@@ -205,10 +205,10 @@ Les bannières utilisent `notify-send` lorsqu’il est disponible. Leur position
 ## Groupes privés
 
 1. Cliquer sur **＋ Créer un groupe** dans la liste.
-2. Choisir un nom et **1 à 31 personnes connectées** avec FortyTchat **2.1.0**.
+2. Choisir un nom et **1 à 31 personnes connectées** avec FortyTchat **2.2.0**.
 3. Chacun accepte ou refuse l’invitation dans **GROUPES**. Aucun ancien message n’est envoyé à un nouvel arrivant.
 
-Le groupe dispose de sa **fenêtre indépendante** : messages, fichiers, captures, citations, réactions, mentions, saisie en direct et sondages. Son menu **··· → Membres, rôles, nom et photo** permet de le gérer.
+Le groupe dispose de sa **fenêtre indépendante** : messages, fichiers, captures, citations, réactions, mentions, saisie en direct et sondages. Son menu **··· → Paramètres du groupe** permet de le gérer.
 
 <p align="center">
   <a href="docs/group-chat-2.1.0.png"><img src="docs/group-chat-2.1.0.png" width="590" alt="Groupe privé : photo, mention, bloc de code et sondage à plusieurs réponses"></a>
@@ -216,14 +216,14 @@ Le groupe dispose de sa **fenêtre indépendante** : messages, fichiers, capture
 
 | Rôle | Actions |
 | --- | --- |
-| **Créateur** | Nom, photo, ajout/retrait de membres et attribution/retrait du rôle administrateur |
-| **Administrateur** | Nom, photo et ajout/retrait des membres ordinaires |
+| **Créateur** | Nom, photo, délai des popups, ajout/retrait de membres et attribution/retrait du rôle administrateur |
+| **Administrateur** | Nom, photo, délai des popups et ajout/retrait des membres ordinaires |
 | **Membre** | Discuter, partager, voter, envoyer une popup collective et quitter le groupe |
 
 Le créateur ne peut pas être retiré. Un administrateur ne peut pas retirer le créateur ou un autre administrateur. Les nouveaux membres doivent être connectés et accepter l’invitation. **Le créateur doit être connecté et avoir rejoint pour valider les changements et réserver les popups collectives.** Une modification concurrente peut être refusée : attendre la mise à jour du groupe puis réessayer.
 
 <p align="center">
-  <a href="docs/group-manager-2.1.0.png"><img src="docs/group-manager-2.1.0.png" width="470" alt="Gestion du groupe : photo, nom, membres et rôles administrateur"></a>
+  <a href="docs/group-manager-2.2.0.png"><img src="docs/group-manager-2.2.0.png" width="470" alt="Paramètres du groupe : photo, nom, délai partagé des popups et rôles"></a>
 </p>
 
 Les groupes sont **retrouvés après redémarrage** : nom, miniature de photo, membres, rôles, adhésion et délai de popup sont conservés dans le profil. Le créateur confirme l’accès des membres qui redémarrent ; en son absence, leur groupe apparaît en attente de restauration. **Les messages et les votes ne sont jamais sauvegardés ni retransmis.** Fermer la fenêtre garde le groupe actif ; **Quitter le groupe** arrête ses échanges et conserve ce choix au démarrage suivant. Limite : **32 groupes de 32 membres**.
@@ -234,7 +234,11 @@ Chaque message garde une copie chiffrée distincte par destinataire. Un membre r
 
 Le bouton **✦** ouvre l’éditeur de notification animée et ses réponses personnalisables. Il cible les membres connectés qui ont rejoint ; leurs réponses reviennent **en privé à l’expéditeur**.
 
-**Une seule popup collective toutes les 42 minutes par groupe, tous expéditeurs confondus.** Le compteur est conservé après redémarrage et le bouton indique l’attente. La réservation reste consommée si certains membres sont absents, en Ne pas déranger ou si une remise échoue. Le créateur connecté coordonne les réservations pour empêcher deux envois simultanés.
+**Une seule popup collective par délai, tous expéditeurs confondus.** Dans **··· → Paramètres du groupe → Délai entre les popups du groupe**, le créateur ou un administrateur choisit **1 à 1440 minutes (24 h)**, puis clique sur **Enregistrer**. La valeur par défaut reste **42 minutes**. Le créateur doit être connecté pour valider ce réglage.
+
+**La nouvelle durée est calculée depuis la dernière popup** : réduire le délai peut rendre l’envoi disponible immédiatement si assez de temps s’est déjà écoulé ; l’augmenter prolonge l’attente. Le réglage est propre à chaque groupe. Le compteur est conservé après redémarrage et le bouton indique l’attente. La réservation reste consommée si certains membres sont absents, en Ne pas déranger ou si une remise échoue. Le créateur connecté coordonne les réservations pour empêcher deux envois simultanés.
+
+**Mettre tous les membres en 2.2.0** pour utiliser ensemble les groupes et leur délai configurable. Les groupes existants sont repris avec **42 minutes** tant qu’aucun nouveau délai n’est enregistré.
 
 **Le #général n’accepte aucune popup collective.** Les popups privées gardent leurs limites habituelles.
 
@@ -337,7 +341,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 </tr>
 </table>
 
-Les groupes, sondages, changements de messages et miniatures nécessitent **2.1.0 chez les participants**. Un relais chiffré **1.5.0 minimum** reste compatible. Les anciens clients peuvent toujours échanger les messages et fichiers classiques ; ils ne reçoivent pas les nouveaux événements et peuvent conserver l’original d’un message modifié ou supprimé.
+Les groupes, sondages, changements de messages et miniatures nécessitent **2.2.0 chez les participants**. Un relais chiffré **1.5.0 minimum** reste compatible. Les anciens clients peuvent toujours échanger les messages et fichiers classiques ; ils ne reçoivent pas les nouveaux événements et peuvent conserver l’original d’un message modifié ou supprimé.
 
 ## Chiffrement de bout en bout
 
@@ -373,7 +377,7 @@ Dans **Paramètres**, choisir le pseudo, le thème, l’avatar, le démarrage au
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-2.1.0.png"><img src="docs/about-2.1.0.png" width="560" alt="À propos de FortyTchat 2.1.0 avec le logo FT, les fonctions et le lien GitHub"></a>
+  <a href="docs/about-2.2.0.png"><img src="docs/about-2.2.0.png" width="560" alt="À propos de FortyTchat 2.2.0 avec le logo FT, les fonctions et le lien GitHub"></a>
 </p>
 
 Les onglets Général et À propos sont défilables pour rester lisibles sur les petits écrans.
@@ -415,7 +419,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.1.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.2.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Icône absente ou mal placée | La session doit prendre en charge GNOME/StatusNotifier/AppIndicator. Utiliser le dock ou le lanceur sinon ; la place dans la barre dépend du bureau. |
 | Un clic ouvre le menu, le doubleclic ne marche pas | L’option **Compatibilité doubleclic de l’icône (GNOME)** tente de reconnaître l’ouverture/fermeture rapide du menu. Elle dépend des événements transmis par la barre. Utiliser **Ouvrir FortyTchat** si nécessaire. |
 | Une fermeture rapide du menu ouvre le tchat | Désactiver cette compatibilité dans Général. Échap peut être indistinguable d’un second clic sur certaines barres. Aucune extension du bureau n’est modifiée. |
