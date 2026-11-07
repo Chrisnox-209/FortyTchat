@@ -1,8 +1,8 @@
 import math
 import time
 
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QTextEdit
+from PySide6.QtCore import Qt, Signal, QTimer, QStringListModel
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QTextEdit, QCompleter
 from ..features.emojis import EmojiPicker
 from ..features.wizz import wizz_label
 from .widgets import button, label
@@ -13,12 +13,81 @@ class ComposeEdit(QTextEdit):
     submitted = Signal()
     focus_lost = Signal()
     image_pasted = Signal(object)
+    files_dropped = Signal(object)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        from PySide6.QtGui import QShortcut, QKeySequence
+        self.mention_model = QStringListModel([], self)
+        self.mentions = QCompleter(self.mention_model, self)
+        self.mentions.setWidget(self)
+        self.mentions.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.mentions.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        self.mentions.activated[str].connect(self.insert_mention)
+        self.textChanged.connect(self.complete_mentions)
+        self.code_shortcut = QShortcut(QKeySequence('Ctrl+Shift+C'), self, activated=self.insert_code)
+        self.setToolTip('Entrée : envoyer · Maj+Entrée : nouvelle ligne · @ : mention · Ctrl+Maj+C : bloc de code · glisser des fichiers ici')
+
+    def set_mentions(self, names):
+        self.mention_model.setStringList(sorted(set(names), key=str.casefold))
+
+    def mention_prefix(self):
+        import re
+        cursor = self.textCursor()
+        prefix = self.toPlainText().encode('utf-16-le')[:cursor.position() * 2].decode('utf-16-le')
+        match = re.search(r'(?<![\w@])@([A-Za-z0-9_-]{0,28})$', prefix)
+        return match[1] if match else None
+
+    def complete_mentions(self):
+        prefix = self.mention_prefix()
+        if prefix is None or not self.hasFocus():
+            self.mentions.popup().hide(); return
+        self.mentions.setCompletionPrefix(prefix)
+        self.mentions.popup().setCurrentIndex(self.mentions.completionModel().index(0, 0))
+        rect = self.cursorRect(); rect.setWidth(240)
+        self.mentions.complete(rect)
+
+    def insert_mention(self, nickname):
+        prefix = self.mention_prefix()
+        if prefix is None: return
+        from PySide6.QtGui import QTextCursor
+        cursor = self.textCursor()
+        for _ in prefix: cursor.movePosition(QTextCursor.MoveOperation.PreviousCharacter, QTextCursor.MoveMode.KeepAnchor)
+        cursor.insertText(nickname + ' ')
+        self.setTextCursor(cursor)
+        self.mentions.popup().hide()
+
+    def insert_code(self):
+        from .message_text import CodeEditor
+        dialog = CodeEditor(self); dialog.exec(); dialog.deleteLater()
+
+    def contextMenuEvent(self, event):
+        menu = self.createStandardContextMenu()
+        menu.addSeparator(); menu.addAction('Insérer un bloc de code · Ctrl+Maj+C', self.insert_code)
+        menu.exec(event.globalPos()); menu.deleteLater()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls() and self.isEnabled():
+            if all(url.isLocalFile() for url in event.mimeData().urls()):
+                event.setDropAction(Qt.DropAction.CopyAction); event.accept(); return
+        event.ignore()
+
+    def dragMoveEvent(self, event):
+        self.dragEnterEvent(event)
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls() and all(url.isLocalFile() for url in event.mimeData().urls()) and self.isEnabled():
+            self.files_dropped.emit([url.toLocalFile() for url in event.mimeData().urls()][:65])
+            event.setDropAction(Qt.DropAction.CopyAction); event.accept(); return
+        event.ignore()
 
     def focusOutEvent(self, event):
         self.focus_lost.emit()
         super().focusOutEvent(event)
 
     def keyPressEvent(self, event):
+        if self.mentions.popup().isVisible() and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Tab, Qt.Key.Key_Escape):
+            event.ignore(); return
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
             self.submitted.emit()
             event.accept()
@@ -26,13 +95,15 @@ class ComposeEdit(QTextEdit):
             super().keyPressEvent(event)
 
     def insertFromMimeData(self, source):
-        if source.hasImage():
+        if source.hasUrls() and all(url.isLocalFile() for url in source.urls()):
+            self.files_dropped.emit([url.toLocalFile() for url in source.urls()][:65])
+        elif source.hasImage():
             self.image_pasted.emit(source.imageData())
         elif source.hasText():
             self.insertPlainText(source.text()[:2001])
 
     def canInsertFromMimeData(self, source):
-        return source.hasImage() or source.hasText()
+        return source.hasImage() or source.hasText() or source.hasUrls()
 
 
 class Composer(QFrame):
@@ -180,7 +251,11 @@ class Composer(QFrame):
         self.break_button.setEnabled(self.available)
         self.break_button.setText('Pause' if self.width() < 520 or self.counter.text() else 'On fait une pause ?')
         self.file_button.setEnabled(self.available)
-        self.card_button.setEnabled(self.available)
+        group_at = getattr(self, 'group_popup_at', None)
+        group_wait = max(0, group_at + 42 * 60 - time.time()) if group_at else 0
+        self.card_button.setEnabled(self.available and group_wait <= 0)
+        if group_at is not None:
+            self.card_button.setToolTip(f'Popup du groupe disponible dans {math.ceil(group_wait / 60)} min' if group_wait else 'Envoyer une popup à tout le groupe · une toutes les 42 min')
         self.poll_button.setEnabled(self.available)
         if not self.available:
             self.stop_typing()

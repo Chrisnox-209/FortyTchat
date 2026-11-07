@@ -53,7 +53,7 @@ def test_files_pause_replies_and_wizz_from_actual_ui(qt, tmp_path, monkeypatch):
         view = controller.open_private(peer.sid)
 
         # The actual plus button offers a file to this private recipient.
-        monkeypatch.setattr(QFileDialog, 'getOpenFileName', lambda *a, **k: (str(source), ''))
+        monkeypatch.setattr(QFileDialog, 'getOpenFileNames', lambda *a, **k: ([str(source)], ''))
         view.composer.file_button.click()
         until(qt, lambda: any(k == 'file_offer' for k, d in peer_events))
         outgoing = next(d for k, d in peer_events if k == 'file_offer')

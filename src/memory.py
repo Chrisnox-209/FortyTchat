@@ -22,6 +22,7 @@ class Message:
     reactions: dict = field(default_factory=dict)
     delivery_recipients: dict = field(default_factory=dict)
     delivery_local: bool = False
+    mentions: list = field(default_factory=list)
     edited: bool = False
     deleted: bool = False
     poll: dict | None = None
@@ -72,6 +73,7 @@ class Conversations:
             return None
         if delete:
             message.text, message.deleted, message.edited = 'Message supprimé', True, False
+            message.mentions.clear()
             message.reactions.clear()
             message.reply_to, message.reply_name, message.reply_text = '', '', ''
             message.poll = None

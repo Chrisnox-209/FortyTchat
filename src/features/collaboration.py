@@ -1,11 +1,11 @@
-"""Bounded, session-only rooms, message ownership and polls. No disk storage."""
+"""Bounded room sessions, message ownership and ephemeral polls."""
 from collections import OrderedDict
 from dataclasses import dataclass, field
 import re
 import time
 
-CAPABILITY = 'rooms'
-GROUP_EVENTS = {'group_invite', 'group_join', 'group_leave'}
+CAPABILITY = 'rooms2'
+GROUP_EVENTS = {'group_invite', 'group_join', 'group_leave', 'group_state', 'group_update', 'group_sync', 'group_popup_request', 'group_popup_grant', 'group_removed'}
 CHANGE_EVENTS = {'message_edit', 'message_delete'}
 POLL_EVENTS = {'poll_create', 'poll_vote'}
 COLLAB_EVENTS = GROUP_EVENTS | CHANGE_EVENTS | POLL_EVENTS
@@ -45,8 +45,10 @@ class Room:
     left: set = field(default_factory=set)
     sessions: dict = field(default_factory=dict)
 
+    profile: dict = field(default_factory=dict)
+
     def public(self):
-        return dict(id=self.id, name=self.name, owner=self.owner, members=list(self.members),
+        return dict(**{k: v for k, v in self.profile.items() if k not in ('id', 'name', 'owner', 'members', 'key', 'signature')}, id=self.id, name=self.name, owner=self.owner, members=list(self.members),
                     state=self.state, joined=sorted(self.joined), left=sorted(self.left))
 
 
@@ -99,7 +101,7 @@ class PollBook:
 
     def create(self, frame, chat):
         poll = dict(id=frame['id'], author=frame['from'], chat=chat, question=frame['question'],
-                    options=list(frame['options']), audience=list(frame['audience']), votes={}, sequences={}, deleted=False)
+                    options=list(frame['options']), multiple=frame.get('multiple', False), audience=list(frame['audience']), votes={}, sequences={}, deleted=False)
         self.items[frame['id']] = poll
         while len(self.items) > MAX_POLLS:
             self.items.popitem(last=False)
@@ -107,16 +109,23 @@ class PollBook:
 
     def vote(self, frame, chat):
         poll = self.items.get(frame['poll'])
-        if (not poll or poll['deleted'] or poll['chat'] != chat or frame['from'] not in poll['audience']
-                or not -1 <= frame['option'] < len(poll['options'])):
+        if not poll or poll['deleted'] or poll['chat'] != chat or frame['from'] not in poll['audience']:
+            return False
+        value = frame.get('options') if poll['multiple'] else frame.get('option')
+        if poll['multiple']:
+            if (not isinstance(value, list) or len(value) > len(poll['options'])
+                    or any(type(i) is not int or not 0 <= i < len(poll['options']) for i in value) or len(set(value)) != len(value)):
+                return False
+            value = sorted(value)
+        elif type(value) is not int or not -1 <= value < len(poll['options']):
             return False
         if frame['seq'] <= poll['sequences'].get(frame['from'], -1):
             return True
         poll['sequences'][frame['from']] = frame['seq']
-        if frame['option'] == -1:
+        if value == -1 or value == []:
             poll['votes'].pop(frame['from'], None)
         else:
-            poll['votes'][frame['from']] = frame['option']
+            poll['votes'][frame['from']] = value
         return True
 
     def public(self, reference):

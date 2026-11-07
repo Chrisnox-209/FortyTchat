@@ -259,10 +259,12 @@ class Application(QObject, CollaborationController):
         view.composer.typing_changed.connect(lambda active: self.send_typing(view.current, active))
         view.composer.card_requested.connect(lambda: self.show_card_editor(view.current))
         view.composer.poll_requested.connect(lambda: self.show_poll_editor(view.current))
+        view.input.files_dropped.connect(lambda paths:self.queue_files(view.current, paths))
         view.composer.image_pasted.connect(lambda image: self.paste_image(view.current, image))
         view.chat.edit_requested.connect(lambda reference:self.edit_message(view.current, reference))
         view.chat.delete_requested.connect(lambda reference:self.delete_message(view.current, reference))
-        view.chat.vote_requested.connect(lambda reference, option:self.worker.send('poll_vote', view.current, poll=reference, option=option))
+        view.chat.vote_requested.connect(lambda reference, option:self.worker.send('poll_vote', view.current, poll=reference, **({'options':option} if isinstance(option, list) else {'option':option})))
+        if hasattr(self, 'groups'): self.refresh_mentions()
 
     def open_friend(self, contact_id):
         if contact_id in self.preferences.friends:
@@ -286,7 +288,13 @@ class Application(QObject, CollaborationController):
     def show_card_editor(self, target, request='', popup=None):
         view = self.view_for(target) or self.window
         peer = self.window.peers.get(target) or next((item for item in self.latest_peers if item['sid'] == target), None)
-        if not self.cards_available(peer):
+        room = self.groups.get(target) if group_id(target) and not request else None
+        if room:
+            import time as _time
+            if room['state'] != 'joined' or _time.time() < room.get('popup_at', 0) + 42 * 60:
+                view.show_notice('Une popup collective toutes les 42 minutes, partagées par tous les membres.'); return None
+            peer = {'nick':room['name'], 'caps':['choices']}
+        elif target == 'general' or not self.cards_available(peer):
             view.show_notice('Les notifications animées nécessitent des clients et un relais compatibles 1.5.0, ou une connexion directe.')
             return None
         key = (target, request)
@@ -463,6 +471,7 @@ class Application(QObject, CollaborationController):
             view.set_peer(self.window.peers.get(sid), sid in self.window.sidebar.blocked or view.contact_id in self.preferences.blocked_contacts)
             view.set_friend(view.contact_id in self.preferences.friends)
         self.refresh_friend_surfaces()
+        self.refresh_mentions()
 
     def refresh_friend_surfaces(self, notify=True):
         blocked = self.window.sidebar.blocked
@@ -648,7 +657,7 @@ class Application(QObject, CollaborationController):
                     if view.composer.reply_to == frame.get('reply_to', ''):
                         view.composer.clear_reply()
                 self.add_message(target, Message(self.worker.client.sid, self.preferences.nickname, frame['text'], outgoing=True,
-                                                 id=frame['id'], avatar=self.preferences.avatar,
+                                                 id=frame['id'], mentions=frame.get('mentions', []), avatar=self.preferences.avatar,
                                                  avatar_image=self.preferences.avatar_image, reply_to=frame.get('reply_to', ''),
                                                  delivery_recipients={peer['sid']: {'nick': peer['nick'], 'reads': peer['reads'], 'state': 'sent'}
                                                                       for peer in data.get('recipients', [])},
@@ -676,11 +685,11 @@ class Application(QObject, CollaborationController):
             return
         if kind == 'message':
             self.add_message(target, Message(frame['from'], nickname, frame['text'], id=frame['id'],
-                                             avatar=avatar, avatar_image=avatar_image, reply_to=frame.get('reply_to', '')))
+                                             avatar=avatar, avatar_image=avatar_image, reply_to=frame.get('reply_to', ''), mentions=frame.get('mentions', [])))
             self.typing_state.update(target, frame['from'], nickname, False)
             self.refresh_typing()
             if not self.preferences.dnd and not self.is_viewed(target):
-                self.notifications.show(f'{nickname} · nouveau message')
+                self.notifications.show(f'{nickname} · te mentionne' if self.preferences.contact_id in frame.get('mentions', []) else f'{nickname} · nouveau message')
         elif kind == 'reaction':
             self.apply_reaction(target, frame['message'], contact_id or frame['from'], frame['emoji'], nickname)
         elif kind == 'typing':
@@ -700,11 +709,11 @@ class Application(QObject, CollaborationController):
                                 if kind == 'card_invite' else f'☕ {nickname} te propose une pause.')
             def answer(value):
                 self.send_card_answer(frame['from'], frame['id'], kind, value)
-            peer = self.window.peers.get(target) or next((item for item in self.latest_peers if item['sid'] == target), {})
+            peer = self.window.peers.get(frame['from']) or next((item for item in self.latest_peers if item['sid'] == frame['from']), {})
             popup = (CardPopup(nickname, frame, answer, self.window) if kind == 'card_invite'
                      else BreakPopup(nickname, answer, self.window, allow_custom=self.cards_available(peer)))
-            popup.custom_requested.connect(lambda: self.show_card_editor(target, frame['id'], popup))
-            self.popups[frame['id']] = (target, popup)
+            popup.custom_requested.connect(lambda: self.show_card_editor(frame['from'], frame['id'], popup))
+            self.popups[frame['id']] = (frame['from'], popup)
             popup.finished.connect(lambda result, key=frame['id']: self.remove_popup(key))
             popup.show()
             self.notifications.show(f'{nickname} · notification personnalisée' if kind == 'card_invite' else f'{nickname} : on fait une pause ?')
@@ -726,9 +735,9 @@ class Application(QObject, CollaborationController):
 
     def choose_file(self, target):
         view = self.view_for(target) or self.window
-        path, _ = QFileDialog.getOpenFileName(view, 'Joindre un fichier · 20 Mio maximum')
-        if path:
-            self.offer_image_file(target, path)
+        paths, _ = QFileDialog.getOpenFileNames(view, 'Joindre des fichiers · 20 Mio par fichier')
+        if paths:
+            self.queue_files(target, paths)
 
     def refresh_file_card(self, metadata):
         view = self.view_for(metadata['target'])
@@ -990,6 +999,8 @@ class Application(QObject, CollaborationController):
             return
         self.stopping = True
         self.typing_timer.stop()
+        self.file_queue_timer.stop()
+        self.file_queue.clear()
         self.window.composer.stop_typing()
         self.window.chat.typing.set_typers([])
         self.window.quitting_now = True

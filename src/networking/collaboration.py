@@ -3,12 +3,14 @@ import asyncio
 from ..features.collaboration import (CAPABILITY, GROUP_EVENTS, CHANGE_EVENTS, POLL_EVENTS,
     MAX_GROUPS, MAX_MEMBERS, MAX_VOTERS, Room, MessageBook, PollBook, group_key, group_id, chat_target, plain)
 from ..identity import session_id
+from .groups import GroupNetwork
 
 
-class CollaborationNetwork:
+class CollaborationNetwork(GroupNetwork):
     def init_collaboration(self):
         self.rooms, self.book, self.polls = {}, MessageBook(), PollBook()
         self.change_sequence = 0
+        self.init_groups()
 
     def publish_groups(self):
         self.emit('groups', groups=[room.public() for room in self.rooms.values()])
@@ -16,7 +18,7 @@ class CollaborationNetwork:
     def group_access(self, peer, reference):
         room = self.rooms.get(reference)
         return bool(room and room.state in ('joining', 'joined') and peer and CAPABILITY in peer.caps
-                    and peer.contact_id in room.joined and peer.contact_id not in room.left
+                    and peer.contact_id in room.members and peer.contact_id in room.joined and peer.contact_id not in room.left
                     and peer.sid in room.sessions.get(peer.contact_id, ()))
 
     def conversation_peers(self, target, capability=None):
@@ -33,101 +35,6 @@ class CollaborationNetwork:
         if 'preview' in frame and CAPABILITY not in peer.caps:
             frame = {key: value for key, value in frame.items() if key != 'preview'}
         return frame
-
-    async def create_group(self, name, contacts):
-        from .protocol import event, encode, ProtocolError
-        if not isinstance(contacts, (list, tuple)) or any(not isinstance(cid, str) for cid in contacts):
-            return None
-        unique = list(dict.fromkeys(contacts))
-        if (not plain(name, 64) or any(c in name for c in '\n\t') or not 1 <= len(unique) < MAX_MEMBERS or self.contact_id in unique
-                or len(self.rooms) >= MAX_GROUPS):
-            self.emit('notice', text='Choisis un nom et 1 à 31 personnes (32 groupes maximum).')
-            return None
-        peers = []
-        for cid in unique:
-            candidates = [p for p in self.conversation_peers('general', CAPABILITY) if p.contact_id == cid]
-            if not candidates:
-                self.emit('notice', text='Chaque membre doit être connecté avec FortyTchat 2.0.0 et autorisé.')
-                return None
-            peers.append(sorted(candidates, key=lambda p: p.sid)[0])
-        if not self.message_bucket.allow():
-            self.emit('notice', text='Patiente un instant avant de créer un groupe.')
-            return None
-        reference = session_id()
-        room = Room(reference, name.strip(), self.contact_id, tuple([self.contact_id] + unique),
-                    state='joined', joined={self.contact_id})
-        room.sessions[self.contact_id] = {self.sid}
-        self.rooms[reference] = room
-        self.publish_groups()
-        self.emit('group_created', group=room.public())
-        frames = [event('group_invite', self.sid, peer.sid, room=reference, name=room.name, members=list(room.members)) for peer in peers]
-        try:
-            for frame in frames: encode(frame)
-        except ProtocolError:
-            self.rooms.pop(reference, None); self.publish_groups()
-            return None
-        results = await asyncio.gather(*(self._send_to(peer, frame) for peer, frame in zip(peers, frames)), return_exceptions=True)
-        if any(ok is not True for ok in results):
-            self.emit('notice', text='Certaines invitations de groupe n’ont pas été remises.')
-        return reference
-
-    async def answer_group(self, reference, accept):
-        from .protocol import event
-        room = self.rooms.get(reference)
-        if not room or room.state not in ('pending', 'joined'):
-            return False
-        if accept and room.state != 'pending':
-            return False
-        room.state = 'joining' if accept else ('declined' if room.state == 'pending' else 'left')
-        if accept:
-            room.joined.add(self.contact_id)
-            room.sessions[self.contact_id] = {self.sid}
-        else:
-            room.left.add(self.contact_id)
-            room.joined.discard(self.contact_id)
-        self.publish_groups()
-        peers = [p for p in self.conversation_peers('general', CAPABILITY) if p.contact_id in room.members]
-        kind = 'group_join' if accept else 'group_leave'
-        results = await asyncio.gather(*(self._send_to(p, event(kind, self.sid, p.sid, room=reference)) for p in peers), return_exceptions=True)
-        if accept:
-            room.state = 'joined'
-            self.publish_groups()
-        if any(result is not True for result in results):
-            self.emit('notice', text='Présence de groupe non confirmée chez certains membres.')
-        return True
-
-    def receive_group(self, frame, peer):
-        reference = frame['room']
-        room = self.rooms.get(reference)
-        if frame['type'] == 'group_invite':
-            members = tuple(frame['members'])
-            if self.contact_id not in members or peer.contact_id not in members:
-                return False, 'Invitation incohérente'
-            if room:
-                return (room.owner == peer.contact_id and room.members == members and room.name == frame['name'], 'Groupe déjà connu')
-            if len(self.rooms) >= MAX_GROUPS:
-                return False, 'Trop de groupes'
-            room = Room(reference, frame['name'], peer.contact_id, members, joined={peer.contact_id})
-            room.sessions[peer.contact_id] = {peer.sid}
-            self.rooms[reference] = room
-            self.publish_groups()
-            self.emit('group_invitation', group=room.public(), nickname=peer.nick)
-            return True, ''
-        if not room or peer.contact_id not in room.members or room.state in ('declined', 'left'):
-            return False, 'Groupe indisponible'
-        if frame['type'] == 'group_join':
-            if peer.contact_id in room.left:
-                return False, 'Ce membre a quitté le groupe'
-            room.joined.add(peer.contact_id)
-            sessions = room.sessions.setdefault(peer.contact_id, set())
-            if len(sessions) >= 4 and peer.sid not in sessions:
-                return False, 'Trop de sessions pour ce membre'
-            sessions.add(peer.sid)
-        else:
-            room.left.add(peer.contact_id)
-            room.joined.discard(peer.contact_id)
-        self.publish_groups()
-        return True, ''
 
     def publish_change(self, frame, chat):
         if frame['type'] == 'message_delete':
@@ -196,6 +103,9 @@ class CollaborationNetwork:
             if item['recipients'] - {p.sid for p in peers}:
                 self.emit('notice', text='Des contacts absents ou des clients anciens peuvent conserver le message original. Les changements ne sont pas renvoyés après reconnexion.')
             payload['seq'] = self.change_sequence
+            if kind == 'message_edit':
+                from ..features.text import mention_ids
+                payload['mentions'] = mention_ids(payload.get('text', ''), [p.public() for p in peers])
         elif kind == 'poll_create':
             if any(CAPABILITY not in p.caps for p in self.conversation_peers(target)):
                 self.emit('notice', text='Certains contacts doivent mettre à jour FortyTchat pour voir ce sondage.')

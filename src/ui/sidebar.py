@@ -205,8 +205,8 @@ class Sidebar(QFrame):
             for key, room in self.groups.items():
                 detail = 'Invitation · cliquer pour rejoindre' if room['state'] == 'pending' else (
                     self.previews.get(key, f'{len(set(room["joined"]) - set(room["left"]))} membres · groupe privé')
-                    if room['state'] == 'joined' else 'Groupe quitté ou invitation refusée')
-                self._row(key, room['name'], detail, room['state'] == 'joined')
+                    if room['state'] == 'joined' else 'Restauration · créateur hors ligne' if room['state'] == 'restoring' else 'Retiré du groupe' if room['state'] == 'removed' else 'Groupe quitté ou invitation refusée')
+                self._row(key, room['name'], detail, room['state'] == 'joined', room.get('avatar', -1), room.get('photo', ''))
         if self.friends:
             self._section(f'AMIS  ·  {len(self.friends)}')
             live_friends = {cid: online_contact(self.peers.values(), cid) for cid in self.friends}

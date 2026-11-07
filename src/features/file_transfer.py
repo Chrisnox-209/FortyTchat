@@ -191,6 +191,9 @@ class FileTransfers:
             self.client.remember_message(frame, chat_target(frame, self.client.sid))
         elif kind == 'file_accept':
             offer = self.outgoing.get(frame['request'])
+            from .collaboration import group_id
+            if offer and group_id(offer['to']) and not self.client.group_access(peer, group_id(offer['to'])):
+                return False, 'Membre retiré du groupe'
             if not offer or sender not in offer['recipients'] or sender in offer['finished']:
                 return False, 'Proposition expirée'
             if sender not in offer['active']:
@@ -225,6 +228,9 @@ class FileTransfers:
         elif kind in ('file_chunk', 'file_end'):
             key = (frame['request'], sender)
             offer = self.incoming.get(key)
+            if offer and offer.get('group') and not self.client.group_access(peer, offer['group']):
+                self.fail_incoming(key, 'Membre retiré du groupe.')
+                return False, 'Groupe indisponible'
             if not offer or not offer.get('file'):
                 return False, 'Ce fichier n’a pas été accepté'
             if kind == 'file_chunk':
@@ -286,6 +292,8 @@ class FileTransfers:
         offer = self.incoming.get(key)
         if not offer or offer.get('file'):
             return
+        if offer.get('group') and not self.client.group_access(self.client.peers.get(sender), offer['group']):
+            self.fail_incoming(key, 'Groupe indisponible.'); return
         if sum(bool(item.get('file')) for item in self.incoming.values()) >= MAX_ACTIVE:
             self.emit('file_deferred', offer, sender, reason='Quatre téléchargements simultanés maximum. Réessaie à la fin d’un transfert.')
             return

@@ -25,9 +25,13 @@ def messages(log):
 
 def test_collaboration_validation_and_bounded_authorized_changes():
     a,b,g,mid=session_id(),session_id(),session_id(),session_id()
-    encode(event('group_invite',a,b,room=g,name='Projet',members=[a,b]))
-    for patch in [dict(members=[a,a]),dict(name=''),dict(members=['bad',b]),dict(group=g)]:
-        with pytest.raises(ProtocolError):encode(event('group_invite',a,b,**dict(room=g,name='Projet',members=[a,b],**{})) | patch)
+    from src.features.group_profile import new_profile
+    from src.security import CryptoIdentity
+    identity=CryptoIdentity(a)
+    profile=new_profile(identity,g,'Projet',[a,b])
+    encode(event('group_invite',a,b,room=g,profile=profile))
+    for patch in [dict(members=[a,a]),dict(name=''),dict(members=['bad',b]),dict(owner=b)]:
+        with pytest.raises(ProtocolError):encode(event('group_invite',a,b,room=g,profile=profile | patch))
     for patch in [dict(seq=True),dict(seq=-1),dict(message='bad'),dict(text='')]:
         with pytest.raises(ProtocolError):encode(event('message_edit',a,b,message=mid,seq=1,text='New') | patch)
     for patch in [dict(options=['A','a']),dict(audience=[b]),dict(options=['Only']),dict(question='')]:
@@ -181,7 +185,7 @@ def test_legacy_contacts_receive_original_messages_without_unknown_collaboration
         a,b,old=clients
         original=old.hello
         def hello(kind='hello'):
-            frame=original(kind);frame['caps']=[c for c in frame['caps'] if c!='rooms']
+            frame=original(kind);frame['caps']=[c for c in frame['caps'] if c!='rooms2']
             return old.crypto.sign_presence(frame)
         old.hello=hello
         try:

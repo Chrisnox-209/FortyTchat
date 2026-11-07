@@ -28,6 +28,7 @@ class Peer:
     wizz: object = field(default=None, repr=False)
     social_bucket: object = field(default=None, repr=False)
     typing_bucket: object = field(default=None, repr=False)
+    control_bucket: object = field(default=None, repr=False)
     receipt_bucket: object = field(default=None, repr=False)
 
     @property

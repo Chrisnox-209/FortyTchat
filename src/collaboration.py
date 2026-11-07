@@ -1,11 +1,14 @@
-"""Qt actions for the session-only collaboration features."""
-from PySide6.QtCore import Qt
+"""Qt actions for groups and ephemeral chat interactions."""
+import time
+from collections import deque
+from pathlib import Path
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QListWidget, QListWidgetItem, QMessageBox, QInputDialog
 from .features.collaboration import CAPABILITY, group_id, group_key
 from .identity import valid_contact_id
 from .memory import Message
-from .ui.groups import GroupEditor, GroupWindow
+from .ui.groups import GroupEditor, GroupWindow, GroupManager
 from .ui.polls import PollEditor
 from .ui.images import PreviewLoader, ImageSendDialog, ImageViewer
 from .ui.widgets import button, label
@@ -15,9 +18,23 @@ class CollaborationController:
     def init_collaboration_ui(self):
         self.groups, self.group_windows, self.group_names = {}, {}, {}
         self.collaboration_dialogs, self.preview_loaders = set(), set()
+        self.file_queue, self.file_queue_busy, self.file_queue_next = deque(), False, 0.0
+        self.file_queue_timer = QTimer(self)
+        self.file_queue_timer.setInterval(200)
+        self.file_queue_timer.timeout.connect(self.drain_file_queue)
+        self.file_queue_timer.start()
         self.window.chat.session_id = self.worker.client.sid
         self.window.sidebar.group_requested.connect(self.show_group_editor)
         self.window.sidebar.block_requested.connect(self.block_profile)
+
+    def refresh_mentions(self):
+        views = [self.window, *self.private_windows.values(), *self.group_windows.values()]
+        for view in views:
+            target = view.current
+            members = self.groups.get(target, {}).get('members', ())
+            names = [p['nick'] for p in self.latest_peers if p.get('encrypted') and p['sid'] not in self.window.sidebar.blocked
+                     and (p['contact_id'] in members if group_id(target) else target == 'general' or target == p['sid'])]
+            view.input.set_mentions(names)
 
     def keep_dialog(self, dialog):
         self.collaboration_dialogs.add(dialog)
@@ -32,7 +49,7 @@ class CollaborationController:
         peers = [p for p in self.latest_peers if p.get('encrypted') and CAPABILITY in p.get('caps', ())
                  and p['contact_id'] not in self.preferences.blocked_contacts and p['sid'] not in self.window.sidebar.blocked]
         if not peers:
-            self.window.show_notice('Une autre personne connectée avec FortyTchat 2.0.0 est nécessaire pour créer un groupe.')
+            self.window.show_notice('Une autre personne connectée avec FortyTchat 2.1.0 est nécessaire pour créer un groupe.')
             return None
         editor = GroupEditor(peers, self.window)
         editor.submitted.connect(lambda name, contacts:self.worker.submit(self.worker.client.create_group(name, contacts)))
@@ -67,9 +84,18 @@ class CollaborationController:
         view.chat.file_action.connect(self.file_action)
         view.viewed.connect(self.mark_viewed)
         view.closed.connect(self.close_group_window)
+        view.manage_requested.connect(self.manage_group)
         view.leave_requested.connect(lambda gid:self.worker.submit(self.worker.client.answer_group(gid, False)))
         view.open_window()
         return view
+
+    def manage_group(self, reference):
+        room = self.groups.get(group_key(reference))
+        if not room: return None
+        peers = [p for p in self.latest_peers if p.get('encrypted') and CAPABILITY in p.get('caps', ()) and p['sid'] not in self.window.sidebar.blocked]
+        dialog = GroupManager(room, self.preferences.contact_id, self.group_names, peers, self.view_for(group_key(reference)) or self.window)
+        dialog.changed.connect(lambda changes:self.worker.submit(self.worker.client.update_group(reference, changes)))
+        return self.keep_dialog(dialog)
 
     def close_group_window(self, key):
         view = self.group_windows.pop(key, None)
@@ -81,7 +107,7 @@ class CollaborationController:
         if target != 'general' and not group_id(target):
             return None
         editor = PollEditor(view)
-        editor.submitted.connect(lambda question, options:self.worker.send('poll_create', target, question=question, options=options))
+        editor.submitted.connect(lambda question, options, multiple:self.worker.send('poll_create', target, question=question, options=options, multiple=multiple))
         return self.keep_dialog(editor)
 
     def edit_message(self, target, reference):
@@ -104,16 +130,35 @@ class CollaborationController:
         if QMessageBox.question(view, 'Supprimer le message', text) == QMessageBox.StandardButton.Yes:
             self.worker.send('message_delete', target, message=reference)
 
-    def offer_image_file(self, target, path):
+    def queue_files(self, target, paths):
+        view = self.view_for(target) or self.window
+        if not view.composer.available or not isinstance(paths, (list, tuple)): return
+        if not paths or len(paths) + len(self.file_queue) + int(self.file_queue_busy) > 64:
+            view.show_notice('La file peut contenir 64 fichiers au maximum. Attends avant d’en ajouter.'); return
+        regular = [str(path) for path in paths if Path(path).is_file()]
+        if not regular:
+            view.show_notice('Glisse des fichiers ; les dossiers ne sont pas envoyés.'); return
+        self.file_queue.extend((target, path) for path in regular)
+        view.show_notice(f'{len(regular)} fichier(s) en file d’envoi · 20 Mio chacun · validation par les destinataires.')
+        self.drain_file_queue()
+
+    def drain_file_queue(self):
+        if self.stopping or self.file_queue_busy or not self.file_queue or time.monotonic() < self.file_queue_next: return
+        target, path = self.file_queue.popleft()
+        self.file_queue_busy = True
         loader = PreviewLoader(self)
         self.preview_loaders.add(loader)
         def ready(source, preview):
             self.preview_loaders.discard(loader)
             if not self.stopping:
-                self.worker.offer_file(target, source, preview=preview)
+                future = self.worker.submit(self.worker.client.offer_queued_file(target, source, preview=preview))
+                future.add_done_callback(lambda done:self.worker.received.emit('file_queue_ready', {}))
             loader.deleteLater()
         loader.ready.connect(ready)
         loader.start(path)
+
+    def offer_image_file(self, target, path):
+        self.queue_files(target, [path])
 
     def paste_image(self, target, image):
         view = self.view_for(target) or self.window
@@ -190,7 +235,10 @@ class CollaborationController:
         return self.keep_dialog(dialog)
 
     def collaboration_event(self, kind, data):
-        if kind == 'groups':
+        if kind == 'file_queue_ready':
+            self.file_queue_busy = False
+            self.file_queue_next = time.monotonic() + 1.5
+        elif kind == 'groups':
             self.groups = {group_key(room['id']):room for room in data['groups']}
             self.window.sidebar.groups = self.groups
             self.group_names.update({self.preferences.contact_id:self.preferences.nickname,
@@ -198,11 +246,17 @@ class CollaborationController:
             for key, view in self.group_windows.items():
                 if key in self.groups:
                     view.set_group(self.groups[key], self.group_names)
+            for dialog in self.collaboration_dialogs:
+                if isinstance(dialog, GroupManager) and group_key(dialog.room['id']) in self.groups:
+                    dialog.set_group(self.groups[group_key(dialog.room['id'])])
+            self.refresh_mentions()
             self.window.sidebar.refresh()
             wanted = getattr(self, 'wanted_group', '')
             if wanted and self.groups.get(group_key(wanted), {}).get('state') == 'joined':
                 self.wanted_group = ''
                 self.open_group(wanted)
+        elif kind == 'group_popup_sent':
+            self.system_message(data['target'], f'✦ Popup de groupe : {data["count"]}/{data["total"]} remises. Prochaine popup dans 42 minutes.')
         elif kind == 'group_created':
             self.open_group(data['group']['id'])
         elif kind == 'group_invitation':
@@ -213,6 +267,7 @@ class CollaborationController:
             frame, target = data['frame'], data['target']
             message = self.history.change(target, frame['message'], frame.get('text'), frame['type'] == 'message_delete')
             if message:
+                message.mentions = frame.get('mentions', []) if not message.deleted else []
                 if frame['type'] == 'message_delete':
                     self.file_transfers.pop(frame['message'], None)
                 view = self.view_for(target)

@@ -1,10 +1,10 @@
 from PySide6.QtCore import Signal, Qt, QSize
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QScrollArea, QWidget, QFrame, QLayout, QPushButton
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QScrollArea, QWidget, QFrame, QLayout, QPushButton, QCheckBox, QProgressBar
 from .widgets import label, button
 
 
 class PollEditor(QDialog):
-    submitted = Signal(str, object)
+    submitted = Signal(str, object, bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -14,7 +14,7 @@ class PollEditor(QDialog):
         box = QVBoxLayout(self)
         box.setContentsMargins(24, 24, 24, 24)
         box.addWidget(label('On choisit ensemble ?', 'title', True))
-        box.addWidget(label('Une voix par personne, modifiable ou retirable. Le sondage reste dans la session.', 'muted', True))
+        box.addWidget(label('Un choix ou plusieurs réponses par personne, modifiables et retirables. Le sondage reste dans la session.', 'muted', True))
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -28,6 +28,8 @@ class PollEditor(QDialog):
         self.question.setPlaceholderText('Ta question')
         self.question.setAccessibleName('Question du sondage')
         form.addWidget(self.question)
+        self.multiple = QCheckBox('Autoriser plusieurs réponses')
+        form.addWidget(self.multiple)
         self.options = []
         for i in range(8):
             field = QLineEdit()
@@ -52,7 +54,7 @@ class PollEditor(QDialog):
         if not self.question.text().strip() or len(options) < 2 or len({o.casefold() for o in options}) != len(options):
             self.feedback.setText('Écris une question et au moins deux choix différents.')
             return
-        self.submitted.emit(self.question.text().strip(), options)
+        self.submitted.emit(self.question.text().strip(), options, self.multiple.isChecked())
         self.accept()
 
 
@@ -79,7 +81,7 @@ class VoteButton(QPushButton):
 
 
 class PollCard(QFrame):
-    voted = Signal(int)
+    voted = Signal(object)
 
     def __init__(self, poll, actor, parent=None):
         super().__init__(parent)
@@ -89,28 +91,44 @@ class PollCard(QFrame):
         box.setSpacing(8)
         box.addWidget(label('SONDAGE', 'eyebrow'))
         box.addWidget(label(poll['question'], 'messageText', True))
-        self.options = []
+        self.options, self.bars = [], []
+        self.selection = set()
         for i, option in enumerate(poll['options']):
             control = VoteButton()
             control.setCheckable(True)
             control.clicked.connect(lambda checked=False, index=i:self.choose(index))
             self.options.append(control)
             box.addWidget(control)
+            bar = QProgressBar()
+            bar.setRange(0, 100); bar.setTextVisible(False); bar.setFixedHeight(6)
+            bar.setStyleSheet('QProgressBar {border:0; border-radius:3px; background:#343a46;} QProgressBar::chunk {border-radius:3px; background:#7e96ff;}')
+            self.bars.append(bar); box.addWidget(bar)
+        self.apply = button('Valider mes choix', 'primary')
+        self.apply.setVisible(poll.get('multiple', False))
+        self.apply.clicked.connect(lambda:self.voted.emit(sorted(i for i, b in enumerate(self.options) if b.isChecked())))
+        box.addWidget(self.apply)
         self.total = label('', 'caption', True)
         box.addWidget(self.total)
         self.update_poll(poll)
 
     def choose(self, index):
-        self.voted.emit(-1 if self.poll['votes'].get(self.actor) == index else index)
+        if not self.poll.get('multiple'):
+            self.voted.emit(-1 if self.poll['votes'].get(self.actor) == index else index)
 
     def update_poll(self, poll):
         self.poll = poll
         for i, control in enumerate(self.options):
-            count = sum(value == i for value in poll['votes'].values())
-            control.set_full_text(f'{poll["options"][i]} · {count}')
-            selected = poll['votes'].get(self.actor) == i
+            count = sum(i in value if isinstance(value, list) else value == i for value in poll['votes'].values())
+            percentage = round(100 * count / len(poll['votes'])) if poll['votes'] else 0
+            self.bars[i].setValue(percentage)
+            self.bars[i].setAccessibleName(f'{poll["options"][i]} : {count} voix, {percentage} % des votants')
+            control.set_full_text(f'{poll["options"][i]} · {count} · {percentage} %')
+            own = poll['votes'].get(self.actor, [] if poll.get('multiple') else -1)
+            selected = i in own if isinstance(own, list) else own == i
             control.setChecked(selected)
             control.setObjectName('primary' if selected else 'soft')
             control.setEnabled(not poll.get('deleted') and self.actor in poll['audience'])
             control.style().unpolish(control); control.style().polish(control)
-        self.total.setText(f'{len(poll["votes"])} vote(s) · cliquer à nouveau sur ton choix retire ta voix')
+        self.apply.setEnabled(not poll.get('deleted') and self.actor in poll['audience'])
+        detail = 'plusieurs choix · % des votants' if poll.get('multiple') else 'un choix · reclique pour retirer ta voix'
+        self.total.setText(f'{len(poll["votes"])}/{len(poll["audience"])} participant(s) · {detail}')

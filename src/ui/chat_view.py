@@ -20,7 +20,7 @@ class ChatView(QFrame):
     quote_missing = Signal()
     edit_requested = Signal(str)
     delete_requested = Signal(str)
-    vote_requested = Signal(str, int)
+    vote_requested = Signal(str, object)
 
     def __init__(self, private=False):
         super().__init__()
@@ -178,13 +178,9 @@ class ChatView(QFrame):
                 self.file_cards[message.id] = (row, card)
                 bubble.desired_width = 360
             else:
-                rendered, missing = emoji_fallback(message.text, self.font())
-                text = label(rendered, 'messageText', True)
-                if missing:
-                    text.setToolTip('Certains emojis sont remplacés par leur nom : la police ne les prend pas en charge.')
-                text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-                content.addWidget(text)
-                bubble.desired_width = max(240 if message.id else 170, min(580, max((text.fontMetrics().horizontalAdvance(line) for line in rendered.split('\n')), default=0) + 34))
+                from .message_text import MessageText
+                content.addWidget(MessageText(message.text, self.actor_id in message.mentions, bubble))
+                bubble.desired_width = 480 if '```' in message.text else max(240, min(580, max((self.fontMetrics().horizontalAdvance(line) for line in message.text.split('\n')), default=0) + 34))
             if message.reply_to:
                 bubble.desired_width = max(300, bubble.desired_width)
             if message.id:

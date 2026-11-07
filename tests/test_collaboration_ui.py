@@ -122,7 +122,7 @@ def test_real_controllers_create_join_edit_delete_poll_clipboard_and_block(tmp_p
         bv.chat.poll_cards[pid].options[1].click()
         until(qt,lambda:a.history.find(key,pid).poll['votes'].get(bc.sid)==1)
         assert bv.chat.poll_cards[pid].options[1].isChecked()
-        assert av.chat.poll_cards[pid].total.text().startswith('1 vote')
+        assert av.chat.poll_cards[pid].total.text().startswith('1/2 participant')
         # A general poll is also a real encrypted chat event.
         general=a.show_poll_editor('general');general.question.setText('General ?')
         general.options[0].setText('Oui');general.options[1].setText('Non');general.submit()
@@ -217,3 +217,67 @@ for theme in ('dark','light'):
 '''
     result=subprocess.run([sys.executable,'-c',code],cwd=ROOT,env={**os.environ,'QT_QPA_PLATFORM':'offscreen','QT_SCALE_FACTOR':scale},capture_output=True,text=True,timeout=20)
     assert result.returncode==0,result.stdout+result.stderr
+
+
+def test_real_group_manager_custom_popup_multi_poll_mentions_and_file_batch(tmp_path,monkeypatch):
+    from src.ui.groups import GroupManager
+    from src.features.cards import answer_card
+    from PySide6.QtCore import QUrl
+    qt=QApplication.instance() or QApplication([]);qt.setQuitOnLastWindowClosed(False)
+    monkeypatch.setenv('XDG_CONFIG_HOME',str(tmp_path/'config'))
+    monkeypatch.setattr(NetworkConfig,'load',classmethod(lambda cls,path:NetworkConfig(mode='relay',relay_host='')))
+    monkeypatch.setattr(QMessageBox,'question',lambda *args,**kwargs:QMessageBox.StandardButton.Yes)
+    apps=[Application(ROOT,SimpleNamespace(dev='extended-'+uuid.uuid4().hex[:10],background=False,insecure_local_relay=None)) for _ in range(2)]
+    a,b=apps
+    try:
+        until(qt,lambda:a.worker.client.port>0 and b.worker.client.port>0)
+        ac,bc=a.worker.client,b.worker.client
+        a.worker.loop.call_soon_threadsafe(ac.observe,bc.hello(),'127.0.0.1')
+        b.worker.loop.call_soon_threadsafe(bc.observe,ac.hello(),'127.0.0.1')
+        until(qt,lambda:bc.sid in a.window.peers and ac.sid in b.window.peers)
+        gid=a.worker.submit(ac.create_group('Groupe des tests',[bc.contact_id])).result(4)
+        key=group_key(gid)
+        until(qt,lambda:key in b.groups and key in a.group_windows)
+        b.open_group(gid)
+        until(qt,lambda:key in b.group_windows and b.groups[key]['state']=='joined')
+        av,bv=a.group_windows[key],b.group_windows[key]
+        manager=a.manage_group(gid);assert isinstance(manager,GroupManager)
+        manager.name.setText('Le nouveau nom');manager.rename_button.click()
+        until(qt,lambda:b.groups[key]['name']=='Le nouveau nom')
+        image=QImage(128,128,QImage.Format.Format_RGB32);image.fill(QColor('#bbccff'))
+        from src.ui.avatar_image import encode_photo
+        photo=encode_photo(image)
+        manager.changed.emit({'photo':photo})
+        until(qt,lambda:bv.avatar.image_data==photo)
+        assert av.composer.card_button.isVisible() and not a.window.composer.card_button.isVisible()
+        until(qt,lambda:bc.nickname in av.input.mention_model.stringList())
+        av.input.setPlainText('@'+bc.nickname+' voici mon code :\n```c\nprintf("safe");\n```');av.send_button.click()
+        until(qt,lambda:any(m.mentions==[bc.contact_id] for m in b.history.get(key)))
+        assert bv.chat.findChild(__import__('PySide6.QtWidgets',fromlist=['QPlainTextEdit']).QPlainTextEdit).isReadOnly()
+        poll=a.show_poll_editor(key);poll.question.setText('Les boissons ?')
+        poll.options[0].setText('Café');poll.options[1].setText('Thé');poll.multiple.setChecked(True);poll.submit()
+        until(qt,lambda:bool(bv.chat.poll_cards))
+        pid=next(iter(bv.chat.poll_cards));card=bv.chat.poll_cards[pid]
+        card.options[0].click();card.options[1].click();card.apply.click()
+        until(qt,lambda:a.history.find(key,pid).poll['votes'].get(bc.sid)==[0,1])
+        editor=a.show_card_editor(key);assert editor is not None
+        editor.submitted.emit(dict(title='Tous ensemble',text='Une pause ?',emoji='1f44d'))
+        until(qt,lambda:bool(b.popups))
+        request,popup=next(iter(b.popups.items()))
+        assert popup[0]==ac.sid
+        b.send_card_answer(ac.sid,request,'card_invite','accepted')
+        until(qt,lambda:bool(a.reply_popups))
+        until(qt,lambda:not av.composer.card_button.isEnabled())
+        assert '42' in av.composer.card_button.toolTip()
+        assert a.show_card_editor('general') is None
+        # The actual input receives two file URLs; queue worker emits separate E2EE offers.
+        files=[tmp_path/'one.txt',tmp_path/'two.txt']
+        for path in files:path.write_text(path.stem)
+        mime=QMimeData();mime.setUrls([QUrl.fromLocalFile(str(path)) for path in files])
+        av.input.insertFromMimeData(mime)
+        until(qt,lambda:len([m for m in b.history.get(key) if m.attachment])==2)
+        assert all(path.read_text()==path.stem for path in files)
+        manager.reject()
+    finally:
+        for app in apps:app.cleanup();app.window.close();app.deleteLater()
+        qt.processEvents()

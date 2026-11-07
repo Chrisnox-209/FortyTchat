@@ -25,6 +25,7 @@ dist/
 /notification_templates.json
 identity.json
 trusted_contacts.json
+group_profiles.json
 .env
 .env.*
 !.env.example
