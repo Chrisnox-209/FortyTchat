@@ -1,14 +1,26 @@
-# Validation locale de FortyTchat 2.0.0
+# Validation locale de FortyTchat 2.1.0
 
-Tests réalisés le **7 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 2.0.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
+Tests réalisés le **7 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 2.1.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
 
 ## Résultats automatisés
 
-- **180 tests réussis en 32,57 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- **199 tests réussis en 38,54 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
 - Mesure de diffusion E2EE réalisée en 1.5.0 sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
 - Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
 Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
+
+## Groupes, contenu et lots de fichiers (2.1.0)
+
+- Profils de groupes signés Ed25519, clés épinglées, contrôles de révision, fichiers privés, données endommagées refusées et conservation des délais après redémarrage. Deux magasins du même profil ne peuvent pas écraser une réservation concurrente.
+- Vrais liens TCP et relais : promotion/rétrogradation d’un admin, renommage, ajout soumis à acceptation, retrait d’un membre, refus des actions sans rôle suffisant et impossibilité pour un admin de retirer le créateur ou de nommer un admin. Les transferts proposés à un membre retiré sont arrêtés ; les nouveaux messages ne lui sont plus remis.
+- Deux membres tentant une popup simultanément : un seul lot accepté, même lorsque les expéditeurs diffèrent. Une tentative suivante du créateur et une copie redémarrée du profil restent bloquées pendant le délai partagé. Les deux destinataires peuvent répondre indépendamment à l’expéditeur en privé ; répétition du permis et popup du général refusées. Ces scénarios passent en direct et par relais.
+- Arrêt complet des deux clients puis restauration depuis leurs profils : nom et adhésion retrouvés, messages absents de tous les fichiers JSON et des mémoires rechargées, membre en attente jusqu’à confirmation du créateur. Un membre retiré pendant son absence reçoit un refus à son retour.
+- Mentions hors du code uniquement, identifiants stables, saisie assistée, affichage des mentions et code en texte sélectionnable. Le glisser-déposer impose une copie et refuse les URL distantes ; le fichier source reste intact.
+- Sondages multiples : plusieurs choix transmis, changement/retrait, refus des doublons, barres à 50/0/100 % pour un exemple où les votants peuvent choisir plusieurs options. Validation explicite des sélections et retrait par sélection vide.
+- Huit offres remplies : un neuvième fichier attend sans être perdu, puis part après libération d’une place ; enregistrement reçu identique à la source, conservée sur disque.
+- Parcours de deux vrais contrôleurs Qt : gestion du groupe, nom et photo reçus, mention et bloc de code, sondage multiple, popup collective et réponse privée, compteur désactivant le bouton, refus du général et deux fichiers collés depuis des URL locales.
+- Petites fenêtres, contrôles de groupe et blocs de code vérifiés dans les thèmes clair/sombre, avec facteurs d’échelle 100 %, 150 % et 200 %. Les nouvelles captures `general-2.1.0.png`, `group-chat-2.1.0.png`, `group-manager-2.1.0.png`, `poll-multiple-2.1.0.png` et `about-2.1.0.png` sont des widgets Qt réellement rendus et inspectés, avec profils et données de démonstration.
 
 ## Groupes et nouvelles interactions (2.0.0)
 

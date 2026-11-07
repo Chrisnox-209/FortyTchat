@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.0.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.1.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -20,7 +20,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version 2.0.0 ajoute les **groupes**, la **modification/suppression de ses messages**, les **sondages**, les **aperçus d’images**, le **collage de captures avec Ctrl+V** et le **blocage persistant de contacts**. Mettre à jour les participants pour profiter de ces nouvelles fonctions ensemble.
+La version **2.1.0** ajoute les **groupes conservés au démarrage**, leur **gestion des membres, rôles, nom et photo**, les **mentions**, les **blocs de code**, le **glisser-déposer et l’envoi de plusieurs fichiers**, les **sondages à choix multiples avec résultats visuels**, et les **popups de groupe limitées à une toutes les 42 minutes**. Mettre à jour les participants pour les utiliser ensemble.
 
 ## Installer et démarrer
 
@@ -99,12 +99,12 @@ La fonction de fermeture utilisée vient de l’outil de désinstallation, mais 
 - **Échec Git** : l’installateur n’est pas lancé. Vérifier la connexion, l’accès GitHub ou les modifications locales indiquées par Git avant de réessayer. La copie déjà installée reste disponible avec `~/.local/bin/fortytchat`.
 - **Échec d’installation** : corriger l’erreur affichée, puis relancer `sh "$HOME/.FortyTchat/install.sh"`. Le message de réussite n’est pas affiché en cas d’erreur.
 
-Le profil, les amis, les modèles de notifications et les clés sont conservés. Une installation réussie relance l’application réduite et respecte un démarrage automatique désactivé. Aucun script `update.sh` n’est nécessaire.
+Le profil, les amis, les groupes, les modèles de notifications et les clés sont conservés. Une installation réussie relance l’application réduite et respecte un démarrage automatique désactivé. Aucun script `update.sh` n’est nécessaire.
 
 ## Aperçu
 
 <p align="center">
-  <a href="docs/general-2.0.0.png"><img src="docs/general-2.0.0.png" width="880" alt="FortyTchat 2.0.0 : général, groupes, sondage en direct et contact bloqué"></a>
+  <a href="docs/general-2.1.0.png"><img src="docs/general-2.1.0.png" width="880" alt="FortyTchat 2.1.0 : général, photo de groupe et sondage à plusieurs réponses"></a>
 </p>
 <p align="center"><em>Le général et les amis, dans le thème anthracite et bleu. Un thème clair est aussi disponible.</em></p>
 
@@ -118,10 +118,26 @@ Le **#général** réunit les personnes présentes. Cliquer sur une personne ouv
 | --- | --- |
 | `Entrée` | Envoyer |
 | `Maj+Entrée` | Ajouter une ligne |
+| `@` | Choisir une personne à mentionner |
+| `Ctrl+Maj+C` | Préparer un bloc de code |
 | `Ctrl+K` | Aller à la liste des personnes |
 | `Ctrl+,` | Ouvrir les paramètres |
 
-Les messages sont affichés en texte brut. Un nouvel arrivant ne reçoit aucun message antérieur. Les collisions de pseudo sont résolues automatiquement ; les destinataires sont identifiés par leur session, pas par leur nom ou leur IP.
+Le texte et les blocs de code restent du contenu inerte ; aucune commande ni balise envoyée n’est exécutée. Un nouvel arrivant ne reçoit aucun message antérieur. Les collisions de pseudo sont résolues automatiquement ; les destinataires sont identifiés par leur session, pas par leur nom ou leur IP.
+
+### Mentions et blocs de code
+
+Écrire **@** dans le champ de message propose les personnes de la conversation. Valider un pseudo avec Entrée ou cliquer dessus. Les mentions sont mises en évidence et une notification silencieuse indique au destinataire qu’il est mentionné ; **Ne pas déranger reste respecté**. La mention envoyée est liée à son profil, même s’il change ensuite de pseudo. Les noms écrits à l’intérieur d’un bloc de code ne créent pas de mention.
+
+Pour partager du code, utiliser **Ctrl+Maj+C**, le menu du champ de saisie ou trois accents graves :
+
+````text
+```c
+printf("Salut le cluster !\n");
+```
+````
+
+Le bloc garde ses retours à la ligne, utilise une police à chasse fixe et propose **Copier**. Le message complet reste limité à 2 000 caractères.
 
 ### Envoyé, livré et vu
 
@@ -188,25 +204,51 @@ Les bannières utilisent `notify-send` lorsqu’il est disponible. Leur position
 
 ## Groupes privés
 
-1. Cliquer sur **＋ Créer un groupe** dans la liste des conversations.
-2. Choisir un nom et **1 à 31 personnes connectées** avec FortyTchat 2.0.0.
-3. Chaque destinataire voit une invitation dans **GROUPES** et choisit d’accepter ou de refuser en cliquant dessus.
+1. Cliquer sur **＋ Créer un groupe** dans la liste.
+2. Choisir un nom et **1 à 31 personnes connectées** avec FortyTchat **2.1.0**.
+3. Chacun accepte ou refuse l’invitation dans **GROUPES**. Aucun ancien message n’est envoyé à un nouvel arrivant.
 
-Le groupe dispose de sa **fenêtre indépendante**, de messages, fichiers, images, citations, réactions, saisie en direct et sondages. Son menu affiche les membres et permet de **Quitter le groupe**. Fermer simplement la fenêtre le laisse actif.
+Le groupe dispose de sa **fenêtre indépendante** : messages, fichiers, captures, citations, réactions, mentions, saisie en direct et sondages. Son menu **··· → Membres, rôles, nom et photo** permet de le gérer.
 
 <p align="center">
-  <a href="docs/group-chat-2.0.0.png"><img src="docs/group-chat-2.0.0.png" width="560" alt="Groupe privé : message modifié, sondage avec résultats et message supprimé"></a>
+  <a href="docs/group-chat-2.1.0.png"><img src="docs/group-chat-2.1.0.png" width="590" alt="Groupe privé : photo, mention, bloc de code et sondage à plusieurs réponses"></a>
 </p>
 
-Voir aussi [l’écran de création du groupe](docs/group-editor-2.0.0.png). La composition est choisie à la création ; pour une autre composition, créer un nouveau groupe. Jusqu’à **32 groupes de 32 membres** peuvent être connus pendant la session.
+| Rôle | Actions |
+| --- | --- |
+| **Créateur** | Nom, photo, ajout/retrait de membres et attribution/retrait du rôle administrateur |
+| **Administrateur** | Nom, photo et ajout/retrait des membres ordinaires |
+| **Membre** | Discuter, partager, voter, envoyer une popup collective et quitter le groupe |
 
-Seuls les membres ayant rejoint reçoivent les **nouveaux messages**, avec une copie chiffrée distincte par destinataire. Aucun ancien message n’est transmis après une arrivée ou une reconnexion. **Les groupes ne sont pas sauvegardés après l’arrêt complet de l’application** ; les membres encore connectés gardent leur propre session. Les identités peuvent être vérifiées depuis le cadenas des conversations individuelles.
+Le créateur ne peut pas être retiré. Un administrateur ne peut pas retirer le créateur ou un autre administrateur. Les nouveaux membres doivent être connectés et accepter l’invitation. **Le créateur doit être connecté et avoir rejoint pour valider les changements et réserver les popups collectives.** Une modification concurrente peut être refusée : attendre la mise à jour du groupe puis réessayer.
+
+<p align="center">
+  <a href="docs/group-manager-2.1.0.png"><img src="docs/group-manager-2.1.0.png" width="470" alt="Gestion du groupe : photo, nom, membres et rôles administrateur"></a>
+</p>
+
+Les groupes sont **retrouvés après redémarrage** : nom, miniature de photo, membres, rôles, adhésion et délai de popup sont conservés dans le profil. Le créateur confirme l’accès des membres qui redémarrent ; en son absence, leur groupe apparaît en attente de restauration. **Les messages et les votes ne sont jamais sauvegardés ni retransmis.** Fermer la fenêtre garde le groupe actif ; **Quitter le groupe** arrête ses échanges et conserve ce choix au démarrage suivant. Limite : **32 groupes de 32 membres**.
+
+Chaque message garde une copie chiffrée distincte par destinataire. Un membre retiré ne reçoit plus les nouveaux échanges des clients ayant reçu le retrait ; les fichiers de groupe en cours sont arrêtés. Un retrait ne peut pas effacer un message ou un fichier déjà reçu. Les empreintes restent accessibles dans les conversations individuelles.
+
+### Une popup pour tout le groupe
+
+Le bouton **✦** ouvre l’éditeur de notification animée et ses réponses personnalisables. Il cible les membres connectés qui ont rejoint ; leurs réponses reviennent **en privé à l’expéditeur**.
+
+**Une seule popup collective toutes les 42 minutes par groupe, tous expéditeurs confondus.** Le compteur est conservé après redémarrage et le bouton indique l’attente. La réservation reste consommée si certains membres sont absents, en Ne pas déranger ou si une remise échoue. Le créateur connecté coordonne les réservations pour empêcher deux envois simultanés.
+
+**Le #général n’accepte aucune popup collective.** Les popups privées gardent leurs limites habituelles.
 
 ## Sondages dans le général et les groupes
 
-Le bouton **▥** du composeur ouvre un sondage : une question et **2 à 8 choix**. Les résultats sont actualisés dans la conversation. Chaque participant peut voter une fois, changer de choix ou cliquer à nouveau sur son choix pour retirer sa voix.
+Le bouton **▥** propose une question et **2 à 8 choix**. Cocher **Autoriser plusieurs réponses** pour un sondage multiple : sélectionner ses options, puis **Valider mes choix**. Tout décocher et valider retire son vote. Dans un sondage simple, cliquer sur une autre option change son vote ; recliquer sur la même le retire.
 
-Un sondage concerne les personnes compatibles présentes lors de sa création, avec **256 participants maximum**. Les nouveaux arrivants ne reçoivent aucun ancien sondage. Les votes sont authentifiés, chiffrés, modifiables uniquement par leur auteur et conservés en mémoire. Supprimer son propre sondage arrête les votes chez les destinataires qui reçoivent cette suppression.
+Les résultats montrent des **barres, le nombre de voix et le pourcentage des votants**, ainsi que la participation. Avec plusieurs réponses autorisées, la somme des pourcentages peut dépasser 100 % : une personne peut choisir plusieurs options.
+
+<p align="center">
+  <a href="docs/poll-multiple-2.1.0.png"><img src="docs/poll-multiple-2.1.0.png" width="500" alt="Sondage multiple avec trois choix, barres de résultats et pourcentage des votants"></a>
+</p>
+
+L’audience est fixée aux personnes compatibles présentes à la création (**256 maximum**). Les nouveaux arrivants ne reçoivent pas d’ancien sondage. Les votes sont authentifiés, chiffrés, modifiables par leur auteur et restent en mémoire. Supprimer son sondage arrête les votes chez les destinataires qui reçoivent la suppression.
 
 ## Avatars et images personnelles
 
@@ -274,11 +316,13 @@ Animations intégrées : **👍 😭 🤣 😘 👎 😛 💩 ❌ ✅ 🤯 💪*
 
 Une demande expire après **deux minutes** et suit la limite des pauses. **Ne pas déranger** refuse les nouvelles notifications personnalisées ; les pauses classiques et les réponses aux demandes déjà reçues restent actives. Les choix explicites nécessitent **1.7.0 chez les deux participants** ; un ancien client chiffré garde les cartes classiques. L’éditeur signale une incompatibilité sans transformer une information en question Oui/Non. Toutes les cartes et réponses sont chiffrées.
 
-## Envoyer un fichier
+## Envoyer des fichiers
 
-Le bouton **＋** joint un fichier au général, à une conversation privée ou à un groupe. Le destinataire choisit **Enregistrer…**, son emplacement, ou refuse. Progression et annulation apparaissent dans le tchat.
+Le bouton **＋** permet de sélectionner **plusieurs fichiers** pour le général, une conversation privée ou un groupe. On peut aussi les **glisser-déposer dans le champ de message**, ou coller des fichiers locaux copiés dans le gestionnaire de fichiers. Les dossiers et adresses distantes ne sont pas importés. Les fichiers sources sont conservés : le dépôt utilise une copie, sans déplacement. Le destinataire choisit **Enregistrer…**, son emplacement, ou refuse. Progression et annulation apparaissent dans le tchat.
 
-Limite : **20 Mio**, offre valable **10 minutes**, clients et relais **1.5.0 minimum**. Nom, empreinte et contenu sont chiffrés. Aucun téléchargement ni ouverture automatique ; aucun fichier existant n’est écrasé. Les fichiers enregistrés restent sur disque après fermeture de l’application.
+La file accepte **64 fichiers en attente**, avec **8 offres simultanées** et **4 transferts actifs**. Les suivants attendent une place ; quitter complètement annule la file. Chaque fichier garde sa propre acceptation et progression.
+
+Limite : **20 Mio par fichier**, offre valable **10 minutes**, clients et relais **1.5.0 minimum**. Nom, empreinte et contenu sont chiffrés. Aucun téléchargement ni ouverture automatique ; aucun fichier existant n’est écrasé. Les fichiers enregistrés restent sur disque après fermeture de l’application.
 
 ### Aperçus d’images et captures collées
 
@@ -293,7 +337,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 </tr>
 </table>
 
-Les groupes, sondages, changements de messages et miniatures nécessitent **2.0.0 chez les participants**. Un relais chiffré **1.5.0 minimum** reste compatible. Les anciens clients peuvent toujours échanger les messages et fichiers classiques ; ils ne reçoivent pas les nouveaux événements et peuvent conserver l’original d’un message modifié ou supprimé.
+Les groupes, sondages, changements de messages et miniatures nécessitent **2.1.0 chez les participants**. Un relais chiffré **1.5.0 minimum** reste compatible. Les anciens clients peuvent toujours échanger les messages et fichiers classiques ; ils ne reçoivent pas les nouveaux événements et peuvent conserver l’original d’un message modifié ou supprimé.
 
 ## Chiffrement de bout en bout
 
@@ -315,7 +359,7 @@ La comparaison sert à confirmer que la clé appartient bien à ton ami, pour é
 
 Le premier contact est mémorisé automatiquement (**TOFU**), puis l’empreinte permet de confirmer son identité. Un changement de clé **bloque les échanges** jusqu’à comparaison et autorisation explicite.
 
-La clé privée du profil reste dans `identity.json` et les clés publiques des contacts dans `trusted_contacts.json`, avec permissions **600**. Garder ensemble `config.json`, `identity.json` et `trusted_contacts.json` lors d’une sauvegarde, en protégeant la clé privée. Un fichier de sécurité corrompu, manquant dans un profil initialisé ou non privé bloque le démarrage au lieu de recréer silencieusement les clés.
+La clé privée du profil reste dans `identity.json` et les clés publiques des contacts dans `trusted_contacts.json`, avec permissions **600**. Garder ensemble `config.json`, `identity.json`, `trusted_contacts.json` et `group_profiles.json` (s’il existe) lors d’une sauvegarde, en protégeant la clé privée. Un fichier de sécurité corrompu, manquant dans un profil initialisé ou non privé bloque le démarrage au lieu de recréer silencieusement les clés.
 
 L’intégration utilise **PyNaCl/libsodium**, Box Curve25519/XSalsa20/Poly1305 et les signatures Ed25519. Elle n’a pas reçu d’audit indépendant et n’implémente pas le Double Ratchet. Elle ne cache pas les pseudos, présence, avatars ou métadonnées de trafic et ne protège pas un appareil compromis. Les clients et relais antérieurs à **1.5.0** sont refusés, sans repli en clair. [Protocole et limites](docs/NETWORK.md), [Box](https://pynacl.readthedocs.io/en/latest/public/), [signatures](https://pynacl.readthedocs.io/en/latest/signing/).
 
@@ -329,7 +373,7 @@ Dans **Paramètres**, choisir le pseudo, le thème, l’avatar, le démarrage au
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-2.0.0.png"><img src="docs/about-2.0.0.png" width="560" alt="À propos de FortyTchat 2.0.0 avec le logo FT, les fonctions et le lien GitHub"></a>
+  <a href="docs/about-2.1.0.png"><img src="docs/about-2.1.0.png" width="560" alt="À propos de FortyTchat 2.1.0 avec le logo FT, les fonctions et le lien GitHub"></a>
 </p>
 
 Les onglets Général et À propos sont défilables pour rester lisibles sur les petits écrans.
@@ -371,7 +415,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.0.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.1.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Icône absente ou mal placée | La session doit prendre en charge GNOME/StatusNotifier/AppIndicator. Utiliser le dock ou le lanceur sinon ; la place dans la barre dépend du bureau. |
 | Un clic ouvre le menu, le doubleclic ne marche pas | L’option **Compatibilité doubleclic de l’icône (GNOME)** tente de reconnaître l’ouverture/fermeture rapide du menu. Elle dépend des événements transmis par la barre. Utiliser **Ouvrir FortyTchat** si nécessaire. |
 | Une fermeture rapide du menu ouvre le tchat | Désactiver cette compatibilité dans Général. Échap peut être indistinguable d’un second clic sur certaines barres. Aucune extension du bureau n’est modifiée. |

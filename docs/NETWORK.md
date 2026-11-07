@@ -1,18 +1,38 @@
-# Réseau et chiffrement de FortyTchat 2.0.0
+# Réseau et chiffrement de FortyTchat 2.1.0
 
-## Groupes, mutations et sondages (2.0.0)
+## Groupes durables, rôles et popups (2.1.0)
 
-Le marqueur signé `rooms` remplace `probe` parmi les huit capacités ; le diagnostic reconnaît les deux. Il annonce les groupes, modifications/suppressions, sondages et aperçus de fichiers. Les clients chiffrés anciens restent compatibles pour les fonctions précédentes, mais ne reçoivent pas les nouveaux événements. Les relais opaques 1.5.0 continuent à router les mêmes enveloppes `sealed`, sans nouvelle clé ni accès aux groupes.
+Le marqueur signé **`rooms2`** remplace `rooms` parmi les huit capacités. Les fonctions de collaboration exigent 2.1.0 ; les clients chiffrés précédents restent utilisables pour les messages et fichiers classiques. Les relais opaques 1.5.0 continuent à transporter les enveloppes `sealed` sans lire le contenu.
 
-`group_invite` est adressé individuellement et contient un identifiant aléatoire de groupe, un nom de 64 caractères maximum et 2 à 32 identifiants de profils uniques. Le créateur est dérivé de la présence signée de l’expéditeur ; le destinataire et le créateur doivent appartenir à cette liste. Le roster initial reste immuable. Accepter ou quitter produit `group_join` / `group_leave`, chiffrés vers les profils invités connus. Un non-membre, une tentative de remplacer le créateur ou un membre ayant déjà quitté sont refusés.
+Le créateur signe avec son identité Ed25519 un profil de groupe : identifiant aléatoire, créateur et sa clé publique épinglée, révision monotone, nom (64 caractères), membres (32 maximum), administrateurs, miniature JPEG bornée, avatar et dernière réservation de popup. Signature avec séparation de domaine `FortyTchat group profile v1`. Une clé inconnue ou modifiée, une signature incorrecte, une révision ancienne ou un état concurrent incompatible sont refusés. La présence signée du créateur doit correspondre à cette identité.
 
-Les messages de groupe gardent `to` égal au SID individuel du destinataire à l’intérieur de chaque enveloppe et ajoutent `group` pour le contexte. L’expéditeur et le destinataire doivent avoir rejoint ; les sessions admises sont mémorisées pour chaque membre (quatre maximum par profil). Aucun envoi n’est diffusé aux clients non invités ou en attente. Les fichiers, réactions, saisie et lectures gardent ce contexte, sans aucune trame de groupe en clair. La fermeture d’une fenêtre ne quitte pas le groupe. Les groupes connus sont limités à 32 et restent en RAM, sans récupération d’historique après redémarrage.
+`group_invite` et `group_state` remettent ce profil individuellement et chiffré. `group_update` demande une modification unique avec la révision attendue. Seul le créateur valide et signe : il peut gérer tous les membres et rôles ; les administrateurs peuvent changer le nom/la photo et gérer les membres ordinaires. Le créateur ne peut pas être retiré ; un admin ne peut pas retirer un autre admin. Un ajout exige une présence compatible et une acceptation explicite du nouveau membre. Les anciennes révisions ne rétablissent jamais silencieusement un membre retiré.
 
-`message_edit` contient référence, texte et séquence ; `message_delete` référence et séquence. Le carnet d’origine mémorise auteur signé, contexte et destinataires, au plus 200 références par conversation et 4 000 au total. Les changements ne sont envoyés qu’aux destinataires initiaux encore connectés et compatibles. Un autre auteur ou un autre contexte est refusé ; une ancienne séquence et une modification après suppression sont ignorées. Une arrivée avant l’original peut attendre dix secondes dans une file de 256 entrées, puis n’est appliquée qu’à une origine correspondante. La suppression d’une pièce jointe arrête sa proposition ou son transfert ; elle ne supprime aucun fichier déjà enregistré volontairement par un destinataire.
+`group_profiles.json` (privé, 600, au plus 1 Mio) conserve au plus 32 profils, l’état local d’adhésion et le dernier identifiant/horodatage de popup affichée. Aucun message, vote, capture ou ancien SID n’y figure. Les écritures atomiques utilisent le verrou du profil et un contrôle de révision pour éviter qu’une seconde session écrase une réservation récente. Un fichier endommagé désactive les fonctions de groupe sans réinitialiser leurs délais.
 
-`poll_create` contient question (200 caractères), 2 à 8 choix distincts (80 caractères chacun) et une audience immuable de 1 à 256 SID, auteur inclus. Seuls les membres de cette audience peuvent voter sur le sondage connu, dans son contexte d’origine. `poll_vote` contient référence, index de choix et séquence ; l’index -1 retire sa voix. Chaque session a une voix modifiable. Les anciennes séquences ne remplacent pas un vote plus récent. Les sondages sont limités à 128 par client et restent en RAM. Leur suppression rend les nouveaux votes invalides chez les clients qui la reçoivent.
+Au redémarrage, le créateur recharge ses groupes ; les membres attendent une confirmation de sa part via `group_sync`. Un membre retiré reçoit un refus `group_removed`, authentifié par le canal E2EE du créateur, sans recevoir son nouveau roster. Une clé de créateur modifiée reste bloquée jusqu’à vérification. Le créateur connecté et membre actif est nécessaire aux changements et aux réservations ; après confirmation de restauration, les conversations entre membres présents continuent sans lui. Le départ volontaire et le refus d’invitation sont conservés.
 
-Tous ces événements passent par les contrôles d’identité, anti-rejeu, déduplication et quotas existants. Les nouveaux états sont abandonnés à l’arrêt complet ; aucun changement ni vote n’est rejoué à une reconnexion. Un participant peut conserver une copie qu’il avait déjà lue.
+Les messages de groupe gardent **`to` égal au SID individuel du destinataire**, avec `group` pour le contexte. L’expéditeur et le destinataire doivent avoir rejoint ; un SID doit être annoncé par un `group_join` authentifié d’un profil du roster courant (quatre sessions maximum par profil). Les invitations en attente, non-membres et membres retirés sont exclus. Le départ/retrait arrête les offres et transferts du groupe chez les clients qui le reçoivent ; chaque bloc est aussi revérifié. Une coupure réseau peut retarder la propagation d’un retrait aux autres appareils ; elle ne peut pas retirer un contenu déjà reçu.
+
+### Une réservation de popup commune pendant 42 minutes
+
+`group_popup_request` demande un créneau au créateur. Sur sa boucle réseau, il vérifie le membre et le délai **partagé par tout le groupe**, puis persiste la nouvelle révision avant de produire `group_popup_grant`. Une seconde session du même profil doit aussi réussir le contrôle atomique de révision. Sans créateur disponible, aucune popup collective ne part.
+
+Le permis signé Ed25519 (domaine distinct `FortyTchat group popup v1`) lie le groupe, le lot aléatoire, le profil de l’expéditeur et l’heure. Il expire après deux minutes. Chaque destinataire vérifie la signature, le contexte, l’expéditeur et son propre dernier affichage, sauvegardé avant la popup ; un identifiant répété ou un nouvel envoi dans les 42 minutes est refusé. La réservation reste consommée même en cas d’échec ou de DND. La limite porte sur les popups collectives, pas les messages ou les réponses.
+
+Chaque `card_invite` utilise **un identifiant distinct par destinataire**, avec le permis commun et son contexte de groupe. Les réponses restent des `card_reply` privées vers l’expéditeur, liées à leur propre invitation : toutes les réponses peuvent donc être consommées indépendamment. Le général refuse toute popup au niveau du protocole et n’a aucun bouton collectif. Les limites privées existantes restent actives pour les invitations individuelles.
+
+### Messages, mentions et sondages éphémères
+
+`message_edit` / `message_delete` ciblent un ID et un contexte de conversation. Seul le SID de l’auteur original peut les appliquer ; séquences anciennes et résurrection après suppression sont ignorées. Une édition concerne seulement du texte. Les propriétaires restent limités à 4 000 messages et 200 par conversation. Les changements reçus avant l’original attendent au plus 10 secondes, dans une file bornée à 256. Aucun changement n’est rejoué au retour d’un destinataire absent.
+
+Les mentions associent au plus 32 identifiants de profils au texte `@pseudo`, en excluant les blocs clôturés par trois accents graves. Les blocs sont rendus comme texte sélectionnable, jamais exécuté ; seules les actions explicites de copie écrivent dans le presse-papiers. Les alertes de mention respectent DND.
+
+`poll_create` contient question (200 caractères), 2 à 8 options (80 chacune), un mode `multiple` et une audience figée de 256 SID maximum. Un vote simple indique `option` (ou -1 pour retirer). Un vote multiple indique `options`, liste sans doublon (vide pour retirer). La séquence propre à chaque votant remplace son choix précédent. L’audience et le contexte restent vérifiés. Barres et pourcentages utilisent les votants comme dénominateur ; les pourcentages multiples peuvent dépasser 100 % au total. Aucun vote n’est persisté.
+
+### Lots de fichiers
+
+Le composeur accepte au plus 64 chemins de fichiers locaux en attente. Une seule miniature est préparée à la fois ; une offre attend une place parmi les huit offres actives, avec quatre transferts simultanés au plus. Les nouvelles offres sont espacées pour respecter les quotas. Les glisser-déposer acceptent uniquement une **copie**, jamais un déplacement ; les dossiers et URL distantes sont refusés. Les sources sont revérifiées par le protocole de fichiers, sans ouverture automatique chez le destinataire.
 
 ## Aperçus et captures en mémoire (2.0.0)
 
@@ -22,7 +42,7 @@ Le collage Ctrl+V demande confirmation avant émission. Un nouveau canevas ne co
 
 ## Blocage persistant (2.0.0)
 
-Le profil conserve au plus 256 contacts bloqués, par UUID signé, avec nom d’affichage. La préférence s’applique aux sessions existantes et aux nouvelles présences de ce profil, y compris après changement de pseudo. Réceptions et envois vers ce contact sont refusés, les offres et transferts en cours sont arrêtés et les temporaires reçus sont nettoyés. Le déblocage reste possible depuis les paramètres hors ligne. Ce blocage concerne une identité de profil connue ; il ne constitue pas une attestation de personne physique et n’empêche pas la création d’une autre identité. Le profil est borné à 64 Kio et n’inclut aucun message, groupe, sondage ou original de capture.
+Le profil conserve au plus 256 contacts bloqués, par UUID signé, avec nom d’affichage. La préférence s’applique aux sessions existantes et aux nouvelles présences de ce profil, y compris après changement de pseudo. Réceptions et envois vers ce contact sont refusés, les offres et transferts en cours sont arrêtés et les temporaires reçus sont nettoyés. Le déblocage reste possible depuis les paramètres hors ligne. Ce blocage concerne une identité de profil connue ; il ne constitue pas une attestation de personne physique et n’empêche pas la création d’une autre identité. Le fichier config.json est borné à 64 Kio et n’inclut aucun message, groupe, sondage ou original de capture ; les descriptions de groupes sont conservées séparément dans group_profiles.json.
 
 ## Amis et alertes de présence (1.8.0)
 
@@ -50,7 +70,7 @@ Chaque profil conserve son UUID de contact et une clé d’identité **Ed25519**
 
 La signature porte sur le préfixe de domaine `FortyTchat signed presence v1\0` puis le JSON canonique de tous les champs, sauf `type` et `crypto.signature`. L’exclusion de `type` permet au relais de convertir `hello` en `presence`. Pseudo, SID, statut, port, capacités, référence d’avatar, contact et clés sont ainsi liés. Le relais et le client vérifient cette signature. Une session en cours ne peut pas changer sa clé de session ou son identifiant de contact.
 
-Les capacités restent limitées à huit : `files`, `choices`, `cards`, `rooms`, `social`, `avatar_image`, `receipts`, `c:` suivi du UUID en base64url canonique. Le relais annonce `avatar_image`, `files`, `social`, `cards` et `e2ee`.
+Les capacités restent limitées à huit : `files`, `choices`, `cards`, `rooms2`, `social`, `avatar_image`, `receipts`, `c:` suivi du UUID en base64url canonique. Le relais annonce `avatar_image`, `files`, `social`, `cards` et `e2ee`.
 
 ### Premier contact et changement de clé
 
