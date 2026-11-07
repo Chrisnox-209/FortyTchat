@@ -30,6 +30,7 @@ class Preferences:
     last_wizz_at: float = 0.0
     contact_id: str = ''
     friends: dict = field(default_factory=dict)
+    blocked_contacts: dict = field(default_factory=dict)
 
 
 class ConfigStore:
@@ -46,7 +47,7 @@ class ConfigStore:
         if self.first_run:
             return defaults
         try:
-            if self.path.stat().st_size > 32768:
+            if self.path.stat().st_size > 65536:
                 raise ValueError('Configuration trop volumineuse')
             data = json.loads(self.path.read_text(encoding='utf-8'))
             if not isinstance(data, dict):
@@ -63,6 +64,13 @@ class ConfigStore:
                     if (valid_contact_id(contact_id) and contact_id != values['contact_id']
                             and valid_nickname(nickname) and len(values['friends']) < 256):
                         values['friends'][contact_id] = nickname
+            blocked = values.get('blocked_contacts', {})
+            values['blocked_contacts'] = {}
+            if isinstance(blocked, dict):
+                for contact_id, nickname in blocked.items():
+                    if (valid_contact_id(contact_id) and contact_id != values['contact_id']
+                            and valid_nickname(nickname) and len(values['blocked_contacts']) < 256):
+                        values['blocked_contacts'][contact_id] = nickname
             for key in ('autostart', 'wizz_enabled', 'dnd', 'read_receipts', 'tray_menu_double_click', 'friend_notifications'):
                 if type(values.get(key)) is not bool:
                     values[key] = False if key == 'autostart' else getattr(defaults, key)

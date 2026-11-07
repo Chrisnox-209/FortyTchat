@@ -12,13 +12,14 @@ from ..features.file_transfer import FILE_EVENTS, CHUNK_SIZE, MAX_FILE_SIZE, val
 from ..features.social import SOCIAL_EVENTS, valid_reaction
 from ..features.cards import CARD_EVENTS, valid_card, valid_responses
 from ..features.receipts import READ_EVENTS, READ_BATCH
+from ..features.collaboration import COLLAB_EVENTS, GROUP_EVENTS, CHANGE_EVENTS, POLL_EVENTS, MAX_MEMBERS, MAX_VOTERS, plain
 
 VERSION = 1
 MAX_FRAME = 32768  # Includes the base64 overhead of the authenticated envelope.
 MAX_MESSAGE = 2000
 MAX_PEERS = 512
 ID = re.compile(r'[a-f0-9]{32}\Z')
-EVENTS = {'message', 'wizz', 'break_invite', 'break_reply'} | SOCIAL_EVENTS | CARD_EVENTS | READ_EVENTS
+EVENTS = {'message', 'wizz', 'break_invite', 'break_reply'} | SOCIAL_EVENTS | CARD_EVENTS | READ_EVENTS | COLLAB_EVENTS
 
 
 class ProtocolError(ValueError):
@@ -91,6 +92,8 @@ def validate(data):
         base = {'v', 'type', 'id', 'from', 'to'}
         fields = {'file_offer': {'name', 'size', 'sha256'},
                   'file_chunk': {'request', 'offset', 'data'}}.get(kind, {'request'})
+        if kind == 'file_offer':
+            fields |= set(data) & {'group', 'preview'}
         if set(data) != base | fields:
             raise ProtocolError('Champs du transfert invalides')
         if not valid_id(data.get('id')) or not valid_id(data.get('from')):
@@ -100,6 +103,14 @@ def validate(data):
         if kind != 'file_offer' and data['to'] == 'general':
             raise ProtocolError('Données de fichier privées uniquement')
         if kind == 'file_offer':
+            validate_context(data)
+            if 'preview' in data:
+                try:
+                    if not data['preview']:
+                        raise AvatarError('Aperçu vide')
+                    avatar_hash(data['preview'])
+                except (AvatarError, TypeError) as exc:
+                    raise ProtocolError('Aperçu invalide') from exc
             if (not valid_filename(data['name']) or type(data['size']) is not int
                     or not 0 <= data['size'] <= MAX_FILE_SIZE
                     or not isinstance(data['sha256'], str)
@@ -125,8 +136,43 @@ def validate(data):
             raise ProtocolError('Identifiant invalide')
         if data.get('to') != 'general' and not valid_id(data.get('to')):
             raise ProtocolError('Destinataire invalide')
-        if kind not in {'message'} | SOCIAL_EVENTS and data['to'] == 'general':
+        if kind not in {'message'} | SOCIAL_EVENTS | CHANGE_EVENTS | POLL_EVENTS and data['to'] == 'general':
             raise ProtocolError('Action privée uniquement')
+        validate_context(data)
+        if kind in COLLAB_EVENTS:
+            base = {'v', 'type', 'id', 'from', 'to'}
+            fields = {'group_invite': {'room', 'name', 'members'}, 'group_join': {'room'}, 'group_leave': {'room'},
+                      'message_edit': {'message', 'seq', 'text'}, 'message_delete': {'message', 'seq'},
+                      'poll_create': {'question', 'options', 'audience'}, 'poll_vote': {'poll', 'option', 'seq'}}[kind]
+            if kind not in GROUP_EVENTS:
+                fields |= set(data) & {'group'}
+            if set(data) != base | fields:
+                raise ProtocolError('Champs de collaboration invalides')
+            if kind in GROUP_EVENTS and not valid_id(data['room']):
+                raise ProtocolError('Groupe invalide')
+            if kind == 'group_invite':
+                members = data['members']
+                if (not plain(data['name'], 64) or any(c in data['name'] for c in '\n\t')
+                        or not isinstance(members, list) or not 2 <= len(members) <= MAX_MEMBERS
+                        or any(not valid_id(cid) for cid in members) or len(set(members)) != len(members)):
+                    raise ProtocolError('Nom ou membres du groupe invalides')
+            if kind in CHANGE_EVENTS and not valid_id(data['message']):
+                raise ProtocolError('Message à modifier invalide')
+            if kind in CHANGE_EVENTS | {'poll_vote'} and (type(data['seq']) is not int or not 0 <= data['seq'] < 2 ** 53):
+                raise ProtocolError('Ordre invalide')
+            if kind == 'message_edit' and (not plain(data['text'], MAX_MESSAGE) or len(data['text'].encode('utf-8')) > 8000):
+                raise ProtocolError('Message modifié invalide')
+            if kind == 'poll_create':
+                options, audience = data['options'], data['audience']
+                if (not plain(data['question'], 200) or not isinstance(options, list) or not 2 <= len(options) <= 8
+                        or any(not plain(option, 80) or any(c in option for c in '\n\t') for option in options)
+                        or len({o.strip().casefold() for o in options}) != len(options)
+                        or not isinstance(audience, list) or not 1 <= len(audience) <= MAX_VOTERS
+                        or any(not valid_id(sid) for sid in audience) or len(set(audience)) != len(audience)
+                        or data['from'] not in audience):
+                    raise ProtocolError('Sondage invalide (2 à 8 choix, 256 participants maximum)')
+            if kind == 'poll_vote' and (not valid_id(data['poll']) or type(data['option']) is not int or not -1 <= data['option'] < 8):
+                raise ProtocolError('Vote invalide')
         if kind in READ_EVENTS:
             references = data.get('messages')
             if (set(data) != {'v', 'type', 'id', 'from', 'to', 'messages'}
@@ -151,6 +197,7 @@ def validate(data):
                 raise ProtocolError('Réponse de notification invalide')
         if kind in SOCIAL_EVENTS:
             fields = {'message', 'emoji', 'seq'} if kind == 'reaction' else {'active', 'seq'}
+            fields |= set(data) & {'group'}
             if set(data) != {'v', 'type', 'id', 'from', 'to'} | fields:
                 raise ProtocolError('Interaction invalide')
             if type(data['seq']) is not int or not 0 <= data['seq'] <= 2 ** 53 - 1:
@@ -181,6 +228,12 @@ def validate(data):
     else:
         raise ProtocolError('Type inconnu')
     return data
+
+
+def validate_context(data):
+    if 'group' in data and (not valid_id(data['group']) or data.get('to') == 'general'
+                            or data['type'] not in {'message', 'reaction', 'typing', 'file_offer'} | CHANGE_EVENTS | POLL_EVENTS):
+        raise ProtocolError('Contexte de groupe invalide')
 
 
 def encode(data):

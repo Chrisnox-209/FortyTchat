@@ -101,7 +101,7 @@ class PrivateWindow(QMainWindow):
         else:
             self.avatar.online = False
         self.avatar.update()
-        text = 'Masqué pour cette session' if blocked else ({'online': '● En ligne', 'away': '● Absent·e', 'dnd': '● Ne pas déranger'}.get(peer['status'], '') if peer else '○ Hors ligne')
+        text = 'Utilisateur bloqué' if blocked else ({'online': '● En ligne', 'away': '● Absent·e', 'dnd': '● Ne pas déranger'}.get(peer['status'], '') if peer else '○ Hors ligne')
         self.status_label.setText(text)
         state = peer.get('security', 'unverified') if peer else ''
         self.security_button.setEnabled(bool(peer and peer.get('identity_key')))
@@ -135,7 +135,7 @@ class PrivateWindow(QMainWindow):
         if self.contact_id:
             menu.addAction('Retirer des amis' if self.is_friend else 'Ajouter aux amis',
                            lambda: self.friend_requested.emit(self.contact_id, not self.is_friend))
-        menu.addAction('Démasquer cet utilisateur' if self.blocked else 'Masquer cet utilisateur',
+        menu.addAction('Débloquer cet utilisateur' if self.blocked else 'Bloquer cet utilisateur',
                        lambda: self.block_requested.emit(self.current, not self.blocked))
         menu.addAction('Fermer la conversation', self.close)
         menu.exec(QCursor.pos())

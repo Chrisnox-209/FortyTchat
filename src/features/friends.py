@@ -31,7 +31,7 @@ def friend_rows(friends, peers, blocked=(), preferred=None, popup_available=None
         online = peer is not None
         masked = bool(peer and peer['sid'] in blocked)
         if peer:
-            status = 'Masqué' if masked else {'online':'En ligne', 'away':'Absent·e', 'dnd':'Ne pas déranger'}.get(peer['status'], 'En ligne')
+            status = 'Bloqué' if masked else {'online':'En ligne', 'away':'Absent·e', 'dnd':'Ne pas déranger'}.get(peer['status'], 'En ligne')
         else:
             status = 'Clé modifiée · vérifier' if changed else 'Hors ligne'
         can_popup = bool(peer and not masked and 'cards' in peer.get('caps', ())

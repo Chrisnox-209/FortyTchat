@@ -22,6 +22,9 @@ class Message:
     reactions: dict = field(default_factory=dict)
     delivery_recipients: dict = field(default_factory=dict)
     delivery_local: bool = False
+    edited: bool = False
+    deleted: bool = False
+    poll: dict | None = None
 
 
 class Conversations:
@@ -54,13 +57,30 @@ class Conversations:
 
     def react(self, chat, reference, actor, emoji, nickname):
         message = self.find(chat, reference)
-        if message is None:
+        if message is None or message.deleted:
             return None
         if emoji:
             if actor in message.reactions or len(message.reactions) < 512:
                 message.reactions[actor] = {'emoji': emoji, 'nickname': nickname}
         else:
             message.reactions.pop(actor, None)
+        return message
+
+    def change(self, chat, reference, text=None, delete=False):
+        message = self.find(chat, reference)
+        if message is None or message.deleted:
+            return None
+        if delete:
+            message.text, message.deleted, message.edited = 'Message supprimé', True, False
+            message.reactions.clear()
+            message.reply_to, message.reply_name, message.reply_text = '', '', ''
+            message.poll = None
+            message.attachment = None
+        else:
+            message.text, message.edited = text, True
+        for other in self.get(chat):
+            if other.reply_to == reference:
+                other.reply_text = message.text[:160]
         return message
 
     def move(self, source, target):

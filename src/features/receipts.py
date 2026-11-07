@@ -29,7 +29,7 @@ class ReceiptLedger:
 
     def received(self, frame):
         self.remember(self.incoming, frame['id'], {'sender': frame['from'],
-                      'chat': 'general' if frame['to'] == 'general' else frame['from'],
+                      'chat': 'group:' + frame['group'] if frame.get('group') else 'general' if frame['to'] == 'general' else frame['from'],
                       'done': False, 'pending': False, 'retry': 0})
 
     def read(self, sender, references):

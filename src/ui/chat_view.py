@@ -1,6 +1,8 @@
 from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, Signal, QRect, QPoint
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QVBoxLayout, QScrollArea,
                                QWidget, QGraphicsOpacityEffect, QApplication)
+from PySide6.QtWidgets import QMenu
+from PySide6.QtGui import QCursor
 from .widgets import Avatar, label
 from .file_card import FileCard
 from .social import ElidedLabel, ReplyPreview, ReactionBar, TypingIndicator, reaction_menu
@@ -8,6 +10,7 @@ from .widgets import button
 from ..features.emojis import emoji_fallback
 from ..features.receipts import delivery_label
 from .theme import colors
+from .polls import PollCard
 
 
 class ChatView(QFrame):
@@ -15,6 +18,9 @@ class ChatView(QFrame):
     reply_requested = Signal(str)
     reaction_requested = Signal(str, str)
     quote_missing = Signal()
+    edit_requested = Signal(str)
+    delete_requested = Signal(str)
+    vote_requested = Signal(str, int)
 
     def __init__(self, private=False):
         super().__init__()
@@ -44,6 +50,8 @@ class ChatView(QFrame):
         self.animation = None
         self.file_cards = {}
         self.actor_id = ''
+        self.session_id = ''
+        self.poll_cards = {}
         self.message_rows, self.reaction_bars, self.quote_previews = {}, {}, {}
         self.delivery_labels = {}
         self.reset([], 'private' if private else 'general')
@@ -57,6 +65,7 @@ class ChatView(QFrame):
         self.rows = []
         self.bubbles = []
         self.file_cards = {}
+        self.poll_cards = {}
         self.message_rows, self.reaction_bars, self.quote_previews = {}, {}, {}
         self.delivery_labels = {}
         self.empty = None
@@ -132,7 +141,7 @@ class ChatView(QFrame):
             heading = QHBoxLayout()
             heading.addWidget(ElidedLabel('Vous' if message.outgoing else message.nickname, 'messageName'), 1)
             heading.addWidget(label(message.time.strftime('%H:%M'), 'caption'))
-            if message.id:
+            if message.id and not message.deleted:
                 for text, tooltip, callback in (
                     ('↩', 'Répondre à ce message', lambda checked=False, mid=message.id: self.reply_requested.emit(mid)),
                     ('☺', 'Réagir avec un emoji', lambda checked=False, mid=message.id: self.pick_reaction(mid)),
@@ -142,13 +151,27 @@ class ChatView(QFrame):
                     control.setStyleSheet('padding: 0; font-size: 17px; border-radius: 7px;')
                     control.clicked.connect(callback)
                     heading.addWidget(control)
+                if message.outgoing:
+                    more = button('···', 'flat', 'Modifier ou supprimer ce message')
+                    more.setFixedSize(25, 24)
+                    more.setStyleSheet('padding: 0;')
+                    more.clicked.connect(lambda checked=False, mid=message.id:self.message_menu(mid))
+                    heading.addWidget(more)
             content.addLayout(heading)
+            if message.edited:
+                content.addWidget(label('Modifié', 'caption'))
             if message.reply_to:
                 quote = ReplyPreview(message.reply_to, message.reply_name, message.reply_text, bubble)
                 quote.activated.connect(self.focus_message)
                 content.addWidget(quote)
                 self.quote_previews[message.id] = quote
-            if message.attachment:
+            if message.poll:
+                card = PollCard(message.poll, self.session_id, bubble)
+                card.voted.connect(lambda option, mid=message.id:self.vote_requested.emit(mid, option))
+                content.addWidget(card)
+                self.poll_cards[message.id] = card
+                bubble.desired_width = 360
+            elif message.attachment:
                 card = FileCard(message.attachment, bubble)
                 card.action_requested.connect(self.file_action)
                 content.addWidget(card)
@@ -168,6 +191,7 @@ class ChatView(QFrame):
                 reactions = ReactionBar(bubble)
                 reactions.chosen.connect(lambda emoji, mid=message.id: self.reaction_requested.emit(mid, emoji))
                 reactions.update_reactions(message.reactions, self.actor_id)
+                reactions.setVisible(not message.deleted)
                 content.addWidget(reactions)
                 self.message_rows[message.id] = (row, bubble, message)
                 self.reaction_bars[message.id] = reactions
@@ -190,6 +214,7 @@ class ChatView(QFrame):
             oldest.deleteLater()
             self.bubbles = [(owner, bubble) for owner, bubble in self.bubbles if owner is not oldest]
             self.file_cards = {key: value for key, value in self.file_cards.items() if value[0] is not oldest}
+            self.poll_cards = {key: value for key, value in self.poll_cards.items() if key in self.message_rows and self.message_rows[key][0] is not oldest}
             self.message_rows = {key: value for key, value in self.message_rows.items() if value[0] is not oldest}
             self.reaction_bars = {key: value for key, value in self.reaction_bars.items() if key in self.message_rows}
             self.quote_previews = {key: value for key, value in self.quote_previews.items() if key in self.message_rows}
@@ -211,6 +236,29 @@ class ChatView(QFrame):
         available = max(170, self.scroll.viewport().width() - 65)
         for _, bubble in self.bubbles:
             bubble.setFixedWidth(min(available, bubble.desired_width))
+
+    def refresh_messages(self, messages, target):
+        previous, follow = self.scroll.verticalScrollBar().value(), self.follow_bottom
+        self.reset(messages, target)
+        if not follow:
+            self.follow_bottom = False
+            QTimer.singleShot(0, lambda:self.scroll.verticalScrollBar().setValue(previous))
+
+    def message_menu(self, reference):
+        entry = self.message_rows.get(reference)
+        if not entry or not entry[2].outgoing or entry[2].deleted:
+            return
+        menu = QMenu(self)
+        if not entry[2].poll and not entry[2].attachment:
+            menu.addAction('Modifier le message', lambda:self.edit_requested.emit(reference))
+        menu.addAction('Supprimer pour les participants', lambda:self.delete_requested.emit(reference))
+        menu.exec(QCursor.pos())
+        menu.deleteLater()
+
+    def update_poll(self, poll):
+        card = self.poll_cards.get(poll['id'])
+        if card:
+            card.update_poll(poll)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -241,7 +289,7 @@ class ChatView(QFrame):
         viewport = self.scroll.viewport()
         visible = []
         for reference, (row, _, message) in self.message_rows.items():
-            if message.outgoing or message.system or message.attachment or not row.isVisible():
+            if message.outgoing or message.system or message.attachment or message.poll or message.deleted or not row.isVisible():
                 continue
             bounds = QRect(row.mapTo(viewport, QPoint(0, 0)), row.size())
             if bounds.intersected(viewport.rect()).height() >= min(24, row.height()):

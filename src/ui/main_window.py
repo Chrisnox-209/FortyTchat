@@ -36,7 +36,8 @@ class MainWindow(QMainWindow):
         body = QHBoxLayout(root)
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
-        self.sidebar = Sidebar(preferences.nickname, preferences.avatar, preferences.avatar_image, preferences.friends)
+        self.sidebar = Sidebar(preferences.nickname, preferences.avatar, preferences.avatar_image, preferences.friends,
+                               preferences.blocked_contacts)
         self.sidebar.avatar_requested.connect(self.avatar_requested)
         self.sidebar.friend_requested.connect(self.friend_requested)
         self.sidebar.selected.connect(self.select_chat)

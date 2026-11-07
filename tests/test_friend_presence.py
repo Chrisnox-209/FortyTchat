@@ -88,7 +88,7 @@ def test_friend_menu_data_tracks_identity_security_status_and_popup_route():
     assert rows[0]['nick'] == 'NewName42' and rows[0]['popup']
     assert rows[1]['status'] == 'Clé modifiée · vérifier' and not rows[1]['popup']
     assert rows[2]['status'] == 'Hors ligne' and not rows[2]['popup']
-    assert friend_rows(saved, [a], blocked=[a['sid']])[0]['status'] == 'Masqué'
+    assert friend_rows(saved, [a], blocked=[a['sid']])[0]['status'] == 'Bloqué'
     assert not friend_rows(saved, [a], blocked=[a['sid']])[0]['popup']
     assert not friend_rows(saved, [a], popup_available=lambda p:False)[0]['popup']
     assert not friend_rows(saved, [dict(a, caps=[])])[0]['popup']

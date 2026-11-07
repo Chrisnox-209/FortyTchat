@@ -68,14 +68,18 @@ class Sidebar(QFrame):
     avatar_requested = Signal()
     friend_requested = Signal(str, bool)
     popup_requested = Signal(str)
+    group_requested = Signal()
+    block_requested = Signal(str, bool)
 
-    def __init__(self, nickname, avatar=-1, image_data='', friends=None):
+    def __init__(self, nickname, avatar=-1, image_data='', friends=None, blocked_contacts=None):
         super().__init__()
         self.setObjectName('sidebar')
         self.setFixedWidth(312)
         self.peers, self.conversations, self.unread = {}, {}, {}
         self.blocked, self.current = set(), 'general'
         self.popup_available = None
+        self.groups = {}
+        self.blocked_contacts = blocked_contacts if blocked_contacts is not None else {}
         self.previews = {}
         self.friends, self.known_contacts = friends if friends is not None else {}, {}
         layout = QVBoxLayout(self)
@@ -92,6 +96,9 @@ class Sidebar(QFrame):
         heading.addWidget(label('Vos messages, simplement.', 'muted'))
         heading.addSpacing(14)
         heading.addWidget(label('MESSAGES', 'eyebrow'))
+        create_group = button('＋  Créer un groupe', 'soft', 'Inviter des personnes dans un groupe privé')
+        create_group.clicked.connect(self.group_requested)
+        heading.addWidget(create_group)
         layout.addLayout(heading)
         self.list = QListWidget()
         self.list.setMouseTracking(True)
@@ -158,6 +165,10 @@ class Sidebar(QFrame):
             menu.addSeparator()
         menu.addAction('Retirer des amis' if added else 'Ajouter aux amis',
                        lambda: self.friend_requested.emit(contact_id, not added))
+        blocked = contact_id in self.blocked_contacts
+        menu.addSeparator()
+        menu.addAction('Débloquer cet utilisateur' if blocked else 'Bloquer cet utilisateur',
+                       lambda:self.block_requested.emit(contact_id, not blocked))
         return menu
 
     def _section(self, name):
@@ -189,6 +200,13 @@ class Sidebar(QFrame):
         keep = set(self.peers) | set(self.conversations) | set(self.unread)
         self.known_contacts = {sid: cid for sid, cid in self.known_contacts.items() if sid in keep}
         self._row('general', 'général', self.previews.get('general', 'Tout le cluster, au même endroit'))
+        if self.groups:
+            self._section(f'GROUPES  ·  {len(self.groups)}')
+            for key, room in self.groups.items():
+                detail = 'Invitation · cliquer pour rejoindre' if room['state'] == 'pending' else (
+                    self.previews.get(key, f'{len(set(room["joined"]) - set(room["left"]))} membres · groupe privé')
+                    if room['state'] == 'joined' else 'Groupe quitté ou invitation refusée')
+                self._row(key, room['name'], detail, room['state'] == 'joined')
         if self.friends:
             self._section(f'AMIS  ·  {len(self.friends)}')
             live_friends = {cid: online_contact(self.peers.values(), cid) for cid in self.friends}
@@ -196,12 +214,14 @@ class Sidebar(QFrame):
                 peer = live_friends[contact_id]
                 if peer:
                     detail = {'online': 'En ligne · ami', 'away': 'Absent·e · ami', 'dnd': 'Ne pas déranger'}.get(peer['status'], '')
+                    if contact_id in self.blocked_contacts or peer['sid'] in self.blocked:
+                        detail = 'Bloqué'
                     self._row(peer['sid'], peer['nick'], detail, True, peer.get('avatar', -1),
                               peer.get('avatar_image', ''), contact_id, True)
                 else:
                     changed = any(p.get('contact_id') == contact_id and p.get('security') == 'changed'
                                   for p in self.peers.values())
-                    self._row(friend_key(contact_id), saved_name, 'Clé modifiée · vérifier' if changed else 'Hors ligne',
+                    self._row(friend_key(contact_id), saved_name, 'Bloqué · hors ligne' if contact_id in self.blocked_contacts else 'Clé modifiée · vérifier' if changed else 'Hors ligne',
                               contact_id=contact_id, friend=True)
         others = [p for p in self.peers.values() if p.get('contact_id') not in self.friends]
         self._section(f'{"AUTRES EN LIGNE" if self.friends else "EN LIGNE"}  ·  {len(others)}')
@@ -210,12 +230,12 @@ class Sidebar(QFrame):
                 continue
             detail = {'online': self.previews.get(peer['sid'], 'Cliquer pour discuter'), 'away': 'Absent·e', 'dnd': 'Ne pas déranger'}.get(peer['status'], '')
             if peer['sid'] in self.blocked:
-                detail = 'Masqué · cliquer pour gérer'
+                detail = 'Bloqué · cliquer pour gérer'
             elif peer.get('security') == 'changed':
                 detail = 'Clé modifiée · vérifier le cadenas'
             self._row(peer['sid'], peer['nick'], detail, True, peer.get('avatar', -1), peer.get('avatar_image', ''), peer.get('contact_id', ''))
         offline = [(sid, nick) for sid, nick in self.conversations.items() if sid not in self.peers
-                   and self.known_contacts.get(sid) not in self.friends and not sid.startswith('friend:')]
+                   and self.known_contacts.get(sid) not in self.friends and not sid.startswith(('friend:', 'group:'))]
         if offline:
             self._section('CONVERSATIONS DE CETTE SESSION')
             for sid, nick in offline[-64:]:

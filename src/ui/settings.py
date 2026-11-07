@@ -16,6 +16,7 @@ class SettingsDialog(QDialog):
     avatar_requested = Signal()
     cards_requested = Signal()
     security_requested = Signal()
+    blocked_requested = Signal()
 
     def __init__(self, preferences, autostart_enabled, network, dev=False, parent=None):
         super().__init__(parent)
@@ -95,6 +96,9 @@ class SettingsDialog(QDialog):
         self.security_button = button('Mon identité de chiffrement', 'soft', 'Afficher mon empreinte de sécurité')
         self.security_button.clicked.connect(self.security_requested)
         form.addWidget(self.security_button)
+        self.blocked_button = button(f'Contacts bloqués ({len(preferences.blocked_contacts)})', 'soft')
+        self.blocked_button.clicked.connect(self.blocked_requested)
+        form.addWidget(self.blocked_button)
         form.addStretch()
         self.tabs.addTab(self.scroll_page(general), 'Général')
         privacy = QWidget()
@@ -117,16 +121,21 @@ class SettingsDialog(QDialog):
         repository.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://github.com/Chrisnox-209/FortyTchat')))
         privacy_box.addWidget(repository)
         for title, text in [
-            ('Le cluster, en direct', 'Une messagerie locale pour discuter dans le salon général ou dans une fenêtre privée. Aucun compte à créer : les personnes présentes sur le réseau sont découvertes automatiquement.'),
+            ('Le cluster, en direct', 'Une messagerie locale pour discuter dans le salon général, en privé ou dans un groupe sur invitation. Aucun compte à créer : les personnes présentes sur le réseau sont découvertes automatiquement.'),
+            ('Des groupes entre potes', 'Créer un groupe invite jusqu’à 31 personnes connectées. Chacun accepte ou refuse ; seuls les membres ayant rejoint reçoivent les nouveaux messages. Fermer une fenêtre garde le groupe actif ; Quitter le groupe arrête les échanges. Les groupes et leurs messages restent uniquement dans la session.'),
+            ('Modifier et supprimer', 'Le menu ··· de tes messages permet de corriger le texte ou de supprimer un message, un sondage ou une pièce jointe de la conversation chez les participants compatibles. La mention Modifié ou Message supprimé indique le changement. Un fichier déjà enregistré chez un destinataire reste sur son disque.'),
+            ('Sondages du cluster', 'Le bouton de sondage propose une question et deux à huit choix dans le général ou un groupe. Chacun a une voix, qu’il peut changer ou retirer. Les résultats restent en mémoire, avec un maximum de 256 participants par sondage.'),
+            ('Images et captures', 'Les images compatibles affichent un aperçu dans le tchat. Ctrl+V prépare une capture à confirmer avant envoi. La capture reste en mémoire chez l’expéditeur ; le destinataire choisit s’il enregistre le fichier original. Les miniatures et les fichiers sont chiffrés.'),
+            ('Bloquer un utilisateur', 'Le menu d’une personne permet de bloquer son profil. Le choix reste actif après un changement de pseudo ou une reconnexion ; ses messages, invitations et transferts sont refusés. Paramètres → Contacts bloqués permet de le débloquer, même hors ligne.'),
             ('Envoyé, livré, vu', 'Une coche grise : envoyé, réception en attente. Deux coches grises : livré à l’application du destinataire. Deux bleues : affiché dans sa conversation active. Les compteurs du général concernent les destinataires présents à l’envoi. Désactive le partage des confirmations de lecture dans Général si tu ne veux pas envoyer « Vu ». Les états restent en mémoire et leurs confirmations sont chiffrées.'),
             ('Répondre, réagir, discuter', 'Le bouton ↩ cite un message ; un clic sur la citation y ramène. Le bouton ☺ ajoute une réaction emoji, modifiable ou retirable. Trois points animés indiquent quand quelqu’un écrit, sans partager son brouillon.'),
             ('Tes notifications, tes réponses', 'Le bouton ✦ permet de choisir titre, texte, animation et réponses proposées. Prépare jusqu’à trois boutons avec leur libellé, une réponse Oui, Non ou Autre, et le texte et emoji qui seront renvoyés. Autorise une réponse libre si tu le souhaites, ou choisis Fermer uniquement pour une simple information. Fermer ne renvoie aucune réponse sur ces nouvelles cartes. Les choix peuvent être enregistrés avec tes modèles ; les deux clients doivent utiliser 1.7.0.'),
             ('Tes amis, ton image, tes emojis', 'Les amis restent reconnus après un changement de pseudo. Choisis un avatar ou importe ta photo, puis exprime-toi parmi 3 781 emojis avec recherche et catégories.'),
             ('Tes amis depuis l’icône', 'Le clic droit sur l’icône FT affiche tes amis en ligne et hors ligne. Ouvre le sous-menu d’un ami pour discuter ou envoyer une popup, sans ouvrir le tchat. Le clic droit dans la liste des amis propose aussi l’éditeur de popup. Un ami hors ligne ne peut pas recevoir de popup.'),
             ('Un ami arrive dans le cluster', 'Une notification Ubuntu silencieuse t’avertit quand un ami se connecte. Désactive-la dans Général ou avec Ne pas déranger. Les connexions simultanées sont regroupées, sans alerte pour les changements de pseudo, les petites coupures ou les amis déjà présents au démarrage. Le bureau Ubuntu contrôle la position et l’apparence des bannières.'),
-            ('Des fichiers à partager', 'Envoie un fichier de 20 Mio maximum dans le général ou en privé. Le destinataire choisit de l’enregistrer ou de le refuser. Les fichiers enregistrés restent à l’emplacement choisi.'),
+            ('Des fichiers à partager', 'Envoie un fichier de 20 Mio maximum dans le général, en privé ou dans un groupe. Le destinataire choisit de l’enregistrer ou de le refuser. Les fichiers enregistrés restent à l’emplacement choisi.'),
             ('Un Wizz, une pause', 'Le Wizz fait vibrer la conversation pendant 2,8 secondes et montre les derniers messages, sans son. Un envoi toutes les 42 minutes. Les pauses restent actives en Ne pas déranger : trois demandes successives, puis cinq minutes de blocage à la quatrième. La réponse apparaît en bleu pour oui et en rouge pour non.'),
-            ('Ton profil reste, les messages s’effacent', 'Pseudo, amis, photo et préférences restent sur ton espace utilisateur. Les messages restent en mémoire : Quitter complètement les efface de ce processus. Fermer la fenêtre garde l’application active.'),
+            ('Ton profil reste, les messages s’effacent', 'Pseudo, amis, blocages, photo et préférences restent sur ton espace utilisateur. Messages, groupes, sondages et captures préparées restent en mémoire : Quitter complètement les efface de ce processus. Fermer la fenêtre garde l’application active.'),
             ('Chiffré de bout en bout', 'Messages, fichiers, réactions, saisie, Wizz et notifications sont chiffrés entre les appareils, en direct et via le relais. Chaque démarrage renouvelle les clés de session. Le cadenas affiche les empreintes publiques : leur comparaison confirme l’identité d’un contact. Les messages restent chiffrés même sans cette comparaison. Un changement de clé bloque les échanges. Les anciennes versions doivent être mises à jour.'),
             ('Une identité à vérifier', 'La clé de ton profil et les clés publiques de tes contacts restent sur ton espace utilisateur, sans historique de messages. Le pseudo ne prouve pas l’identité d’un étudiant. Le général reste lisible par ses participants ; pseudos, présence, avatars et métadonnées de trafic restent publics. Un appareil compromis peut lire ses conversations.'),
             ('Ubuntu et la barre supérieure', 'L’icône FT devient rouge quand des messages sont non lus. Doubleclic, activation principale ou clic milieu ouvrent le tchat. La compatibilité GNOME reconnaît aussi l’ouverture puis la fermeture rapide du menu, sans sélectionner une action ; elle peut être désactivée dans Général. Le menu propose toujours Ouvrir FortyTchat. Le bureau garde le contrôle du placement et de la mise au premier plan ; le comportement doit être vérifié sur les postes de l’école.'),

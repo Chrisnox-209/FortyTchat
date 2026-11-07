@@ -5,6 +5,9 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, QTimer, QSignalBlocker, QStandardPaths
 from PySide6.QtWidgets import QApplication, QFileDialog
+from .collaboration import CollaborationController
+from .features.collaboration import group_id, chat_target
+from .ui.images import ImageViewer
 
 from .autostart import Autostart
 from .config import ConfigStore, config_home
@@ -35,7 +38,7 @@ class AlreadyRunning(Exception):
     pass
 
 
-class Application(QObject):
+class Application(QObject, CollaborationController):
     activation_requested = Signal()
 
     def __init__(self, project_root, args):
@@ -55,6 +58,7 @@ class Application(QObject):
         self.security_dialogs = {}
         self.peer_avatars = {}
         self.contact_sessions = {}
+        self.session_blocks = set()
         self.settings, self.stopping, self.status = None, False, 'online'
         self.network, self.latest_peers = {}, []
         root = config_home() / 'fortytchat-dev' / args.dev if args.dev else None
@@ -125,10 +129,12 @@ class Application(QObject):
                        relay_port=network.relay_port, tls=context,
                        last_wizz_at=self.preferences.last_wizz_at, persist_wizz=self.store.reserve_wizz,
                        avatar=self.preferences.avatar, avatar_image=self.preferences.avatar_image,
-                       contact_id=self.preferences.contact_id, crypto_identity=self.crypto_identity)
+                       contact_id=self.preferences.contact_id, crypto_identity=self.crypto_identity,
+                       blocked_contacts=self.preferences.blocked_contacts)
         if args.insecure_local_relay:
             options.update(relay_host='127.0.0.1', relay_port=args.insecure_local_relay, tls=False)
         self.worker = NetworkWorker(self.preferences.nickname, **options)
+        self.init_collaboration_ui()
         self.window.sidebar.popup_available = self.cards_available
         self.worker.received.connect(self.on_network)
         self.peer_timer = QTimer(self)
@@ -173,13 +179,15 @@ class Application(QObject):
             del blocker
 
     def view_for(self, target):
-        return self.window if target == 'general' else self.private_windows.get(target)
+        return self.window if target == 'general' else self.private_windows.get(target) or self.group_windows.get(target)
 
     def is_viewed(self, target):
         view = self.view_for(target)
         return bool(view and view.isVisible() and view.isActiveWindow())
 
     def open_private(self, sid):
+        if group_id(sid):
+            return self.open_group(group_id(sid))
         contact_id = contact_from_key(sid)
         if contact_id:
             live = online_contact(self.latest_peers, contact_id, self.contact_sessions.get(contact_id, ''))
@@ -204,7 +212,7 @@ class Application(QObject):
         view = PrivateWindow(sid, nickname, self.history.get(sid), self.icon_path, self.wizz_deadline)
         view.contact_id = contact_id
         self.private_windows[sid] = view
-        view.set_peer(peer, sid in self.window.sidebar.blocked)
+        view.set_peer(peer, sid in self.window.sidebar.blocked or contact_id in self.preferences.blocked_contacts)
         view.set_friend(contact_id in self.preferences.friends)
         view.send_requested.connect(self.send_message)
         self.bind_interactions(view)
@@ -239,6 +247,10 @@ class Application(QObject):
 
     def bind_interactions(self, view):
         view.chat.actor_id = self.preferences.contact_id
+        view.chat.session_id = self.worker.client.sid if hasattr(self, 'worker') else ''
+        for card in view.chat.poll_cards.values():
+            card.actor = view.chat.session_id
+            card.update_poll(card.poll)
         for _, _, message in view.chat.message_rows.values():
             view.chat.update_reactions(message)
         view.chat.reply_requested.connect(lambda reference: self.begin_reply(view.current, reference))
@@ -246,6 +258,11 @@ class Application(QObject):
         view.chat.quote_missing.connect(lambda: view.show_notice('Le message cité n’est plus disponible dans cette session.'))
         view.composer.typing_changed.connect(lambda active: self.send_typing(view.current, active))
         view.composer.card_requested.connect(lambda: self.show_card_editor(view.current))
+        view.composer.poll_requested.connect(lambda: self.show_poll_editor(view.current))
+        view.composer.image_pasted.connect(lambda image: self.paste_image(view.current, image))
+        view.chat.edit_requested.connect(lambda reference:self.edit_message(view.current, reference))
+        view.chat.delete_requested.connect(lambda reference:self.delete_message(view.current, reference))
+        view.chat.vote_requested.connect(lambda reference, option:self.worker.send('poll_vote', view.current, poll=reference, option=option))
 
     def open_friend(self, contact_id):
         if contact_id in self.preferences.friends:
@@ -338,7 +355,7 @@ class Application(QObject):
 
     def react(self, target, reference, emoji):
         message = self.history.find(target, reference)
-        if not message:
+        if not message or message.deleted:
             return
         current = message.reactions.get(self.preferences.contact_id, {}).get('emoji', '')
         self.worker.send('reaction', target, message=reference, emoji='' if current == emoji else emoji)
@@ -361,12 +378,14 @@ class Application(QObject):
         self.window.chat.typing.set_typers(self.typing_state.names('general'))
         for sid, view in self.private_windows.items():
             view.chat.typing.set_typers(self.typing_state.names(sid))
+        for sid, view in self.group_windows.items():
+            view.chat.typing.set_typers(self.typing_state.names(sid))
 
     def refresh_receipts(self):
         if self.stopping or not self.preferences.read_receipts:
             return
         view = self.qt.activeWindow()
-        if not view or (view is not self.window and view not in self.private_windows.values()):
+        if not view or (view is not self.window and view not in self.private_windows.values() and view not in self.group_windows.values()):
             return
         if not view.isVisible() or view.isMinimized() or not view.isActiveWindow():
             return
@@ -415,6 +434,11 @@ class Application(QObject):
                 if saved_name != peer['nick']:
                     self.preferences.friends[contact_id] = peer['nick']
                     changed_names = True
+        for contact_id, saved_name in list(self.preferences.blocked_contacts.items()):
+            peer = online_contact(self.latest_peers, contact_id)
+            if peer and peer['nick'] != saved_name:
+                self.preferences.blocked_contacts[contact_id] = peer['nick']
+                changed_names = True
         if changed_names:
             self.save_preferences()
         changed = {p['sid']: p for p in self.latest_peers
@@ -430,8 +454,13 @@ class Application(QObject):
             for sid, view in self.private_windows.items():
                 view.chat.reset(self.history.get(sid), sid)
         self.window.set_peers(self.latest_peers)
+        self.refresh_blocked_state()
+        self.group_names.update({p['contact_id']:p['nick'] for p in self.latest_peers})
+        for key, view in self.group_windows.items():
+            if key in self.groups:
+                view.set_group(self.groups[key], self.group_names)
         for sid, view in self.private_windows.items():
-            view.set_peer(self.window.peers.get(sid), sid in self.window.sidebar.blocked)
+            view.set_peer(self.window.peers.get(sid), sid in self.window.sidebar.blocked or view.contact_id in self.preferences.blocked_contacts)
             view.set_friend(view.contact_id in self.preferences.friends)
         self.refresh_friend_surfaces()
 
@@ -529,7 +558,7 @@ class Application(QObject):
                     existing.reply_text = preview(message.text)
                     if view:
                         view.chat.update_quote(existing)
-        if target != 'general':
+        if target != 'general' and not group_id(target):
             nick = (message.nickname if not message.outgoing and message.nickname
                     else self.window.known_names.get(target, 'Étudiant'))
             self.window.sidebar.conversations[target] = nick
@@ -545,6 +574,8 @@ class Application(QObject):
 
     def on_network(self, kind, data):
         if self.stopping:
+            return
+        if self.collaboration_event(kind, data):
             return
         if kind.startswith('file_'):
             self.file_event(kind, data)
@@ -602,7 +633,7 @@ class Application(QObject):
                 if not data['ok']:
                     view.show_notice('Notification non confirmée : le contact peut être en Ne pas déranger ou utiliser une ancienne version.')
             elif data.get('local_only'):
-                self.window.show_notice('Aucun autre utilisateur détecté : ce message est visible uniquement ici.')
+                self.window.show_notice('Aucun destinataire disponible : ce message est visible uniquement ici.')
             elif not data['ok']:
                 view.show_notice('Livraison non confirmée pour au moins un destinataire. Le message ne sera pas renvoyé à une reconnexion.')
         elif kind == 'sent':
@@ -621,7 +652,7 @@ class Application(QObject):
                                                  avatar_image=self.preferences.avatar_image, reply_to=frame.get('reply_to', ''),
                                                  delivery_recipients={peer['sid']: {'nick': peer['nick'], 'reads': peer['reads'], 'state': 'sent'}
                                                                       for peer in data.get('recipients', [])},
-                                                 delivery_local=not data.get('recipients') and target == 'general'))
+                                                 delivery_local=not data.get('recipients') and (target == 'general' or bool(group_id(target)))))
             elif frame['type'] == 'reaction':
                 self.apply_reaction(target, frame['message'], self.preferences.contact_id, frame['emoji'], self.preferences.nickname)
             elif frame['type'] == 'wizz':
@@ -638,7 +669,7 @@ class Application(QObject):
             self.receive_event(data['frame'], data['nickname'], data.get('avatar', -1), data.get('avatar_image', ''), data.get('contact_id', ''))
 
     def receive_event(self, frame, nickname, avatar=-1, avatar_image='', contact_id=''):
-        target = 'general' if frame['to'] == 'general' else frame['from']
+        target = chat_target(frame, self.worker.client.sid)
         self.window.known_names[frame['from']] = nickname
         kind = frame['type']
         if kind in ('reaction', 'typing') and frame['from'] in self.window.sidebar.blocked:
@@ -697,7 +728,7 @@ class Application(QObject):
         view = self.view_for(target) or self.window
         path, _ = QFileDialog.getOpenFileName(view, 'Joindre un fichier · 20 Mio maximum')
         if path:
-            self.worker.offer_file(target, path)
+            self.offer_image_file(target, path)
 
     def refresh_file_card(self, metadata):
         view = self.view_for(metadata['target'])
@@ -710,7 +741,9 @@ class Application(QObject):
             return
         view = self.view_for(metadata['target']) or self.window
         sender = metadata['from']
-        if action == 'accept' and metadata['status'] == 'offered' and not metadata['outgoing']:
+        if action == 'preview':
+            self.keep_dialog(ImageViewer(metadata, view))
+        elif action == 'accept' and metadata['status'] == 'offered' and not metadata['outgoing']:
             folder = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or str(Path.home()))
             suggestion = folder / metadata['name']
             index = 1
@@ -731,7 +764,7 @@ class Application(QObject):
             self.refresh_file_card(metadata)
             self.worker.decline_file(metadata['id'], sender)
         elif action == 'cancel' and metadata['status'] in ('offered', 'transferring'):
-            peer = metadata['to'] if metadata['outgoing'] else sender
+            peer = ('general' if group_id(metadata['to']) else metadata['to']) if metadata['outgoing'] else sender
             self.worker.cancel_file(metadata['id'], peer)
 
     def file_event(self, kind, data):
@@ -745,9 +778,9 @@ class Application(QObject):
                     return
                 del self.file_transfers[victim]
             outgoing = data.get('outgoing', False)
-            target = data['to'] if outgoing or data['to'] == 'general' else data['from']
+            target = chat_target(data, self.worker.client.sid)
             metadata = {**data, 'target': target, 'status': 'offered', 'received': 0}
-            if outgoing and target == 'general':
+            if outgoing and (target == 'general' or group_id(target)):
                 metadata['recipients_state'] = {sid: {'status': 'offered', 'received': 0} for sid in data.get('recipients', [])}
             self.file_transfers[key] = metadata
             self.add_message(target, Message(data['from'], data['nickname'], '↧ ' + data['name'],
@@ -767,7 +800,7 @@ class Application(QObject):
                   'file_declined': 'declined', 'file_failed': 'failed'}.get(kind)
         if not status:
             return
-        if metadata['outgoing'] and metadata['target'] == 'general' and metadata.get('recipients_state'):
+        if metadata['outgoing'] and (metadata['target'] == 'general' or group_id(metadata['target'])) and metadata.get('recipients_state'):
             recipients = metadata['recipients_state']
             peer = data.get('peer')
             if peer in recipients and recipients[peer]['status'] not in ('complete', 'declined', 'failed'):
@@ -788,6 +821,8 @@ class Application(QObject):
                 return
             metadata.update(status=status, detail=data.get('reason', ''),
                             received=data.get('received', metadata['size'] if status == 'complete' else metadata['received']))
+            if status == 'complete' and data.get('path'):
+                metadata['path'] = data['path']
         self.refresh_file_card(metadata)
 
     def remove_popup(self, key):
@@ -824,6 +859,7 @@ class Application(QObject):
         dialog.avatar_requested.connect(self.show_avatar_picker)
         dialog.cards_requested.connect(self.show_card_templates)
         dialog.security_requested.connect(lambda: self.show_security())
+        dialog.blocked_requested.connect(self.show_blocked_contacts)
         dialog.preference_changed.connect(self.change_preference)
         dialog.finished.connect(self.close_settings)
         dialog.show()
@@ -891,7 +927,7 @@ class Application(QObject):
             apply_theme(self.qt, self.preferences.theme)
             self.window.sidebar.list.setProperty('light', self.preferences.theme == 'light')
             self.window.sidebar.list.viewport().update()
-            for view in [self.window, *self.private_windows.values()]:
+            for view in [self.window, *self.private_windows.values(), *self.group_windows.values()]:
                 for _, _, message in view.chat.message_rows.values():
                     view.chat.update_delivery(message)
         self.apply_network_preferences()
@@ -919,6 +955,16 @@ class Application(QObject):
             del blocker
 
     def block(self, sid, value):
+        peer = next((p for p in self.latest_peers if p['sid'] == sid), None)
+        view = self.private_windows.get(sid)
+        cid = peer.get('contact_id') if peer else view.contact_id if view else contact_from_key(sid)
+        if cid:
+            self.block_profile(cid, value)
+            return
+        if value:
+            self.session_blocks.add(sid)
+        else:
+            self.session_blocks.discard(sid)
         self.worker.call('block', sid, value)
         if value:
             self.window.sidebar.blocked.add(sid)
@@ -956,6 +1002,10 @@ class Application(QObject):
         self.close_card_editors()
         for view in list(self.private_windows.values()):
             view.close()
+        for view in list(self.group_windows.values()):
+            view.close()
+        for dialog in list(self.collaboration_dialogs):
+            dialog.close()
         self.worker.stop()
         self.history.clear()
         self.file_transfers.clear()

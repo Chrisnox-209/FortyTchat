@@ -94,7 +94,7 @@ class FileTransfers:
         self.client.emit(kind, id=offer['id'], peer=peer, target=offer['to'], name=offer['name'],
                          outgoing=outgoing, **extra)
 
-    async def offer(self, target, path):
+    async def offer(self, target, path=None, *, preview='', memory=None, name='capture.png'):
         self.prune()
         if len(self.outgoing) + self.reserved >= MAX_OUTGOING:
             self.client.emit('notice', text='Huit fichiers proposés simultanément maximum.')
@@ -105,18 +105,28 @@ class FileTransfers:
             return
         self.reserved += 1
         try:
-            source = await disk(prepare_source, path)
+            if memory is None:
+                source = await disk(prepare_source, path)
+            else:
+                if not isinstance(memory, bytes) or not 0 < len(memory) <= MAX_FILE_SIZE or not valid_filename(name):
+                    raise ValueError('Capture trop grande ou invalide (20 Mio maximum).')
+                source = dict(memory=memory, name=name, size=len(memory), sha256=hashlib.sha256(memory).hexdigest())
             if self.client._closing:
                 return
             from ..networking.protocol import event
             frame = event('file_offer', self.client.sid, target,
                           **{key: source[key] for key in ('name', 'size', 'sha256')})
+            if preview:
+                from ..avatar_data import avatar_hash
+                avatar_hash(preview)
+                frame['preview'] = preview
             source.update(frame)
             source.update(expires=time.monotonic() + OFFER_LIFETIME,
                           recipients={p.sid for p in peers}, active={}, finished=set())
             self.outgoing[frame['id']] = source
             self.client.emit('file_offer', **frame, nickname=self.client.nickname, outgoing=True,
                              recipients=sorted(source['recipients']))
+            self.client.remember_message(frame, target, peers)
             deliveries = await self.client.deliver_file(frame, peers, report=True)
             for sid, delivered in deliveries.items():
                 if not delivered:
@@ -166,15 +176,19 @@ class FileTransfers:
             return True, ''
         self.prune()
         if kind == 'file_offer':
+            if frame.get('group') and not self.client.group_access(peer, frame['group']):
+                return False, 'Groupe indisponible'
             existing = self.incoming.get((frame['id'], sender))
             if existing:
-                fields = ('from', 'to', 'name', 'size', 'sha256')
-                return (True, '') if all(existing[key] == frame[key] for key in fields) else (False, 'Offre de fichier incohérente')
+                fields = ('from', 'to', 'name', 'size', 'sha256', 'group', 'preview')
+                return (True, '') if all(existing.get(key) == frame.get(key) for key in fields) else (False, 'Offre de fichier incohérente')
             if len(self.incoming) >= MAX_INCOMING or not peer.bucket.allow():
                 return False, 'Trop de fichiers proposés'
             offer = dict(frame, expires=time.monotonic() + OFFER_LIFETIME, updated=time.monotonic())
             self.incoming[(frame['id'], sender)] = offer
             self.client.emit('file_offer', **frame, nickname=peer.nick, outgoing=False)
+            from .collaboration import chat_target
+            self.client.remember_message(frame, chat_target(frame, self.client.sid))
         elif kind == 'file_accept':
             offer = self.outgoing.get(frame['request'])
             if not offer or sender not in offer['recipients'] or sender in offer['finished']:

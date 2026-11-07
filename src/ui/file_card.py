@@ -4,6 +4,9 @@ from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QProgressBar
 
 from .widgets import label, button
 from .social import ElidedLabel
+from .images import decode_preview
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtCore import QSize
 
 
 def file_size(size):
@@ -23,6 +26,12 @@ class FileCard(QFrame):
         box = QVBoxLayout(self)
         box.setContentsMargins(0, 3, 0, 2)
         box.setSpacing(9)
+        self.preview = button('', 'flat', 'Agrandir l’aperçu')
+        self.preview.setAccessibleName('Agrandir l’aperçu de l’image')
+        self.preview.setStyleSheet('padding: 0;')
+        self.preview.clicked.connect(lambda: self.action_requested.emit('preview', dict(self.metadata)))
+        self.preview.hide()
+        box.addWidget(self.preview)
         self.name = ElidedLabel('', 'messageText', mode=Qt.TextElideMode.ElideMiddle)
         self.name.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         box.addWidget(self.name)
@@ -47,6 +56,14 @@ class FileCard(QFrame):
         self.update_transfer(metadata)
 
     def update_transfer(self, metadata):
+        if metadata.get('preview') and (not hasattr(self, 'metadata') or metadata.get('preview') != self.metadata.get('preview')):
+            image = decode_preview(metadata['preview'])
+            if not image.isNull():
+                image = image.scaled(QSize(240, 180), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                self.preview.setIcon(QIcon(QPixmap.fromImage(image)))
+                self.preview.setIconSize(image.size())
+                self.preview.setFixedSize(image.width(), image.height())
+                self.preview.show()
         self.metadata = metadata
         status = metadata.get('status', 'offered')
         outgoing = metadata.get('outgoing', False)

@@ -16,7 +16,7 @@ class SocialOrder:
 
     @staticmethod
     def key(frame):
-        return frame['from'], frame['to'], frame['type'], frame.get('message', '')
+        return frame['from'], frame.get('group', frame['to']), frame['type'], frame.get('message', '')
 
     def newer(self, frame):
         return frame['seq'] > self.latest.get(self.key(frame), -1)

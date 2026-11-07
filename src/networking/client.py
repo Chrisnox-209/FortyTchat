@@ -6,6 +6,7 @@ import contextlib
 import ssl
 import random
 import time
+import io
 
 from ..features.file_transfer import FileTransfers, FILE_EVENTS, CHUNK_SIZE, disk, fingerprint, open_source
 from ..features.break_request import Invitations, BreakRateLimit
@@ -13,6 +14,8 @@ from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
 from ..features.social import SOCIAL_EVENTS, SocialOrder
 from ..features.cards import CARD_EVENTS, allowed_reply
 from ..features.receipts import ReceiptLedger, READ_EVENTS, READ_BATCH
+from ..features.collaboration import CAPABILITY, COLLAB_EVENTS, GROUP_EVENTS, group_id, chat_target
+from .collaboration import CollaborationNetwork
 from ..identity import session_id, unique_nickname, valid_nickname, contact_capability, contact_from_caps
 from ..avatar_data import avatar_hash, avatar_frame
 from ..security import CryptoIdentity, SecureSession, SecurityError, fingerprint as key_fingerprint
@@ -23,12 +26,12 @@ from .presence import Peer, HEARTBEAT, PEER_TIMEOUT
 from .protocol import MAX_FRAME, MAX_PEERS, EVENTS, ProtocolError, ack, encode, event, read_frame
 
 
-class ChatClient:
+class ChatClient(CollaborationNetwork):
     def __init__(self, nickname, callback=None, *, discovery=True, discovery_port=PORT,
                  relay_host='', relay_port=39743, tls=True, tcp_port=39742,
                  heartbeat=25, peer_timeout=90, multicast_group='239.42.42.42',
                  last_wizz_at=0, persist_wizz=None, avatar=-1, avatar_image='', contact_id=None,
-                 security_root=None, crypto_identity=None):
+                 security_root=None, crypto_identity=None, blocked_contacts=()):
         self.sid, self.nickname = session_id(), nickname
         self.status = 'online'
         self.contact_id = contact_id or session_id()
@@ -58,6 +61,8 @@ class ChatClient:
         self._last_reply = 0.0
         self.persist_wizz = persist_wizz
         self.peers, self.blocked = {}, set()
+        self.blocked_contacts = set(blocked_contacts)
+        self.init_collaboration()
         self.seen, self.outgoing_invites, self.incoming_invites = SeenMessages(), Invitations(), Invitations()
         self.card_policies = {'incoming': {}, 'outgoing': {}}
         self.message_bucket = TokenBucket()
@@ -96,7 +101,7 @@ class ChatClient:
     def hello(self, kind='hello'):
         return self.crypto.sign_presence({'v': 1, 'type': kind, 'sid': self.sid, 'nick': self.nickname,
                 'status': self.status, 'port': self.port,
-                'caps': ['files', 'choices', 'cards', 'probe', 'social', 'avatar_image', 'receipts', contact_capability(self.contact_id)],
+                'caps': ['files', 'choices', 'cards', CAPABILITY, 'social', 'avatar_image', 'receipts', contact_capability(self.contact_id)],
                 'avatar': self.avatar, 'avatar_hash': self.avatar_hash})
 
     def network_state(self):
@@ -210,6 +215,9 @@ class ChatClient:
                 self._last_reply = time.monotonic()
                 asyncio.get_running_loop().call_later(random.uniform(0.2, 1.5), self._announce)
         if new or previous != (peer.nick, peer.status, peer.relay, peer.avatar, peer.avatar_hash, peer.contact_id, peer.security):
+            if peer.contact_id in self.blocked_contacts:
+                self.blocked.add(peer.sid)
+                peer.avatar_image = ''
             self.emit_peers()
         if not peer.secure and sid not in self.security_notices and len(self.security_notices) < MAX_PEERS:
             self.security_notices.add(sid)
@@ -241,6 +249,7 @@ class ChatClient:
 
     def _remove_peer(self, sid):
         peer = self.peers.pop(sid, None)
+        self.blocked.discard(sid)
         fetch = self.avatar_fetches.pop(sid, None)
         if fetch:
             fetch.cancel()
@@ -305,6 +314,12 @@ class ChatClient:
     def block(self, sid, blocked=True):
         if blocked:
             self.blocked.add(sid)
+            for request, offer in list(self.files.outgoing.items()):
+                if sid in offer['recipients']:
+                    self.task(self.files.cancel(request, sid))
+            for key in list(self.files.incoming):
+                if key[1] == sid:
+                    self.files.fail_incoming(key, 'Transfert arrêté : contact bloqué.')
             peer = self.peers.get(sid)
             if peer:
                 peer.avatar_image = ''
@@ -314,6 +329,18 @@ class ChatClient:
             self.avatar_attempts.pop(sid, None)
             if sid in self.peers:
                 self._queue_avatar(self.peers[sid])
+
+    def block_contact(self, contact_id, blocked=True):
+        from ..identity import valid_contact_id
+        if not valid_contact_id(contact_id) or contact_id == self.contact_id:
+            raise ValueError('Contact invalide')
+        if blocked:
+            self.blocked_contacts.add(contact_id)
+        else:
+            self.blocked_contacts.discard(contact_id)
+        for peer in list(self.peers.values()):
+            if peer.contact_id == contact_id:
+                self.block(peer.sid, blocked)
 
     def _publish_avatar(self):
         if self.relay_writer and self.relay_images and self.avatar_image:
@@ -383,6 +410,15 @@ class ChatClient:
         if frame['id'] in self.seen.ids:
             return True, ''
         kind = frame['type']
+        if frame.get('group') and not self.group_access(peer, frame['group']):
+            return False, 'Membre de groupe non autorisé'
+        if kind in COLLAB_EVENTS:
+            if CAPABILITY not in peer.caps or not peer.social_bucket.allow():
+                return False, 'Collaboration indisponible ou trop rapide'
+            ok, reason = self.receive_collaboration(frame, peer)
+            if ok:
+                self.seen.add(frame['id'])
+            return ok, reason
         if kind in READ_EVENTS:
             if 'receipts' not in peer.caps or not peer.receipt_bucket.allow():
                 return False, 'Confirmation de lecture indisponible'
@@ -432,9 +468,11 @@ class ChatClient:
         if kind == 'message':
             self.receipts.received(frame)
         # Keep only validated fields; never trust a network-provided display name.
-        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active', 'title', 'responses', 'choice') if k in frame}
+        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'group', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active', 'title', 'responses', 'choice') if k in frame}
         self.emit('event', frame=payload, nickname=peer.nick, avatar=peer.avatar, avatar_image=peer.avatar_image,
                   contact_id=peer.contact_id)
+        if kind == 'message':
+            self.remember_message(frame, chat_target(frame, self.sid))
         return True, ''
 
     async def _receive_secure(self, outer):
@@ -512,13 +550,15 @@ class ChatClient:
         original = frame
         async with self._outgoing:
             for attempt in range(2):
-                if self._closing:
+                if self._closing or peer.sid in self.blocked or (original.get('group') and not self.group_access(peer, original['group'])):
                     return False
                 writer = None
                 try:
                     frame = self.crypto.seal(peer, original)
                     reader, writer = await asyncio.wait_for(asyncio.open_connection(peer.host, peer.port, limit=MAX_FRAME), 3)
                     self.connections.add(writer)
+                    if peer.sid in self.blocked or (original.get('group') and not self.group_access(peer, original['group'])):
+                        return False
                     writer.write(encode(self.hello()) + encode(frame))
                     await asyncio.wait_for(writer.drain(), 3)
                     reply = await read_frame(reader, 4)
@@ -537,7 +577,7 @@ class ChatClient:
 
     async def _send_relay(self, frame, peer=None):
         peer = peer or self.peers.get(frame.get('to'))
-        if (not self.relay_writer or not self.relay_e2ee or not peer or not peer.secure
+        if (not self.relay_writer or not self.relay_e2ee or not peer or not peer.secure or peer.sid in self.blocked
                 or frame.get('from') != self.sid):
             return False
         frame = self.crypto.seal(peer, frame, 'stream' if frame['type'] == 'file_chunk' else 'event')
@@ -568,25 +608,30 @@ class ChatClient:
             return None
         if kind in READ_EVENTS:
             return None  # Only mark_read() may confirm messages actually received.
+        if kind in COLLAB_EVENTS:
+            return await self.send_collaboration(kind, target, **payload)
         if kind in SOCIAL_EVENTS:
             return await self._send_social(kind, target, **payload)
+        if group_id(target) and (not self.rooms.get(group_id(target)) or self.rooms[group_id(target)].state != 'joined'):
+            self.emit('notice', text='Rejoins le groupe avant d’envoyer un message.')
+            return None
         if self._queued >= 16:
             self.emit('notice', text='Trop de messages en attente. Réessayez dans un instant.')
             return None
         frame = event(kind, self.sid, target, **payload)
         try:
-            encode(frame)
+            encode({**frame, 'to': self.sid, 'group': group_id(target)} if group_id(target) else frame)
         except ProtocolError as exc:
             self.emit('notice', text=str(exc))
             return None
-        peers = [p for p in self.peers.values() if p.sid not in self.blocked and p.secure and (target == 'general' or p.sid == target)]
+        peers = self.conversation_peers(target)
         if target == 'general' and any(not p.secure and p.sid not in self.blocked for p in self.peers.values()):
             self.emit('notice', text='Salon général : les contacts dont la clé a changé sont exclus de cet envoi. Vérifie leurs empreintes pour les autoriser.')
         if kind in CARD_EVENTS:
             peers = [p for p in peers if 'cards' in p.caps and (p.direct or (p.relay and self.relay_writer and self.relay_cards))]
             if 'responses' in frame or 'choice' in frame:
                 peers = [p for p in peers if 'choices' in p.caps]
-        if target != 'general' and not peers:
+        if target != 'general' and not group_id(target) and not peers:
             self.emit('notice', text='Choix de réponse indisponibles : actualise les deux clients en 1.7.0.' if 'responses' in frame or 'choice' in frame else 'Notifications animées indisponibles : actualise les clients et le relais en 1.5.0.'
                       if kind in CARD_EVENTS else 'Contact indisponible ou clé modifiée : vérifie le cadenas de la conversation.')
             return None
@@ -633,13 +678,15 @@ class ChatClient:
         if kind == 'message':
             self.receipts.sent(frame, peers)
         self.emit('sent', frame=frame, recipients=[{'sid': p.sid, 'nick': p.nick, 'reads': 'receipts' in p.caps} for p in peers])
+        if kind == 'message':
+            self.remember_message(frame, target, peers)
         self._queued += 1
         try:
             routes = [self._deliver_message(peer, frame) if kind == 'message' else self._send_to(peer, frame) for peer in peers]
             results = await asyncio.gather(*routes, return_exceptions=True) if routes else []
             success = bool(results) and all(r is True for r in results)
             self.emit('delivery', id=frame['id'], target=target, ok=success,
-                      local_only=not results and target == 'general')
+                      local_only=not results and (target == 'general' or bool(group_id(target))))
             return frame['id']
         finally:
             self._queued -= 1
@@ -696,17 +743,17 @@ class ChatClient:
     async def _send_social(self, kind, target, **payload):
         if self._queued >= 16:
             return None
+        if group_id(target) and (not self.rooms.get(group_id(target)) or self.rooms[group_id(target)].state != 'joined'):
+            return None
         self.social_sequence += 1
         frame = event(kind, self.sid, target, **{**payload, 'seq': self.social_sequence})
         try:
-            encode(frame)
+            encode({**frame, 'to': self.sid, 'group': group_id(target)} if group_id(target) else frame)
         except ProtocolError as exc:
             self.emit('notice', text=str(exc))
             return None
-        peers = [peer for peer in self.peers.values()
-                 if peer.sid not in self.blocked and peer.secure and 'social' in peer.caps
-                 and (target == 'general' or peer.sid == target)]
-        if target != 'general' and not peers:
+        peers = self.conversation_peers(target, 'social')
+        if target != 'general' and not group_id(target) and not peers:
             if kind == 'reaction':
                 self.emit('notice', text='Les réactions nécessitent un contact en ligne avec FortyTchat 1.5.0.')
             return None
@@ -729,13 +776,14 @@ class ChatClient:
             self._queued -= 1
 
     def file_recipients(self, target):
-        return [peer for peer in self.peers.values()
-                if peer.sid not in self.blocked and peer.secure and 'files' in peer.caps
-                and (target == 'general' or target == peer.sid)
-                and (peer.direct or (peer.relay and self.relay_writer and self.relay_files))]
+        return [peer for peer in self.conversation_peers(target, 'files')
+                if peer.direct or (peer.relay and self.relay_writer and self.relay_files)]
 
     async def _send_to(self, peer, frame):
-        if not peer.secure:
+        if not peer.secure or peer.sid in self.blocked:
+            return False
+        frame = self.wire_frame(frame, peer)
+        if frame.get('group') and not self.group_access(peer, frame['group']):
             return False
         if peer.relay and self.relay_writer and self.relay_e2ee:
             return await self._send_relay(frame, peer)
@@ -766,8 +814,8 @@ class ChatClient:
         finally:
             self.operations.discard(task)
 
-    async def offer_file(self, target, path):
-        return await self._file_operation(self.files.offer(target, path))
+    async def offer_file(self, target, path=None, **options):
+        return await self._file_operation(self.files.offer(target, path, **options))
 
     async def accept_file(self, request, sender, path):
         return await self._file_operation(self.files.accept(request, sender, path))
@@ -792,11 +840,13 @@ class ChatClient:
                 self.connections.add(writer)
                 writer.write(encode(self.hello()))
                 await asyncio.wait_for(writer.drain(), 3)
-            source = await disk(open_source, offer['path'])
-            if fingerprint(os.fstat(source.fileno())) != offer['fingerprint']:
+            source = io.BytesIO(offer['memory']) if 'memory' in offer else await disk(open_source, offer['path'])
+            if 'memory' not in offer and fingerprint(os.fstat(source.fileno())) != offer['fingerprint']:
                 raise ValueError('Le fichier source a été modifié. Propose-le de nouveau.')
 
             async def transmit(frame):
+                if sid in self.blocked:
+                    return False
                 if relay:
                     return await self._send_relay(frame, peer)
                 frame = self.crypto.seal(peer, frame, 'stream' if frame['type'] == 'file_chunk' else 'event')
@@ -929,7 +979,7 @@ class ChatClient:
             rows.append('Relais configuré mais inaccessible actuellement.')
         else:
             rows.append('Aucun relais configuré : une machine autorisée et un nom DNS seraient nécessaires.')
-        peer = next((p for p in self.peers.values() if p.direct and p.sid not in self.blocked and 'probe' in p.caps), None)
+        peer = next((p for p in self.peers.values() if p.direct and p.sid not in self.blocked and ('probe' in p.caps or CAPABILITY in p.caps)), None)
         if peer:
             writer = None
             try:
@@ -979,4 +1029,8 @@ class ChatClient:
         self.card_policies['incoming'].clear()
         self.card_policies['outgoing'].clear()
         self.receipts.clear()
+        self.rooms.clear()
+        self.book.items.clear()
+        self.book.pending.clear()
+        self.polls.items.clear()
         self.crypto.private = None

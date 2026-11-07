@@ -52,8 +52,8 @@ class NetworkWorker(QObject):
     def send(self, kind, target, **payload):
         return self.submit(self.client.send(kind, target, **payload))
 
-    def offer_file(self, target, path):
-        return self.submit(self.client.offer_file(target, path))
+    def offer_file(self, target, path=None, **options):
+        return self.submit(self.client.offer_file(target, path, **options))
 
     def mark_read(self, references):
         return self.submit(self.client.mark_read(references))

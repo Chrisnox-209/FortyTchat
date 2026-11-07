@@ -12,6 +12,7 @@ from .social import ReplyPreview
 class ComposeEdit(QTextEdit):
     submitted = Signal()
     focus_lost = Signal()
+    image_pasted = Signal(object)
 
     def focusOutEvent(self, event):
         self.focus_lost.emit()
@@ -25,8 +26,13 @@ class ComposeEdit(QTextEdit):
             super().keyPressEvent(event)
 
     def insertFromMimeData(self, source):
-        if source.hasText():
+        if source.hasImage():
+            self.image_pasted.emit(source.imageData())
+        elif source.hasText():
             self.insertPlainText(source.text()[:2001])
+
+    def canInsertFromMimeData(self, source):
+        return source.hasImage() or source.hasText()
 
 
 class Composer(QFrame):
@@ -36,6 +42,8 @@ class Composer(QFrame):
     file_requested = Signal()
     card_requested = Signal()
     typing_changed = Signal(bool)
+    image_pasted = Signal(object)
+    poll_requested = Signal()
 
     def __init__(self, private=False, parent=None):
         super().__init__(parent)
@@ -62,6 +70,7 @@ class Composer(QFrame):
         self.input.submitted.connect(self.submit)
         self.input.textChanged.connect(self.text_changed)
         self.input.focus_lost.connect(self.stop_typing)
+        self.input.image_pasted.connect(self.image_pasted)
         box.addWidget(self.input)
         actions = QHBoxLayout()
         actions.setSpacing(8)
@@ -83,6 +92,10 @@ class Composer(QFrame):
         self.card_button.setStyleSheet('font-size: 22px; padding: 0;')
         self.card_button.clicked.connect(self.card_requested)
         actions.addWidget(self.card_button)
+        self.poll_button = button('▥', 'flat', 'Créer un sondage', 34)
+        self.poll_button.clicked.connect(self.poll_requested)
+        self.poll_button.setVisible(not private)
+        actions.addWidget(self.poll_button)
         actions.addStretch()
         self.counter = label('', 'caption')
         actions.addWidget(self.counter)
@@ -168,6 +181,7 @@ class Composer(QFrame):
         self.break_button.setText('Pause' if self.width() < 520 or self.counter.text() else 'On fait une pause ?')
         self.file_button.setEnabled(self.available)
         self.card_button.setEnabled(self.available)
+        self.poll_button.setEnabled(self.available)
         if not self.available:
             self.stop_typing()
 
