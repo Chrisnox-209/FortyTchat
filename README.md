@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.2.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.3.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -20,7 +20,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.2.0** rend le **délai des popups de groupe réglable** dans leurs paramètres. Elle conserve les **groupes au démarrage**, leur **gestion des membres, rôles, nom et photo**, les **mentions**, les **blocs de code**, le **glisser-déposer et l’envoi de plusieurs fichiers**, les **sondages à choix multiples avec résultats visuels**, et les **popups de groupe avec un délai partagé et personnalisable**. Mettre à jour les participants pour les utiliser ensemble.
+La version **2.3.0** apporte des **sondages à choix unique avec vote définitif**, des **paramètres de groupe plus lisibles**, des **badges de rôles**, le **code avec `====`**, une **limite progressive des popups privées**, la **détection de session verrouillée** et un **bandeau de mise à jour**. Les échanges avec les anciennes versions sont conservés ; les nouveautés sont proposées aux clients qui les comprennent.
 
 ## Installer et démarrer
 
@@ -104,7 +104,7 @@ Le profil, les amis, les groupes, les modèles de notifications et les clés son
 ## Aperçu
 
 <p align="center">
-  <a href="docs/general-2.1.0.png"><img src="docs/general-2.1.0.png" width="880" alt="FortyTchat 2.1.0 : général, photo de groupe et sondage à plusieurs réponses"></a>
+  <a href="docs/general-2.3.0.png"><img src="docs/general-2.3.0.png" width="880" alt="Général : sondage définitif, ami verrouillé et exemple de bandeau de mise à jour"></a>
 </p>
 <p align="center"><em>Le général et les amis, dans le thème anthracite et bleu. Un thème clair est aussi disponible.</em></p>
 
@@ -129,13 +129,15 @@ Le texte et les blocs de code restent du contenu inerte ; aucune commande ni bal
 
 Écrire **@** dans le champ de message propose les personnes de la conversation. Valider un pseudo avec Entrée ou cliquer dessus. Les mentions sont mises en évidence et une notification silencieuse indique au destinataire qu’il est mentionné ; **Ne pas déranger reste respecté**. La mention envoyée est liée à son profil, même s’il change ensuite de pseudo. Les noms écrits à l’intérieur d’un bloc de code ne créent pas de mention.
 
-Pour partager du code, utiliser **Ctrl+Maj+C**, le menu du champ de saisie ou trois accents graves :
+Pour coller du code, cliquer sur le bouton **`</>`** à droite du champ du message, ou utiliser **Ctrl+Maj+C**. Coller le code dans l’éditeur, choisir éventuellement son langage, puis cliquer sur **Insérer dans le message**. Il reste ensuite à envoyer le message.
 
-````text
-```c
+On peut aussi écrire **`====` sur une ligne avant et après le code**, facile à saisir sur QWERTY :
+
+~~~text
+====c
 printf("Salut le cluster !\n");
-```
-````
+====
+~~~
 
 Le bloc garde ses retours à la ligne, utilise une police à chasse fixe et propose **Copier**. Le message complet reste limité à 2 000 caractères.
 
@@ -205,13 +207,15 @@ Les bannières utilisent `notify-send` lorsqu’il est disponible. Leur position
 ## Groupes privés
 
 1. Cliquer sur **＋ Créer un groupe** dans la liste.
-2. Choisir un nom et **1 à 31 personnes connectées** avec FortyTchat **2.2.0**.
+2. Choisir un nom et **1 à 31 personnes connectées** avec une version qui prend en charge les groupes (2.1.0 ou plus récent pour les fonctions actuelles).
 3. Chacun accepte ou refuse l’invitation dans **GROUPES**. Aucun ancien message n’est envoyé à un nouvel arrivant.
+
+Le menu **Paramètres du groupe** sépare les onglets **Réglages** et **Membres**, avec des champs lisibles et défilables. Les changements de présence ne remplacent plus une durée en cours de saisie ; un message confirme l’enregistrement ou explique un refus.
 
 Le groupe dispose de sa **fenêtre indépendante** : messages, fichiers, captures, citations, réactions, mentions, saisie en direct et sondages. Son menu **··· → Paramètres du groupe** permet de le gérer.
 
 <p align="center">
-  <a href="docs/group-chat-2.1.0.png"><img src="docs/group-chat-2.1.0.png" width="590" alt="Groupe privé : photo, mention, bloc de code et sondage à plusieurs réponses"></a>
+  <a href="docs/group-chat-2.3.0.png"><img src="docs/group-chat-2.3.0.png" width="590" alt="Groupe privé : photo, mention, bloc de code et sondage à vote définitif"></a>
 </p>
 
 | Rôle | Actions |
@@ -223,7 +227,13 @@ Le groupe dispose de sa **fenêtre indépendante** : messages, fichiers, capture
 Le créateur ne peut pas être retiré. Un administrateur ne peut pas retirer le créateur ou un autre administrateur. Les nouveaux membres doivent être connectés et accepter l’invitation. **Le créateur doit être connecté et avoir rejoint pour valider les changements et réserver les popups collectives.** Une modification concurrente peut être refusée : attendre la mise à jour du groupe puis réessayer.
 
 <p align="center">
-  <a href="docs/group-manager-2.2.0.png"><img src="docs/group-manager-2.2.0.png" width="470" alt="Paramètres du groupe : photo, nom, délai partagé des popups et rôles"></a>
+  <a href="docs/group-settings-2.3.0.png"><img src="docs/group-settings-2.3.0.png" width="470" alt="Paramètres du groupe : photo, nom, délai partagé des popups et rôles"></a>
+</p>
+
+Dans **Membres**, les avatars et badges **CRÉATEUR**, **ADMIN** et **MEMBRE** rendent les rôles visibles. Sélectionner une personne pour gérer son rôle ou la retirer, selon ses droits.
+
+<p align="center">
+  <a href="docs/group-members-2.3.0.png"><img src="docs/group-members-2.3.0.png" width="470" alt="Liste des membres avec avatars, rôles et indication de session verrouillée"></a>
 </p>
 
 Les groupes sont **retrouvés après redémarrage** : nom, miniature de photo, membres, rôles, adhésion et délai de popup sont conservés dans le profil. Le créateur confirme l’accès des membres qui redémarrent ; en son absence, leur groupe apparaît en attente de restauration. **Les messages et les votes ne sont jamais sauvegardés ni retransmis.** Fermer la fenêtre garde le groupe actif ; **Quitter le groupe** arrête ses échanges et conserve ce choix au démarrage suivant. Limite : **32 groupes de 32 membres**.
@@ -238,21 +248,24 @@ Le bouton **✦** ouvre l’éditeur de notification animée et ses réponses pe
 
 **La nouvelle durée est calculée depuis la dernière popup** : réduire le délai peut rendre l’envoi disponible immédiatement si assez de temps s’est déjà écoulé ; l’augmenter prolonge l’attente. Le réglage est propre à chaque groupe. Le compteur est conservé après redémarrage et le bouton indique l’attente. La réservation reste consommée si certains membres sont absents, en Ne pas déranger ou si une remise échoue. Le créateur connecté coordonne les réservations pour empêcher deux envois simultanés.
 
-**Mettre tous les membres en 2.2.0** pour utiliser ensemble les groupes et leur délai configurable. Les groupes existants sont repris avec **42 minutes** tant qu’aucun nouveau délai n’est enregistré.
+Les anciennes versions continuent à discuter. Un réglage récent n’est proposé que si la version du créateur le comprend ; un ancien client peut conserver sa présentation et ses limites d’origine. Les groupes existants sont repris avec **42 minutes** tant qu’aucun nouveau délai n’est enregistré.
 
 **Le #général n’accepte aucune popup collective.** Les popups privées gardent leurs limites habituelles.
 
 ## Sondages dans le général et les groupes
 
-Le bouton **▥** propose une question et **2 à 8 choix**. Cocher **Autoriser plusieurs réponses** pour un sondage multiple : sélectionner ses options, puis **Valider mes choix**. Tout décocher et valider retire son vote. Dans un sondage simple, cliquer sur une autre option change son vote ; recliquer sur la même le retire.
+Le bouton **▥** propose une question et **2 à 8 choix**. Les nouveaux sondages acceptent **une seule réponse par personne** :
 
-Les résultats montrent des **barres, le nombre de voix et le pourcentage des votants**, ainsi que la participation. Avec plusieurs réponses autorisées, la somme des pourcentages peut dépasser 100 % : une personne peut choisir plusieurs options.
+1. Cliquer sur une option : sa bordure et son fond deviennent bleus. On peut encore changer sa sélection.
+2. Cliquer sur **Valider le vote** pour l’envoyer.
+3. Une fois validé, **le vote est définitif** : il ne peut plus être changé ni retiré. La coche indique son choix ; les jauges remplissent les options et montrent les pourcentages.
 
-<p align="center">
-  <a href="docs/poll-multiple-2.1.0.png"><img src="docs/poll-multiple-2.1.0.png" width="500" alt="Sondage multiple avec trois choix, barres de résultats et pourcentage des votants"></a>
-</p>
+<table><tr>
+<td align="center" width="50%"><a href="docs/poll-selection-2.3.0.png"><img src="docs/poll-selection-2.3.0.png" width="340" alt="Une réponse sélectionnée et mise en évidence, avant validation"></a><p>Sélectionner, puis valider.</p></td>
+<td align="center" width="50%"><a href="docs/poll-results-2.3.0.png"><img src="docs/poll-results-2.3.0.png" width="340" alt="Vote validé et définitif, avec jauges intégrées et pourcentages visibles"></a><p>Résultats visibles après le vote.</p></td>
+</tr></table>
 
-L’audience est fixée aux personnes compatibles présentes à la création (**256 maximum**). Les nouveaux arrivants ne reçoivent pas d’ancien sondage. Les votes sont authentifiés, chiffrés, modifiables par leur auteur et restent en mémoire. Supprimer son sondage arrête les votes chez les destinataires qui reçoivent la suppression.
+L’audience est fixée aux participants compatibles présents à la création (**256 maximum**). Les nouveaux sondages définitifs sont échangés entre clients récents ; les autres conversations continuent normalement avec les anciens clients. Les anciens sondages reçus restent lisibles dans leur format d’origine. Aucun vote n’est enregistré sur disque. Supprimer son sondage arrête les votes chez les destinataires qui reçoivent la suppression.
 
 ## Avatars et images personnelles
 
@@ -290,7 +303,7 @@ Le sélecteur propose **3 781 emojis**, **neuf catégories** et une recherche fr
 </tr>
 </table>
 
-Pauses et notifications personnalisées partagent une limite de **trois demandes successives par destinataire**. La quatrième bloque ces demandes pendant **cinq minutes**, sans bloquer les messages ni prolonger le délai à chaque tentative. Après cinq minutes sans demande, une nouvelle série commence.
+Les pauses et popups privées partagent une limite de **deux envois par destinataire**, puis **5 minutes de blocage**. Après ces cinq minutes, une nouvelle série de deux envois entraîne **15 minutes de blocage**. Les tentatives refusées ne prolongent pas le délai ; messages et réponses restent disponibles. Quinze minutes calmes après la fin d’un blocage effacent ce niveau de récidive. La protection utilise le profil stable du contact, même s’il change de pseudo ou reconnecte sa session. Les popups collectives gardent leur délai propre au groupe.
 
 ## Notifications personnalisées
 
@@ -341,7 +354,15 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 </tr>
 </table>
 
-Les groupes, sondages, changements de messages et miniatures nécessitent **2.2.0 chez les participants**. Un relais chiffré **1.5.0 minimum** reste compatible. Les anciens clients peuvent toujours échanger les messages et fichiers classiques ; ils ne reçoivent pas les nouveaux événements et peuvent conserver l’original d’un message modifié ou supprimé.
+Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
+
+| Versions testées avec 2.3.0 | Échanges vérifiés en direct et via leur ancien relais |
+| --- | --- |
+| **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
+| **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
+| **2.3.0** | Nouveaux sondages définitifs, code `====`, détail du verrouillage et annonces de version |
+
+Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
 ## Chiffrement de bout en bout
 
@@ -367,6 +388,14 @@ La clé privée du profil reste dans `identity.json` et les clés publiques des 
 
 L’intégration utilise **PyNaCl/libsodium**, Box Curve25519/XSalsa20/Poly1305 et les signatures Ed25519. Elle n’a pas reçu d’audit indépendant et n’implémente pas le Double Ratchet. Elle ne cache pas les pseudos, présence, avatars ou métadonnées de trafic et ne protège pas un appareil compromis. Les clients et relais antérieurs à **1.5.0** sont refusés, sans repli en clair. [Protocole et limites](docs/NETWORK.md), [Box](https://pynacl.readthedocs.io/en/latest/public/), [signatures](https://pynacl.readthedocs.io/en/latest/signing/).
 
+## Session verrouillée et mise à jour
+
+Quand le bureau signale le verrouillage, la personne reste dans le cluster et apparaît avec **🔒 Session verrouillée** dans les contacts, les amis et les groupes. Au déverrouillage, son statut manuel revient. **Ne pas déranger reste prioritaire**. Les anciens clients voient leur statut **Absent** habituel, ou Ne pas déranger si celui-ci est activé.
+
+La détection lit l’état fourni par GNOME/ScreenSaver ou logind, toutes les quelques secondes. Elle n’enregistre ni frappes ni activité et ne verrouille pas le poste. Si le bureau ne fournit pas cet état, le statut manuel reste disponible. [Interface GNOME](https://raw.githubusercontent.com/GNOME/gnome-shell/main/data/dbus-interfaces/org.gnome.ScreenSaver.xml), [état de session logind](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
+
+Un **petit bandeau rouge** apparaît lorsqu’un poste compatible annonce une version plus récente. Le bouton **Mettre à jour ↗** ouvre directement les [instructions GitHub](https://github.com/Chrisnox-209/FortyTchat#mettre-à-jour), y compris pour les installations dans un dossier personnalisé. La capture d’aperçu utilise une version future de démonstration pour montrer ce bandeau.
+
 ## Préférences et données conservées
 
 Dans **Paramètres**, choisir le pseudo, le thème, l’avatar, le démarrage automatique, les Wizz, les alertes d’amis et le partage des confirmations de lecture. **À propos** contient la version, les fonctions et le lien du dépôt.
@@ -377,7 +406,7 @@ Dans **Paramètres**, choisir le pseudo, le thème, l’avatar, le démarrage au
 <summary>Voir l’onglet À propos</summary>
 
 <p align="center">
-  <a href="docs/about-2.2.0.png"><img src="docs/about-2.2.0.png" width="560" alt="À propos de FortyTchat 2.2.0 avec le logo FT, les fonctions et le lien GitHub"></a>
+  <a href="docs/about-2.3.0.png"><img src="docs/about-2.3.0.png" width="560" alt="À propos de FortyTchat 2.3.0 avec le logo FT, les fonctions et le lien GitHub"></a>
 </p>
 
 Les onglets Général et À propos sont défilables pour rester lisibles sur les petits écrans.
@@ -419,7 +448,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.2.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.3.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Icône absente ou mal placée | La session doit prendre en charge GNOME/StatusNotifier/AppIndicator. Utiliser le dock ou le lanceur sinon ; la place dans la barre dépend du bureau. |
 | Un clic ouvre le menu, le doubleclic ne marche pas | L’option **Compatibilité doubleclic de l’icône (GNOME)** tente de reconnaître l’ouverture/fermeture rapide du menu. Elle dépend des événements transmis par la barre. Utiliser **Ouvrir FortyTchat** si nécessaire. |
 | Une fermeture rapide du menu ouvre le tchat | Désactiver cette compatibilité dans Général. Échap peut être indistinguable d’un second clic sur certaines barres. Aucune extension du bureau n’est modifiée. |

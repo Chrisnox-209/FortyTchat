@@ -1,6 +1,16 @@
 # Retour à l’École 42 : essais sur place
 
-Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 2.2.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 2.3.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+
+## Vérifications 2.3.0
+
+- Mélanger un poste en 2.3.0 et des postes en 2.1/2.2 : messages, fichiers, groupes et popups doivent rester utilisables. Tester aussi général/privé/fichiers avec 1.8/2.0. Les nouveaux sondages définitifs ne doivent pas envoyer de contrôles inconnus aux anciens clients.
+- Choisir une réponse : rien ne doit être envoyé avant Valider le vote. Changer la sélection avant validation, puis valider : les jauges deviennent visibles et aucun retour arrière n’est possible.
+- Ouvrir Paramètres du groupe à la taille habituelle et avec une grande police : saisir une durée, la laisser pendant une arrivée de membre, puis enregistrer et vérifier la confirmation sur les autres postes. Vérifier avatars et badges dans Membres.
+- Envoyer deux popups privées : la troisième doit être refusée 5 minutes. Recommencer avec deux envois après ce blocage : le refus suivant doit durer 15 minutes. Messages et réponses doivent rester possibles.
+- Cliquer sur </>, coller du code et l’insérer ; essayer aussi une ligne ==== avant et après. Vérifier police et copie, sans mention détectée dans le code.
+- Verrouiller une session : elle doit rester connectée, montrer un cadenas sur 2.3.0 et Absent sur un ancien client. Déverrouiller et vérifier le statut précédent, y compris DND ; vérifier qu’aucune fausse alerte d’arrivée d’ami n’est déclenchée.
+- Lorsqu’une version supérieure est réellement installée sur un poste, vérifier le bandeau rouge et son lien vers la section Mettre à jour. Ne pas déclencher le bandeau pour une version égale ou inférieure.
 
 ## Préparer deux postes
 

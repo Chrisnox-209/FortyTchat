@@ -1,14 +1,27 @@
-# Validation locale de FortyTchat 2.2.0
+# Validation locale de FortyTchat 2.3.0
 
-Tests réalisés le **7 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 2.2.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
+Tests réalisés le **8 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 2.3.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
 
 ## Résultats automatisés
 
-- **216 tests réussis en 38,69 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- **239 tests réussis en 39,81 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
 - Mesure de diffusion E2EE réalisée en 1.5.0 sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
 - Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
 Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
+
+## Corrections et compatibilité (2.3.0)
+
+- Sondages à choix unique : sélection sans envoi, surbrillance, validation explicite, pourcentages dans les options et vote définitivement verrouillé. Changement/retrait par le réseau refusés, répétition du même vote idempotente, audience et contexte contrôlés. Un échec avant validation réactive le bouton. Les anciens sondages gardent leur décodage compatible.
+- Paramètres de groupe séparés en Réglages/Membres, champs de minutes classiques avec hauteur dérivée de la police, durée en cours de saisie préservée lors des mises à jour de présence, confirmation/refus/expiration visibles. Avatars et badges de rôles accessibles. Petites fenêtres contrôlées aux échelles 100 %, 150 %, 200 %, dans les deux thèmes et avec polices 14/20 px.
+- Deux popups privées autorisées, blocage immédiat de 5 minutes, puis 15 minutes pour une nouvelle série de deux. Tests d’échéances, de récidive, de calme, de quotas bornés et de tentatives qui ne prolongent pas le blocage ; réponses, messages et budgets collectifs restent indépendants. Tests TCP/relais et reconnexion avec le même identifiant persistant.
+- Bouton </> et vrai éditeur de code : collage, génération des séparateurs `====`, conservation du texte sans exécution et absence de mention dans le code. Les anciens séparateurs restent lisibles.
+- Versions archivées **1.8.1, 2.0.0, 2.1.0 et 2.2.0** chargées depuis Git dans des paquets temporaires : général, privé, fichiers, popups et statuts échangés sur TCP et via leur propre ancien relais. Les versions 2.1/2.2 vérifient aussi groupes, renommage, réglage adapté, anciens sondages et réponses collectives. Leurs magasins de groupes restent lisibles après les échanges. Ces essais utilisent l’historique Git ; un checkout sans cet historique les signale comme ignorés.
+- Informations de version chiffrées et bornées, faux champ de commande refusé, bandeau déclenché uniquement par une version supérieure et bouton ouvrant l’URL GitHub fixe. Aucune commande reçue du réseau n’est exécutée.
+- État verrouillé transmis aux nouveaux pairs et statut Absent compris par toutes les versions testées. Déverrouillage rétablissant Online/Absent/DND selon le choix manuel ; messages encore reçus pendant le verrouillage. Un vrai service D-Bus de test isolé répond à GetActive : lecture False/True/False observée sans verrouiller le poste de l’utilisateur. La détection reste à confirmer sur la session physique du cluster.
+- Captures Qt réellement rendues : `general-2.3.0.png`, `group-chat-2.3.0.png`, `group-settings-2.3.0.png`, `group-members-2.3.0.png`, `poll-selection-2.3.0.png`, `poll-results-2.3.0.png`, `about-2.3.0.png`. Profils et version future du bandeau sont des données de démonstration.
+
+Les paragraphes ci-dessous conservent la trace des validations précédentes ; les comportements modifiés en 2.3.0 sont décrits ci-dessus.
 
 ## Délai réglable des popups (2.2.0)
 
