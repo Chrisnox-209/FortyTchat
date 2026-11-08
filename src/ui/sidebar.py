@@ -37,7 +37,7 @@ class PeerDelegate(QStyledItemDelegate):
             painter.setFont(QFont('DejaVu Sans', 22))
             painter.drawText(avatar_rect, Qt.AlignmentFlag.AlignCenter, '#')
         else:
-            paint_avatar(painter, avatar_rect, data['nick'], data.get('online', False), data.get('avatar', -1), data.get('avatar_image', ''))
+            paint_avatar(painter, avatar_rect, data['nick'], data.get('online', False), data.get('avatar', -1), data.get('avatar_image', ''), data.get('locked', False))
         unread = data.get('unread', 0)
         available = r.width() - 111
         painter.setFont(QFont('DejaVu Sans', 11, QFont.Weight.Medium))
@@ -179,15 +179,16 @@ class Sidebar(QFrame):
         self.list.addItem(item)
 
     def _row(self, sid, nick, detail, online=False, avatar=-1, avatar_image='', contact_id='', friend=False):
-        if self.peers.get(sid,{}).get('locked') and not detail.startswith('Bloqué'):
-            detail='🔒 Session verrouillée · dans le cluster'
+        locked = bool(online and self.peers.get(sid,{}).get('locked') and not detail.startswith(('Bloqué', 'Clé modifiée')))
+        if locked:
+            detail='Session verrouillée'
         item = QListWidgetItem()
         unread = self.unread.get(sid, 0)
         if friend and contact_id:
             unread = sum(value for key, value in self.unread.items()
                          if key == friend_key(contact_id) or self.known_contacts.get(key) == contact_id)
         item.setData(Qt.ItemDataRole.UserRole, {'sid': sid, 'nick': nick, 'detail': detail,
-                                             'online': online, 'avatar': avatar, 'avatar_image': avatar_image,
+                                             'online': online, 'locked': locked, 'avatar': avatar, 'avatar_image': avatar_image,
                                              'contact_id': contact_id, 'friend': friend, 'unread': unread})
         item.setSizeHint(QSize(280, 82))
         item.setToolTip(nick + ' · ' + detail + (f' · session {sid[:8]}' if sid != 'general' else ''))

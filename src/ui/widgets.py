@@ -12,7 +12,29 @@ def color_for(text):
     return QColor(PASTELS[hashlib.sha256(text.encode()).digest()[0] % len(PASTELS)])
 
 
-def paint_avatar(painter, rect, nickname, online=False, avatar=-1, image_data=''):
+def paint_presence(painter, online, locked=False):
+    """Vector lock replaces the presence dot; independent of emoji fonts."""
+    if not online:
+        return
+    painter.setBrush(QColor(colors()['sidebar']))
+    painter.setPen(Qt.PenStyle.NoPen)
+    if locked:
+        painter.drawEllipse(QRectF(68, 68, 32, 32))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(colors()['text']), 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.drawRoundedRect(QRectF(77, 73, 12, 16), 6, 6)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(colors()['text']))
+        painter.drawRoundedRect(QRectF(73, 81, 20, 15), 3, 3)
+        painter.setBrush(QColor(colors()['sidebar']))
+        painter.drawRoundedRect(QRectF(82, 85, 3, 7), 1.5, 1.5)
+    else:
+        painter.setBrush(QColor(colors()['online']))
+        painter.setPen(QPen(QColor(colors()['sidebar']), 3))
+        painter.drawEllipse(QRectF(79, 79, 19, 19))
+
+
+def paint_avatar(painter, rect, nickname, online=False, avatar=-1, image_data='', locked=False):
     """Deterministic illustrated avatar, drawn locally; no downloaded profile data."""
     seed = nickname if avatar < 0 else f'fortytchat-avatar-{avatar}'
     digest = hashlib.sha256(seed.encode()).digest()
@@ -30,10 +52,7 @@ def paint_avatar(painter, rect, nickname, online=False, avatar=-1, image_data=''
             painter.setClipPath(clip)
             painter.drawImage(QRectF(0, 0, 100, 100), image)
             painter.setClipping(False)
-            if online:
-                painter.setBrush(QColor(colors()['online']))
-                painter.setPen(QPen(QColor(colors()['sidebar']), 3))
-                painter.drawEllipse(QRectF(79, 79, 19, 19))
+            paint_presence(painter, online, locked)
             painter.restore()
             return
     painter.setBrush(color_for(seed))
@@ -74,10 +93,7 @@ def paint_avatar(painter, rect, nickname, online=False, avatar=-1, image_data=''
     smile.moveTo(43, 55)
     smile.quadTo(50, 61, 57, 55)
     painter.drawPath(smile)
-    if online:
-        painter.setBrush(QColor(colors()['online']))
-        painter.setPen(QPen(QColor(colors()['sidebar']), 3))
-        painter.drawEllipse(QRectF(79, 79, 19, 19))
+    paint_presence(painter, online, locked)
     painter.restore()
 
 
@@ -111,15 +127,16 @@ def button(text, name='', tooltip='', width=None):
 class Avatar(QLabel):
     clicked = Signal()
 
-    def __init__(self, nickname, size=40, online=False, avatar=-1, image_data=''):
+    def __init__(self, nickname, size=40, online=False, avatar=-1, image_data='', locked=False):
         super().__init__()
         self.nickname, self.online, self.avatar = nickname, online, avatar
         self.image_data = image_data
+        self.locked = locked
         self.setFixedSize(size, size)
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        paint_avatar(painter, self.rect(), self.nickname, self.online, self.avatar, self.image_data)
+        paint_avatar(painter, self.rect(), self.nickname, self.online, self.avatar, self.image_data, self.locked)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:

@@ -961,11 +961,15 @@ class Application(QObject, CollaborationController):
                          read_receipts=self.preferences.read_receipts)
         shown = 'Session verrouillée' if self.screen_locked else 'Ne pas déranger' if self.preferences.dnd else ('Absent·e' if self.status == 'away' else 'En ligne')
         self.window.sidebar.status_button.setText(('🔒 ' if self.screen_locked else '●  ') + shown)
+        self.window.sidebar.avatar.locked=self.screen_locked
+        self.window.sidebar.avatar.update()
 
     def screen_lock_changed(self,locked):
         self.screen_locked=locked;self.worker.call('set_screen_locked',locked)
         shown='🔒 Session verrouillée' if locked else '●  Ne pas déranger' if self.preferences.dnd else '●  Absent·e' if self.status=='away' else '●  En ligne'
         self.window.sidebar.status_button.setText(shown)
+        self.window.sidebar.avatar.locked=locked
+        self.window.sidebar.avatar.update()
 
     def set_status(self, status):
         self.preferences.dnd = status == 'dnd'

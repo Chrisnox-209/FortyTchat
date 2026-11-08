@@ -133,6 +133,7 @@ def test_native_friend_banner_is_normal_silent_and_headless_is_suppressed(qt, mo
     monkeypatch.setattr('src.ui.notifications.QProcess.start', lambda self:calls.append((self.program(), self.arguments())))
     notifications = Notifications(ICON)
     notifications.executable = '/usr/bin/notify-send'
+    notifications.gdbus = None
     assert notifications.show('Alice42 est en ligne', urgency='normal') is False
     assert not calls
     notifications.headless = False
@@ -234,6 +235,12 @@ def test_real_controller_friend_reconnect_banner_editor_current_session_and_dnd(
         assert len(banners) == 1
         controller.set_status('online'); controller.flush_peers()
         assert len(banners) == 1
+        controller.screen_lock_changed(True)
+        assert controller.window.sidebar.avatar.locked
+        until(qt, lambda:new.peers[client.sid].locked and not client.info_tasks)
+        controller.screen_lock_changed(False)
+        assert not controller.window.sidebar.avatar.locked and len(banners) == 1
+        until(qt, lambda:not new.peers[client.sid].locked and not client.info_tasks)
         controller.change_friend(CID, False)
         assert not controller.tray.friend_menus and controller.show_friend_card(CID) is None
     finally:

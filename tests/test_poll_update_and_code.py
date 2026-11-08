@@ -92,7 +92,8 @@ def test_client_info_is_encrypted_and_old_peers_do_not_receive_unknown_control_f
                 if any(k=='peer_version' for k,d in logs[0]):break
                 await asyncio.sleep(.01)
             assert any(k=='peer_version' for k,d in logs[0])
-            assert modern_caps(a.peers[b.sid].caps) and a.peers[b.sid].version=='2.3.0'
+            from src import __version__
+            assert modern_caps(a.peers[b.sid].caps) and a.peers[b.sid].version==__version__
             info=event('client_info',b.sid,a.sid,version='2.4.0',features=['version_notice'])
             assert await b._send_to(b.peers[a.sid],info)
             assert logs[0][-2][0]=='peer_version' or any(k=='peer_version' and d['version']=='2.4.0' for k,d in logs[0])

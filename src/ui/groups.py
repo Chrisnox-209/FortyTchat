@@ -306,7 +306,7 @@ class GroupManager(QDialog):
         name = self.names.get(cid,cid[:10]) + (' (toi)' if cid == self.actor else '')
         row = QWidget(); row.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         row.setStyleSheet('background:transparent;'); layout = QHBoxLayout(row); layout.setContentsMargins(10,10,10,10)
-        layout.addWidget(Avatar(name,38,avatar=peer.get('avatar',-1),image_data=peer.get('avatar_image','')))
+        layout.addWidget(Avatar(name,38,online=bool(peer),avatar=peer.get('avatar',-1),image_data=peer.get('avatar_image',''),locked=bool(peer.get('locked'))))
         text = QVBoxLayout(); text.setSpacing(3)
         title = ElidedLabel(name,'messageName'); title.setToolTip(name); text.addWidget(title)
         state = 'A quitté le groupe' if cid in self.room['left'] else 'A rejoint' if cid in self.room['joined'] else 'Invitation en attente'

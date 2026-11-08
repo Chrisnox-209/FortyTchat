@@ -97,9 +97,11 @@ class PrivateWindow(QMainWindow):
             self.avatar.avatar = peer.get('avatar', -1)
             self.avatar.image_data = peer.get('avatar_image', '')
             self.avatar.online = not blocked
+            self.avatar.locked = bool(peer.get('locked') and not blocked)
             self.setWindowTitle(f'{self.nickname} · FortyTchat')
         else:
             self.avatar.online = False
+            self.avatar.locked = False
         self.avatar.update()
         text = 'Utilisateur bloqué' if blocked else ({'online': '● En ligne', 'away': '● Absent·e', 'dnd': '● Ne pas déranger'}.get(peer['status'], '') if peer else '○ Hors ligne')
         if peer and peer.get('locked') and not blocked:text='🔒 Session verrouillée · dans le cluster'

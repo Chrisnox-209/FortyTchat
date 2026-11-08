@@ -65,6 +65,7 @@ class ChatClient(CollaborationNetwork):
         self.persist_wizz = persist_wizz
         self.peers, self.blocked = {}, set()
         self.info_attempts={}
+        self.info_tasks={}
         self.blocked_contacts = set(blocked_contacts)
         self.init_collaboration()
         self.seen, self.outgoing_invites, self.incoming_invites = SeenMessages(), Invitations(), Invitations()
@@ -237,13 +238,22 @@ class ChatClient(CollaborationNetwork):
             self.rename(unique_nickname(self.nickname, [p.nick for p in self.peers.values()]))
 
     def queue_client_info(self,peer,force=False):
-        if not modern_caps(peer.caps) or not peer.secure or peer.sid in self.blocked:return
+        if self._closing or not modern_caps(peer.caps) or not peer.secure or peer.sid in self.blocked:return
         try:asyncio.get_running_loop()
         except RuntimeError:return
+        if peer.sid in self.info_tasks:return
         now=time.monotonic()
         if not force and now-self.info_attempts.get(peer.sid,-100)<10:return
         self.info_attempts[peer.sid]=now
-        self.task(self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock'],locked=self.screen_locked)))
+        locked=self.screen_locked
+        async def publish():
+            try:
+                await self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock'],locked=locked))
+            finally:
+                self.info_tasks.pop(peer.sid,None)
+                if not self._closing and self.peers.get(peer.sid) is peer and self.screen_locked!=locked:
+                    self.queue_client_info(peer,force=True)
+        self.info_tasks[peer.sid]=self.task(publish())
 
     def emit_peers(self):
         self.emit('peers', peers=[p.public() for p in self.peers.values()])
@@ -269,6 +279,8 @@ class ChatClient(CollaborationNetwork):
         peer = self.peers.pop(sid, None)
         self.group_syncing.discard(sid)
         self.info_attempts.pop(sid,None)
+        info=self.info_tasks.pop(sid,None)
+        if info:info.cancel()
         self.blocked.discard(sid)
         fetch = self.avatar_fetches.pop(sid, None)
         if fetch:
@@ -294,7 +306,7 @@ class ChatClient(CollaborationNetwork):
                     self._remove_peer(sid)
                 else:
                     self._queue_avatar(peer)
-                    if not peer.version:self.queue_client_info(peer)
+                    self.queue_client_info(peer)
             if self.relay_writer:
                 try:
                     self.relay_writer.write(encode({'v': 1, 'type': 'ping'}))

@@ -13,7 +13,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -61,10 +61,12 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             if relay:await until(lambda:old.peers[new.sid].status=='away')
             else:old.observe(new.hello(),'127.0.0.1')
             assert old.peers[new.sid].status=='away'
+            if version=='2.3.0':await until(lambda:old.peers[new.sid].locked)
             new.set_screen_locked(False)
             if relay:await until(lambda:old.peers[new.sid].status=='online')
             else:old.observe(new.hello(),'127.0.0.1')
             assert old.peers[new.sid].status=='online'
+            if version=='2.3.0':await until(lambda:not old.peers[new.sid].locked)
             mid=await new.send('message','general',text='NEW_TO_OLD_SECRET')
             assert frames(1,'message')[-1]['id']==mid
             await old.send('message',new.sid,text='OLD_TO_NEW_SECRET')
@@ -98,6 +100,12 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             await new.answer_group(old_gid,True)
             assert await old.send('card_invite',group_key(old_gid),**card)
             assert frames(0,'card_invite')[-1]['group']==old_gid
+            if version=='2.3.0':
+                poll=await new.send('poll_create','general',question='Toujours compatible ?',options=['Oui','Non'])
+                assert poll in old.polls.items
+                assert await old.send('poll_vote','general',poll=poll,option=0)
+                assert new.polls.items[poll]['votes'][old.sid]==0
+                return
             # Old surveys keep their original protocol. New UI can cast one final local vote.
             poll=await old.send('poll_create','general',question='Ancien sondage ?',options=['Café','Thé'],multiple=True)
             assert poll in new.polls.items and not new.polls.items[poll]['final']

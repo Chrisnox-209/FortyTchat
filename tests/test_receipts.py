@@ -163,7 +163,8 @@ def test_read_batches_pending_deduplication_and_retry_backoff():
             a.receipts.received(frame); references.append(frame['id'])
         calls, success = [], [False]
         async def route(peer, frame):
-            encode(frame); calls.append(frame)
+            encode(frame)
+            if frame['type'] == 'read_receipt':calls.append(frame)
             await asyncio.sleep(.01)
             return success[0]
         a._send_to = route
