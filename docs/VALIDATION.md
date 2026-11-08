@@ -1,14 +1,22 @@
-# Validation locale de FortyTchat 2.3.0
+# Validation locale de FortyTchat 2.3.1
 
-Tests réalisés le **8 novembre 2026**, sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Le créateur signale un essai réussi d’une version précédente en cluster ; les nouveautés 2.3.0 sont vérifiées localement, sans mesure indépendante sur deux postes physiques à l’école ni audit cryptographique externe.
+Tests réalisés le **8 novembre 2026**, sous Python **3.14.4** avec Qt/PySide6 **6.12.0**, et sous Python **3.12.13** avec Qt/PySide6 **6.8.3** ; PyNaCl **1.6.2** dans les deux cas. Le créateur signale un essai réussi d’une version précédente en cluster, puis des problèmes de notifications et de verrouillage sous Ubuntu 22.04.5. Les corrections 2.3.1 sont vérifiées localement ; le bureau réel de l’école reste à contrôler sur place. Ces essais ne constituent pas un audit cryptographique externe.
 
 ## Résultats automatisés
 
-- **239 tests réussis en 39,81 s** dans la suite actualisée : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires.
+- **247 tests réussis en 39,73 s** sous Python 3.14/Qt 6.12 et **247 en 40,22 s** sous Python 3.12/Qt 6.8 : réseau TCP/UDP réel sur la machine locale, interface Qt hors écran, installation et désinstallation dans des dossiers temporaires. Les exceptions de destruction sont traitées comme erreurs ; un avertissement de dépréciation Qt déjà connu concerne un événement de glisser-déposer synthétique sous Qt 6.12. Les 34 tests ciblés de présence/notifications/compatibilité ont aussi été revérifiés sous Qt 6.8 après ajustement de l’arrêt des profils temporaires.
 - Mesure de diffusion E2EE réalisée en 1.5.0 sur loopback : **200 clients asyncio**, roster complet et **199 réceptions uniques**, en **5,35 s** lors de cette exécution. Cette mesure inclut l’établissement des présences signées ; elle ne représente pas 200 utilisateurs envoyant continuellement en parallèle.
 - Profils de test isolés ; application installée, conversations actives, autostart et environnement Python personnels laissés en place.
 
 Les sockets locales demandent un environnement autorisant TCP/UDP. Qt 6.10 n’est pas pris en charge avec Python 3.14 : [documentation officielle de cette version](https://www.qt.io/blog/qt-for-python-release-6.10-is-here). L’installateur et le lancement contrôlent cette combinaison et les dépendances imposent Qt 6.12 pour Python 3.14.
+
+## Présence et notifications Ubuntu (2.3.1)
+
+- Un vrai bus D-Bus privé exporte les interfaces GNOME ScreenSaver et logind : `GetSession` résout la session précise, puis `LockedHint` reste pris en compte même si `GetActive` répond faux. Vérification du déverrouillage via `ActiveChanged` et conservation de l’état si toutes les sources disparaissent. Aucun verrouillage ni appel de contrôle du vrai bureau.
+- Un service de notifications privé reçoit un vrai appel `gdbus` à `Notify`, sans `notify-send`. Signature et arguments contrôlés : priorité normale, silence, identifiant du lanceur, texte avec apostrophes/barres obliques/emoji correctement transporté, balisage du corps échappé. Échec de démarrage du premier backend puis secours vérifié avec un exécutable local de test ; aucune notification personnelle émise.
+- Cadenas vectoriel à la place de la pastille, pour avatars illustrés et photos. Présence encore connectée, conversation encore disponible, restauration au déverrouillage et cadenas du propre profil vérifiés. Capture réelle du widget Qt : `presence-2.3.1.png`, avec profils de démonstration.
+- Statut verrouillé transmis en TCP et via relais. Une information perdue est réparée au rafraîchissement suivant, même si la version du pair est déjà connue. Les changements rapides sont envoyés dans l’ordre. Le contrôleur Qt est aussi vérifié avec le cadenas de son propre profil ; le test attend la réception effective des changements par le pair avant d’arrêter les profils temporaires.
+- Les archives **1.8.1, 2.0.0, 2.1.0, 2.2.0 et 2.3.0** continuent de fonctionner avec le nouveau client et leurs anciens relais. Aucun nouveau format de présence n’est requis. Les clients 2.3.0 comprennent le détail du verrouillage ; les versions antérieures reçoivent `away`/`dnd` comme auparavant.
 
 ## Corrections et compatibilité (2.3.0)
 

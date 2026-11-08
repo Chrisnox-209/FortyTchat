@@ -1,6 +1,13 @@
 # Retour à l’École 42 : essais sur place
 
-Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations 2.3.0 sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
+
+## Correctifs Ubuntu 22.04 (2.3.1)
+
+- Avec deux clients 2.3.1, ajouter l’autre profil comme ami. Après la découverte initiale, quitter complètement l’un, attendre au moins cinq secondes puis le relancer : une bannière native Ubuntu doit apparaître chez l’ami. Attendre une minute entre deux alertes pour respecter la protection contre les reconnexions répétées. Essayer aussi sans `notify-send` dans le chemin de recherche : `gdbus` doit suffire.
+- Verrouiller le poste par le mécanisme habituel de l’école. Depuis l’autre poste, vérifier que le cadenas remplace la pastille verte sur l’avatar de l’ami et dans sa conversation ; il reste joignable. Déverrouiller : retrouver le statut précédent. Refaire avec Absent puis Ne pas déranger.
+- Répéter en conservant un poste 2.3.0 : le texte de verrouillage reste compris. Avec 2.2.0 ou plus ancien, le statut reçu reste Absent/DND ; messages et fichiers doivent continuer normalement.
+- Noter le bureau utilisé (`echo "$XDG_CURRENT_DESKTOP / $XDG_SESSION_TYPE"`), en plus d’Ubuntu **22.04.5 LTS** et du noyau indiqués par l’école. La version du noyau seule ne permet pas d’identifier le service de verrouillage. Vérifier aussi le mode Ne pas déranger et les autorisations de notification d’Ubuntu.
 
 ## Vérifications 2.3.0
 

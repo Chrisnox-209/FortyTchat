@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.3.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.3.1</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -20,7 +20,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.3.0** apporte des **sondages à choix unique avec vote définitif**, des **paramètres de groupe plus lisibles**, des **badges de rôles**, le **code avec `====`**, une **limite progressive des popups privées**, la **détection de session verrouillée** et un **bandeau de mise à jour**. Les échanges avec les anciennes versions sont conservés ; les nouveautés sont proposées aux clients qui les comprennent.
+La version **2.3.1** corrige les **notifications de connexion des amis** et la **détection du verrouillage**, notamment pour Ubuntu 22.04 : un **cadenas remplace la pastille verte** lorsque le poste est verrouillé. Elle conserve les sondages définitifs, les réglages des groupes, le code avec `====` et les limites des popups de la version 2.3.0. Les échanges avec les anciennes versions sont conservés ; les nouveautés sont proposées aux clients qui les comprennent.
 
 ## Installer et démarrer
 
@@ -196,7 +196,7 @@ Une bannière native **« Pseudo est en ligne »** avertit de sa connexion, sans
 
 La découverte des cinq premières secondes, les changements de pseudo/statut, une deuxième session et l’ajout d’un ami déjà connecté restent silencieux. Les coupures de moins de cinq secondes sont ignorées ; un même ami ne déclenche pas plus d’une alerte par minute. Les sessions masquées et les clés modifiées ne déclenchent pas d’alerte.
 
-Les bannières utilisent `notify-send` lorsqu’il est disponible. Leur position et leur apparence sont gérées par Ubuntu/GNOME et son propre mode Ne pas déranger : [aide GNOME](https://help.gnome.org/gnome-help/shell-notifications.html.en), [service freedesktop](https://specifications.freedesktop.org/notification/latest-single/).
+Les bannières utilisent le service natif de notifications via `gdbus`, avec `notify-send` en secours. L’absence de `notify-send` ne suffit donc plus à désactiver les alertes. `gdbus` est fourni par [GLib sous Ubuntu 22.04](https://manpages.ubuntu.com/manpages/jammy/man1/gdbus.1.html). Leur position et leur apparence restent gérées par Ubuntu/GNOME et son propre mode Ne pas déranger : [aide GNOME](https://help.gnome.org/gnome-help/shell-notifications.html.en), [service freedesktop](https://specifications.freedesktop.org/notification/latest-single/).
 
 ### Bloquer un utilisateur
 
@@ -356,7 +356,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.3.0 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.3.1 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -390,9 +390,13 @@ L’intégration utilise **PyNaCl/libsodium**, Box Curve25519/XSalsa20/Poly1305 
 
 ## Session verrouillée et mise à jour
 
-Quand le bureau signale le verrouillage, la personne reste dans le cluster et apparaît avec **🔒 Session verrouillée** dans les contacts, les amis et les groupes. Au déverrouillage, son statut manuel revient. **Ne pas déranger reste prioritaire**. Les anciens clients voient leur statut **Absent** habituel, ou Ne pas déranger si celui-ci est activé.
+Quand le bureau signale le verrouillage, la personne reste dans le cluster : un **cadenas remplace la pastille verte de son avatar** dans les contacts, les conversations et les groupes, avec le texte **Session verrouillée**. Au déverrouillage, son statut manuel revient. **Ne pas déranger reste prioritaire**. Les clients 2.3.0 comprennent déjà le détail du verrouillage ; les versions plus anciennes voient leur statut **Absent** habituel, ou Ne pas déranger si celui-ci est activé.
 
-La détection lit l’état fourni par GNOME/ScreenSaver ou logind, toutes les quelques secondes. Elle n’enregistre ni frappes ni activité et ne verrouille pas le poste. Si le bureau ne fournit pas cet état, le statut manuel reste disponible. [Interface GNOME](https://raw.githubusercontent.com/GNOME/gnome-shell/main/data/dbus-interfaces/org.gnome.ScreenSaver.xml), [état de session logind](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
+La détection lit ensemble GNOME/ScreenSaver et logind, toutes les **deux secondes**, ainsi que les signaux du bureau. La session Ubuntu indiquée par `XDG_SESSION_ID` est recherchée explicitement. Une source répondant « non verrouillé » ne masque plus un verrouillage signalé par une autre. L’état est rafraîchi sur le réseau pour réparer un changement perdu. Aucun enregistrement de frappes ou d’activité et aucune commande de verrouillage ne sont utilisés. Si le bureau ne fournit pas cet état, le statut manuel reste disponible. [Interface GNOME](https://raw.githubusercontent.com/GNOME/gnome-shell/main/data/dbus-interfaces/org.gnome.ScreenSaver.xml), [état de session logind](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
+
+<p align="center">
+  <a href="docs/presence-2.3.1.png"><img src="docs/presence-2.3.1.png" width="312" alt="Liste des amis : cadenas sur l’avatar de la session verrouillée, pastille verte pour l’ami disponible"></a>
+</p>
 
 Un **petit bandeau rouge** apparaît lorsqu’un poste compatible annonce une version plus récente. Le bouton **Mettre à jour ↗** ouvre directement les [instructions GitHub](https://github.com/Chrisnox-209/FortyTchat#mettre-à-jour), y compris pour les installations dans un dossier personnalisé. La capture d’aperçu utilise une version future de démonstration pour montrer ce bandeau.
 
@@ -455,7 +459,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 | Aucune personne en ligne à la maison | Un autre client doit être présent sur le réseau ; utiliser les [profils de développement](#développer-et-tester-à-domicile) pour tester sur un PC. |
 | Personne absente sur deux PC | Vérifier les autorisations de découverte UDP et TCP inter-postes. VLAN, Wi-Fi invité ou isolation réseau peuvent bloquer les échanges. |
 | Clé d’un contact modifiée | Ouvrir son cadenas et comparer sa nouvelle empreinte par un canal de confiance. Ne pas effacer les clés pour contourner le blocage. |
-| Aucune bannière de connexion | Vérifier l’option d’alerte, DND dans FortyTchat et Ubuntu, et `notify-send`. Le démarrage initial et les reconnexions rapprochées restent silencieux. |
+| Aucune bannière de connexion | Vérifier l’option d’alerte, DND dans FortyTchat et Ubuntu, et la disponibilité de `gdbus` ou `notify-send`. Le démarrage initial et les reconnexions rapprochées restent silencieux. |
 | Popup grisée dans les amis | L’ami doit être connecté, autorisé, non bloqué et compatible ; le relais doit accepter les cartes sans route directe. |
 | Application absente au début de session | Vérifier l’option de démarrage et la politique XDG de la session. |
 

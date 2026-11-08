@@ -1,4 +1,4 @@
-# Réseau et chiffrement de FortyTchat 2.3.0
+# Réseau et chiffrement de FortyTchat 2.3.1
 
 ## Groupes durables, rôles et popups (2.1.0)
 
@@ -54,11 +54,13 @@ Le menu d’amis de l’icône et les alertes Ubuntu utilisent le carnet local e
 
 Les alertes sont locales, désactivables, silencieuses en DND et regroupées lors d’arrivées simultanées. Les changements de pseudo/statut, nouvelles sessions d’un contact toujours présent, ajouts d’amis connectés, clés modifiées et sessions masquées ne déclenchent pas de bannière. Un délai initial de cinq secondes, cinq secondes minimales d’absence et un intervalle minimal d’une minute par ami limitent les répétitions. Ce suivi reste en mémoire et n’ajoute aucun historique au profil.
 
-## Verrouillage de session (2.3.0)
+## Verrouillage de session (2.3.1)
 
-Le moniteur Qt lit uniquement `GetActive` des services ScreenSaver GNOME/freedesktop/Cinnamon, avec repli sur `LockedHint` de logind. Les appels D-Bus sont asynchrones, bornés et répétés toutes les trois secondes ; une absence de service conserve le statut manuel. Les tests Qt hors écran désactivent ce moniteur sur le vrai bureau. Un bus privé sert aux tests de lecture.
+Le moniteur Qt lit en parallèle `GetActive` des services ScreenSaver GNOME/freedesktop/Cinnamon/MATE/Xfce et `LockedHint` de logind. Un service répondant faux ne masque plus un verrouillage rapporté par une autre source. La session indiquée par `XDG_SESSION_ID` est résolue par `GetSession` ; à défaut, l’objet `session/auto` reste disponible. Les appels D-Bus sont asynchrones, bornés à 800 ms et répétés toutes les deux secondes, avec relecture sur les signaux `ActiveChanged`. Aucun service de verrouillage n’est démarré par ces lectures. Une absence de toute source conserve l’état précédent. Les tests Qt hors écran désactivent ce moniteur sur le vrai bureau ; un bus privé sert aux tests.
 
-Un verrouillage donne le statut public historique `away`, sauf si DND est actif. Le détail `locked` est envoyé dans `client_info` seulement aux clients qui le comprennent. Au déverrouillage, le statut manuel précédent revient. La session reste connectée, les messages continuent et les notifications d’arrivée d’amis ne sont pas déclenchées par ce changement. Les anciens clients ne reçoivent aucun nouveau statut ou contrôle inconnu. Aucun historique d’activité ni état du bureau n’est écrit sur disque.
+Un verrouillage donne le statut public historique `away`, sauf si DND est actif. Le détail `locked` est envoyé dans `client_info` seulement aux clients qui le comprennent. L’état est rafraîchi à chaque battement réseau, même après identification de la version, pour réparer un changement perdu. Les envois par destinataire sont sérialisés : un déverrouillage récent ne peut pas être suivi d’un ancien verrouillage encore en cours d’envoi. Au déverrouillage, le statut manuel précédent revient. Un cadenas vectoriel remplace la pastille sur les avatars des listes et conversations. La session reste connectée, les messages continuent et les notifications d’arrivée d’amis ne sont pas déclenchées par ce changement. Les anciens clients ne reçoivent aucun nouveau statut ou contrôle inconnu. Aucun historique d’activité ni état du bureau n’est écrit sur disque.
+
+Les notifications Ubuntu passent par l’interface standard `org.freedesktop.Notifications.Notify`, avec `gdbus` (fourni par GLib sous Ubuntu 22.04), puis `notify-send` en secours si nécessaire. Aucun shell n’interprète les arguments. Les connexions d’amis ont une priorité normale, le son est supprimé et l’identifiant d’application correspond au lanceur installé. Les processus sont bornés en nombre et en durée. Le bureau garde le contrôle de l’affichage, notamment de son propre mode Ne pas déranger.
 
 ## Découverte et routes
 
