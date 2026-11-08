@@ -98,6 +98,18 @@ class MainWindow(QMainWindow):
         more.clicked.connect(self.chat_menu)
         header_box.addWidget(more)
         pane_box.addWidget(header)
+        self.update_banner=QFrame();self.update_banner.setObjectName('updateBanner')
+        self.update_banner.setStyleSheet('QFrame#updateBanner {background:#692b3a;border-bottom:1px solid #dc637e;} QLabel {color:#fff1f4;} QPushButton {background:#b33f5b;color:white;border-radius:9px;padding:9px 12px;}')
+        update_box=QHBoxLayout(self.update_banner);update_box.setContentsMargins(16,10,16,10)
+        self.update_text=label('',wrap=True);update_box.addWidget(self.update_text,1)
+        self.update_button=button('Mettre à jour ↗')
+        def open_update():
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            from ..features.versions import UPDATE_URL
+            QDesktopServices.openUrl(QUrl(UPDATE_URL))
+        self.update_button.clicked.connect(open_update);update_box.addWidget(self.update_button)
+        self.update_banner.hide();pane_box.addWidget(self.update_banner)
         self.notice = label('', 'notice', True)
         self.notice.hide()
         pane_box.addWidget(self.notice)
@@ -153,6 +165,10 @@ class MainWindow(QMainWindow):
         self.known_names = {sid: nick for sid, nick in self.known_names.items() if sid in keep}
         self.sidebar.refresh()
         self.members.setText(f'{len(peers) + 1} participants' if peers else 'Vous seul·e')
+
+    def show_update_banner(self,version):
+        self.update_text.setText(f'Une mise à jour est disponible : FortyTchat {version} a été détecté sur le cluster.')
+        self.update_banner.show()
 
     def update_actions(self):
         self.composer.update_actions()

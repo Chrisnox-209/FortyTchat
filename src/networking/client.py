@@ -14,6 +14,8 @@ from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
 from ..features.social import SOCIAL_EVENTS, SocialOrder
 from ..features.cards import CARD_EVENTS, allowed_reply
 from ..features.receipts import ReceiptLedger, READ_EVENTS, READ_BATCH
+from ..features.versions import modern_caps, room_capable
+from .. import __version__
 from ..features.collaboration import CAPABILITY, COLLAB_EVENTS, GROUP_EVENTS, group_id, chat_target
 from .collaboration import CollaborationNetwork
 from ..identity import session_id, unique_nickname, valid_nickname, contact_capability, contact_from_caps
@@ -34,6 +36,7 @@ class ChatClient(CollaborationNetwork):
                  security_root=None, crypto_identity=None, blocked_contacts=()):
         self.sid, self.nickname = session_id(), nickname
         self.status = 'online'
+        self.manual_status,self.screen_locked='online',False
         self.contact_id = contact_id or session_id()
         self.identity = crypto_identity or CryptoIdentity(self.contact_id, security_root)
         if self.identity.contact_id != self.contact_id:
@@ -61,6 +64,7 @@ class ChatClient(CollaborationNetwork):
         self._last_reply = 0.0
         self.persist_wizz = persist_wizz
         self.peers, self.blocked = {}, set()
+        self.info_attempts={}
         self.blocked_contacts = set(blocked_contacts)
         self.init_collaboration()
         self.seen, self.outgoing_invites, self.incoming_invites = SeenMessages(), Invitations(), Invitations()
@@ -100,8 +104,8 @@ class ChatClient(CollaborationNetwork):
 
     def hello(self, kind='hello'):
         return self.crypto.sign_presence({'v': 1, 'type': kind, 'sid': self.sid, 'nick': self.nickname,
-                'status': self.status, 'port': self.port,
-                'caps': ['files', 'choices', 'cards', CAPABILITY, 'social', 'avatar_image', 'receipts', contact_capability(self.contact_id)],
+                'status': self.status, 'port': self.port, 'contact_id':self.contact_id,
+                'caps': ['files', 'choices', 'cards', CAPABILITY, 'social', 'avatar_image', 'receipts', 'rooms2'],
                 'avatar': self.avatar, 'avatar_hash': self.avatar_hash})
 
     def network_state(self):
@@ -225,10 +229,21 @@ class ChatClient(CollaborationNetwork):
             self.security_notices.add(sid)
             self.emit('notice', text=f'La clé de {peer.nick} a changé : échanges bloqués. Compare son empreinte depuis le cadenas de la conversation.')
         self._queue_avatar(peer)
-        if new: self.group_observe(peer)
+        if new:
+            self.group_observe(peer)
+            self.queue_client_info(peer)
         # Lexicographically smaller session keeps a contested nickname.
         if peer.nick.casefold() == self.nickname.casefold() and sid < self.sid:
             self.rename(unique_nickname(self.nickname, [p.nick for p in self.peers.values()]))
+
+    def queue_client_info(self,peer,force=False):
+        if not modern_caps(peer.caps) or not peer.secure or peer.sid in self.blocked:return
+        try:asyncio.get_running_loop()
+        except RuntimeError:return
+        now=time.monotonic()
+        if not force and now-self.info_attempts.get(peer.sid,-100)<10:return
+        self.info_attempts[peer.sid]=now
+        self.task(self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock'],locked=self.screen_locked)))
 
     def emit_peers(self):
         self.emit('peers', peers=[p.public() for p in self.peers.values()])
@@ -253,6 +268,7 @@ class ChatClient(CollaborationNetwork):
     def _remove_peer(self, sid):
         peer = self.peers.pop(sid, None)
         self.group_syncing.discard(sid)
+        self.info_attempts.pop(sid,None)
         self.blocked.discard(sid)
         fetch = self.avatar_fetches.pop(sid, None)
         if fetch:
@@ -278,6 +294,7 @@ class ChatClient(CollaborationNetwork):
                     self._remove_peer(sid)
                 else:
                     self._queue_avatar(peer)
+                    if not peer.version:self.queue_client_info(peer)
             if self.relay_writer:
                 try:
                     self.relay_writer.write(encode({'v': 1, 'type': 'ping'}))
@@ -309,11 +326,21 @@ class ChatClient(CollaborationNetwork):
             self.avatar_hash = avatar_hash(avatar_image)
             self.avatar_image = avatar_image
         self.wizz_enabled, self.dnd = wizz_enabled, dnd
-        self.status = 'dnd' if dnd else status
+        self.manual_status=status
+        self.status = 'dnd' if dnd else 'away' if self.screen_locked else status
         self._announce()
         if self.relay_writer:
             self.relay_writer.write(encode(self.hello()))
             self._publish_avatar()
+
+    def set_screen_locked(self,locked):
+        if type(locked) is not bool:raise ValueError('État de session invalide')
+        if self.screen_locked==locked:return
+        self.screen_locked=locked
+        self.status='dnd' if self.dnd else 'away' if locked else self.manual_status
+        self._announce()
+        if self.relay_writer:self.relay_writer.write(encode(self.hello()))
+        for peer in self.peers.values():self.queue_client_info(peer,force=True)
 
     def block(self, sid, blocked=True):
         if blocked:
@@ -414,10 +441,18 @@ class ChatClient(CollaborationNetwork):
         if frame['id'] in self.seen.ids:
             return True, ''
         kind = frame['type']
+        if kind=='client_info':
+            if not modern_caps(peer.caps) or not peer.control_bucket.allow():return False,'Information de version indisponible'
+            first=not peer.version
+            peer.version,peer.features=frame['version'],tuple(frame['features'])
+            peer.locked=frame.get('locked',False)
+            if first:self.queue_client_info(peer,force=True)
+            self.seen.add(frame['id']);self.emit('peer_version',version=peer.version,peer=peer.sid);self.emit_peers()
+            return True,''
         if frame.get('group') and not self.group_access(peer, frame['group']):
             return False, 'Membre de groupe non autorisé'
         if kind in COLLAB_EVENTS:
-            if CAPABILITY not in peer.caps or not (peer.control_bucket if kind in GROUP_EVENTS else peer.social_bucket).allow():
+            if not room_capable(peer.caps) or not (peer.control_bucket if kind in GROUP_EVENTS else peer.social_bucket).allow():
                 return False, 'Collaboration indisponible ou trop rapide'
             ok, reason = self.receive_collaboration(frame, peer)
             if ok:
@@ -431,7 +466,7 @@ class ChatClient(CollaborationNetwork):
                 self.emit('message_read', id=reference, target=target, peer=sender)
             return True, ''
         if kind in ('break_invite', 'card_invite') and not frame.get('group') and self.incoming_break_limit.remaining(peer.contact_id or sender):
-            return False, 'Demandes de pause bloquées pendant 5 minutes'
+            return False, self.incoming_break_limit.notice(peer.contact_id or sender)
         if kind in CARD_EVENTS and 'cards' not in peer.caps:
             return False, 'Notifications personnalisées incompatibles'
         if ('responses' in frame or 'choice' in frame) and 'choices' not in peer.caps:
@@ -458,7 +493,7 @@ class ChatClient(CollaborationNetwork):
                     self.group_store.receive_popup(frame['group'], frame['permit'])
                 except (OSError, ValueError, KeyError) as exc: return False, str(exc)[:160]
             elif not self.incoming_break_limit.allow(peer.contact_id or sender):
-                return False, 'Demandes de pause bloquées pendant 5 minutes'
+                return False, self.incoming_break_limit.notice(peer.contact_id or sender)
             if not self.incoming_invites.add(frame['id'], sender):
                 return False, 'Invitation indisponible'
             if 'responses' in frame:
@@ -651,7 +686,7 @@ class ChatClient(CollaborationNetwork):
                       if kind in CARD_EVENTS else 'Contact indisponible ou clé modifiée : vérifie le cadenas de la conversation.')
             return None
         if kind in ('break_invite', 'card_invite') and self.outgoing_break_limit.remaining(peers[0].contact_id or target):
-            self.emit('notice', text='Pauses bloquées vers cette personne pendant 5 minutes. Les messages restent disponibles.')
+            self.emit('notice', text=self.outgoing_break_limit.notice(peers[0].contact_id or target))
             return None
         if not self.message_bucket.allow():
             self.emit('notice', text='Un peu trop rapide… Patientez un instant.')
@@ -671,7 +706,7 @@ class ChatClient(CollaborationNetwork):
             self.emit('wizz_used', timestamp=stamp)
         if kind in ('break_invite', 'card_invite'):
             if not self.outgoing_break_limit.allow(peers[0].contact_id or target):
-                self.emit('notice', text='Trois demandes successives maximum : pauses bloquées vers cette personne pendant 5 minutes.')
+                self.emit('notice', text=self.outgoing_break_limit.notice(peers[0].contact_id or target))
                 return None
             if not self.outgoing_invites.add(frame['id'], target):
                 self.emit('notice', text='Trop de demandes sans réponse. Patiente un instant.')
@@ -1004,7 +1039,7 @@ class ChatClient(CollaborationNetwork):
             rows.append('Relais configuré mais inaccessible actuellement.')
         else:
             rows.append('Aucun relais configuré : une machine autorisée et un nom DNS seraient nécessaires.')
-        peer = next((p for p in self.peers.values() if p.direct and p.sid not in self.blocked and ('probe' in p.caps or 'rooms' in p.caps or 'rooms2' in p.caps or CAPABILITY in p.caps)), None)
+        peer = next((p for p in self.peers.values() if p.direct and p.sid not in self.blocked and ('probe' in p.caps or 'rooms' in p.caps or 'rooms2' in p.caps or 'rooms3' in p.caps or CAPABILITY in p.caps)), None)
         if peer:
             writer = None
             try:

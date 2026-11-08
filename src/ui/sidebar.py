@@ -179,6 +179,8 @@ class Sidebar(QFrame):
         self.list.addItem(item)
 
     def _row(self, sid, nick, detail, online=False, avatar=-1, avatar_image='', contact_id='', friend=False):
+        if self.peers.get(sid,{}).get('locked') and not detail.startswith('Bloqué'):
+            detail='🔒 Session verrouillée · dans le cluster'
         item = QListWidgetItem()
         unread = self.unread.get(sid, 0)
         if friend and contact_id:

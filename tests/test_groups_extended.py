@@ -58,7 +58,7 @@ def test_private_group_store_is_signed_cas_merged_and_cooldown_survives_restart(
 
 
 @pytest.mark.parametrize('relay', [False, True])
-def test_dynamic_groups_roles_members_and_multi_choice_polls(relay, tmp_path):
+def test_dynamic_groups_roles_members_and_final_choice_polls(relay, tmp_path):
     async def run():
         server = RelayServer() if relay else None
         options = dict(relay_host='127.0.0.1',relay_port=await server.start(port=0),tls=False) if server else {}
@@ -83,11 +83,11 @@ def test_dynamic_groups_roles_members_and_multi_choice_polls(relay, tmp_path):
             assert d.rooms[gid].state == 'pending'
             await d.answer_group(gid,True)
             await until(lambda:a.group_access(a.peers[d.sid],gid))
-            poll = await a.send('poll_create',key,question='Pause ?',options=['Café','Thé','Chocolat'],multiple=True)
-            await c.send('poll_vote',key,poll=poll,options=[0,2])
-            assert a.polls.items[poll]['votes'] == {c.sid:[0,2]}
-            await c.send('poll_vote',key,poll=poll,options=[])
-            assert not a.polls.items[poll]['votes']
+            poll = await a.send('poll_create',key,question='Pause ?',options=['Café','Thé','Chocolat'])
+            await c.send('poll_vote',key,poll=poll,option=2)
+            assert a.polls.items[poll]['votes'] == {c.sid:2}
+            assert await c.send('poll_vote',key,poll=poll,option=0) is None
+            assert a.polls.items[poll]['votes']=={c.sid:2}
             file = await a.offer_file(key,memory=b'Private group file',name='group.txt')
             assert (file,a.sid) in c.files.incoming
             assert await b.update_group(gid, {'remove':c.contact_id})

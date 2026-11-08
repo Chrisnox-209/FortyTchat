@@ -167,6 +167,10 @@ def test_real_editor_send_yes_and_custom_replies_and_saved_templates(qt, tmp_pat
         assert incoming not in controller.popups
 
         controller.change_preference('dnd', True)
+        # This scenario exercises a third popup after the first cooldown.
+        from src.features.break_request import BreakRateLimit
+        peer.outgoing_break_limit=BreakRateLimit()
+        controller.worker.client.incoming_break_limit=BreakRateLimit()
         incoming = controller.worker.submit(peer.send('break_invite', client.sid)).result(4)
         until(qt, lambda: incoming in controller.popups)
         popup = controller.popups[incoming][1]

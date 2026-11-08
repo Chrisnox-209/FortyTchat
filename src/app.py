@@ -30,6 +30,8 @@ from .ui.avatar_picker import AvatarPicker
 from .ui.main_window import MainWindow
 from .ui.private_window import PrivateWindow
 from .ui.notifications import Notifications
+from .ui.groups import GroupManager
+from .ui.session_lock import SessionLockMonitor
 from .ui.settings import SettingsDialog
 from .ui.theme import apply_theme
 from .ui.tray import Tray
@@ -61,6 +63,7 @@ class Application(QObject, CollaborationController):
         self.contact_sessions = {}
         self.session_blocks = set()
         self.settings, self.stopping, self.status = None, False, 'online'
+        self.screen_locked=False
         self.network, self.latest_peers = {}, []
         root = config_home() / 'fortytchat-dev' / args.dev if args.dev else None
         self.store = ConfigStore(root)
@@ -149,6 +152,8 @@ class Application(QObject, CollaborationController):
         self.refresh_integration()
         self.worker.start()
         self.apply_network_preferences()
+        self.session_monitor=SessionLockMonitor(self)
+        self.session_monitor.changed.connect(self.screen_lock_changed);self.session_monitor.start()
         self.refresh_friend_surfaces(notify=False)
         self.qt.aboutToQuit.connect(self.cleanup)
         if self.preferences.dnd:
@@ -264,7 +269,7 @@ class Application(QObject, CollaborationController):
         view.composer.image_pasted.connect(lambda image: self.paste_image(view.current, image))
         view.chat.edit_requested.connect(lambda reference:self.edit_message(view.current, reference))
         view.chat.delete_requested.connect(lambda reference:self.delete_message(view.current, reference))
-        view.chat.vote_requested.connect(lambda reference, option:self.worker.send('poll_vote', view.current, poll=reference, **({'options':option} if isinstance(option, list) else {'option':option})))
+        view.chat.vote_requested.connect(lambda reference, option:self.vote_poll(view.current, reference, option))
         if hasattr(self, 'groups'): self.refresh_mentions()
 
     def open_friend(self, contact_id):
@@ -463,7 +468,12 @@ class Application(QObject, CollaborationController):
                 view.chat.reset(self.history.get(sid), sid)
         self.window.set_peers(self.latest_peers)
         self.refresh_blocked_state()
-        self.group_names.update({p['contact_id']:p['nick'] for p in self.latest_peers})
+        self.group_names.update({self.preferences.contact_id:self.preferences.nickname,**{p['contact_id']:p['nick'] for p in self.latest_peers}})
+        for dialog in self.collaboration_dialogs:
+            if isinstance(dialog,GroupManager):
+                dialog.peers=self.latest_peers
+                room=self.groups.get('group:'+dialog.room['id'])
+                if room:dialog.set_group(room)
         for key, view in self.group_windows.items():
             if key in self.groups:
                 view.set_group(self.groups[key], self.group_names)
@@ -949,8 +959,13 @@ class Application(QObject, CollaborationController):
         self.worker.call('preferences', wizz_enabled=self.preferences.wizz_enabled, dnd=self.preferences.dnd,
                          status=self.status, avatar=self.preferences.avatar, avatar_image=self.preferences.avatar_image,
                          read_receipts=self.preferences.read_receipts)
-        shown = 'Ne pas déranger' if self.preferences.dnd else ('Absent·e' if self.status == 'away' else 'En ligne')
-        self.window.sidebar.status_button.setText('●  ' + shown)
+        shown = 'Session verrouillée' if self.screen_locked else 'Ne pas déranger' if self.preferences.dnd else ('Absent·e' if self.status == 'away' else 'En ligne')
+        self.window.sidebar.status_button.setText(('🔒 ' if self.screen_locked else '●  ') + shown)
+
+    def screen_lock_changed(self,locked):
+        self.screen_locked=locked;self.worker.call('set_screen_locked',locked)
+        shown='🔒 Session verrouillée' if locked else '●  Ne pas déranger' if self.preferences.dnd else '●  Absent·e' if self.status=='away' else '●  En ligne'
+        self.window.sidebar.status_button.setText(shown)
 
     def set_status(self, status):
         self.preferences.dnd = status == 'dnd'
@@ -998,6 +1013,7 @@ class Application(QObject, CollaborationController):
         if self.stopping:
             return
         self.stopping = True
+        self.session_monitor.stop()
         self.typing_timer.stop()
         self.file_queue_timer.stop()
         self.file_queue.clear()

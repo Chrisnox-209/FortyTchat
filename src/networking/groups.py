@@ -6,6 +6,7 @@ import time
 from ..features.collaboration import CAPABILITY, Room, MAX_GROUPS, MAX_MEMBERS, group_key, group_id, plain
 from ..features.group_profile import (GroupStore, new_profile, signed, validate_profile,
     popup_permit, validate_permit, popup_interval, popup_remaining, valid_popup_interval)
+from ..features.versions import modern_caps, room_capable, group_capable
 from ..security import SecurityError
 from ..identity import session_id
 from .protocol import event, encode, ProtocolError
@@ -40,21 +41,21 @@ class GroupNetwork:
             self.rooms[gid] = room
 
     def group_peer(self, cid):
-        return next((p for p in self.conversation_peers('general', CAPABILITY) if p.contact_id == cid), None)
+        return next((p for p in self.conversation_peers('general', CAPABILITY) if p.contact_id == cid and group_capable(p.caps)), None)
 
     def group_observe(self, peer):
         if not self.rooms: return
         try: asyncio.get_running_loop()
         except RuntimeError: return
-        if not peer.secure or CAPABILITY not in peer.caps or peer.sid in self.blocked or peer.sid in self.group_syncing:
+        if not peer.secure or not room_capable(peer.caps) or peer.sid in self.blocked or peer.sid in self.group_syncing:
             return
         self.group_syncing.add(peer.sid)
         async def sync():
             try:
-                owned = [r for r in self.rooms.values() if r.owner == self.contact_id and peer.contact_id in r.members]
+                owned = [r for r in self.rooms.values() if r.owner == self.contact_id and peer.contact_id in r.members and r.profile]
                 for room in owned:
                     await self._send_to(peer, event('group_state', self.sid, peer.sid, room=room.id, profile=room.profile))
-                pending = [r.id for r in self.rooms.values() if r.owner == peer.contact_id]
+                pending = [r.id for r in self.rooms.values() if r.owner == peer.contact_id and r.profile]
                 if pending:
                     await self._send_to(peer, event('group_sync', self.sid, peer.sid, rooms=pending))
                 for room in self.rooms.values():
@@ -65,6 +66,7 @@ class GroupNetwork:
         self.task(sync())
 
     def persist_room(self, room, expected=None):
+        if not room.profile:return  # 2.0 groups were deliberately ephemeral.
         self.group_store.save(room.profile, 'joined' if room.state in ('joining', 'restoring') else room.state, expected)
 
     @group_operation
@@ -75,7 +77,7 @@ class GroupNetwork:
             self.emit('notice', text='Choisis un nom et 1 à 31 membres (32 groupes maximum).'); return None
         peers = [self.group_peer(cid) for cid in dict.fromkeys(contacts)]
         if not all(peers):
-            self.emit('notice', text='Les membres à inviter doivent être connectés avec FortyTchat 2.2.0.'); return None
+            self.emit('notice', text='Les membres à inviter doivent être connectés et prendre en charge les groupes.'); return None
         gid = session_id()
         profile = new_profile(self.identity, gid, name.strip(), [self.contact_id] + list(dict.fromkeys(contacts)))
         room = Room(gid, profile['name'], self.contact_id, tuple(profile['members']), state='joined',
@@ -162,17 +164,23 @@ class GroupNetwork:
     async def update_group(self, reference, changes):
         room = self.rooms.get(reference)
         if not room or room.state != 'joined': return False
+        if not room.profile:
+            self.emit('notice',text='Ce groupe ancien garde ses réglages d’origine. La conversation reste disponible.');return False
         if room.owner == self.contact_id:
             return await self.author_group_update(room, self.contact_id, room.profile['revision'], changes)
         owner = self.group_peer(room.owner)
         if not owner:
             self.emit('notice', text='Le créateur doit être connecté pour valider les changements du groupe.'); return False
+        if 'popup_interval' in changes and 'rooms3' not in owner.caps:
+            self.emit('notice',text='Cette version du créateur ne gère pas le délai réglable. La conversation reste compatible.');return False
         frame = event('group_update', self.sid, owner.sid, room=reference, revision=room.profile['revision'], changes=changes)
         try: encode(frame)
         except ProtocolError as exc:
             self.emit('notice', text=str(exc)); return False
         ok = await self._send_to(owner, frame)
-        if not ok: self.emit('notice', text='Modification du groupe non confirmée. Vérifie ton rôle et sa version.')
+        if not ok:
+            self.emit('notice', text='Modification non confirmée. Actualisation des réglages du groupe…')
+            await self._send_to(owner,event('group_sync',self.sid,owner.sid,rooms=[reference]))
         return ok
 
     async def author_group_update(self, room, actor, revision, changes):
@@ -184,6 +192,7 @@ class GroupNetwork:
     def commit_group_update(self, room, actor, revision, changes):
         if room.owner != self.contact_id or revision != room.profile['revision'] or actor not in room.members:
             return None
+        if not room.profile:return None
         p = copy.deepcopy(room.profile)
         if actor != room.owner and actor not in p['admins']:
             return None
@@ -250,6 +259,10 @@ class GroupNetwork:
         try: permit = self.reserve_group_popup(room, peer.contact_id, frame['batch'])
         except (OSError, ValueError) as exc:
             permit = {}; self.emit('notice', text=str(exc))
+        # 2.1 understands the original five-field signed permit.
+        if permit and 'rooms3' not in peer.caps:
+            from ..features.group_profile import signed,PERMIT_DOMAIN
+            permit=signed(self.identity,{k:v for k,v in permit.items() if k not in ('interval','revision')},PERMIT_DOMAIN)
         # The persisted reservation is authoritative before any grant leaves this process.
         await self._send_to(peer, event('group_popup_grant', self.sid, peer.sid, room=room.id, request=frame['id'], permit=permit))
         if permit: await self.broadcast_profile(room)
@@ -257,6 +270,8 @@ class GroupNetwork:
     async def send_group_popup(self, target, **payload):
         room = self.rooms.get(group_id(target))
         if not room or room.state != 'joined': return None
+        if not room.profile:
+            self.emit('notice',text='Le créateur de cet ancien groupe ne prend pas en charge les popups collectives. Les popups privées restent disponibles.');return None
         peers = [p for p in self.conversation_peers(target, 'cards') if 'choices' in p.caps]
         if not peers:
             self.emit('notice', text='Aucun membre du groupe n’est disponible pour recevoir une popup.'); return None
@@ -311,6 +326,14 @@ class GroupNetwork:
                     self.task(self._send_to(peer, event('group_removed', self.sid, peer.sid, room=gid, revision=room.profile['revision'])))
             return True, ''
         room = self.rooms.get(frame['room'])
+        if kind=='group_invite' and 'members' in frame:
+            members=tuple(frame['members'])
+            if self.contact_id not in members or peer.contact_id not in members:return False,'Invitation incohérente'
+            if room:return (room.owner==peer.contact_id and room.members==members and room.name==frame['name'],'Groupe ancien déjà connu')
+            if len(self.rooms)>=MAX_GROUPS:return False,'Trop de groupes'
+            room=Room(frame['room'],frame['name'],peer.contact_id,members,joined={peer.contact_id},sessions={peer.contact_id:{peer.sid}})
+            self.rooms[room.id]=room;self.publish_groups();self.emit('group_invitation',group=room.public(),nickname=peer.nick)
+            return True,''
         if kind in ('group_invite', 'group_state'):
             try: self.apply_profile(frame['profile'], peer)
             except (OSError, ValueError) as exc: return False, str(exc)[:160]

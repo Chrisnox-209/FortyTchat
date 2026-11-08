@@ -180,7 +180,7 @@ class ChatView(QFrame):
             else:
                 from .message_text import MessageText
                 content.addWidget(MessageText(message.text, self.actor_id in message.mentions, bubble))
-                bubble.desired_width = 480 if '```' in message.text else max(240, min(580, max((self.fontMetrics().horizontalAdvance(line) for line in message.text.split('\n')), default=0) + 34))
+                bubble.desired_width = 480 if '====' in message.text or chr(96)*3 in message.text else max(240, min(580, max((self.fontMetrics().horizontalAdvance(line) for line in message.text.split('\n')), default=0) + 34))
             if message.reply_to:
                 bubble.desired_width = max(300, bubble.desired_width)
             if message.id:

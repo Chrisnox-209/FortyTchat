@@ -110,10 +110,9 @@ def test_rooms_changes_polls_and_files_are_private_authenticated_and_ephemeral(r
             assert poll and poll in b.polls.items and poll in c.polls.items and not d.polls.items
             await b.send('poll_vote',key,poll=poll,option=1)
             assert a.polls.items[poll]['votes']=={b.sid:1} and c.polls.items[poll]['votes']=={b.sid:1}
-            await b.send('poll_vote',key,poll=poll,option=0)
-            assert a.polls.items[poll]['votes']=={b.sid:0}
-            await b.send('poll_vote',key,poll=poll,option=-1)
-            assert not a.polls.items[poll]['votes']
+            assert await b.send('poll_vote',key,poll=poll,option=0) is None
+            assert await b.send('poll_vote',key,poll=poll,option=-1) is None
+            assert a.polls.items[poll]['votes']=={b.sid:1}
             assert not await d._send_to(d.peers[a.sid],event('poll_vote',d.sid,a.sid,group=gid,poll=poll,option=0,seq=100))
             # A clipboard-like image can be offered from memory, without a source file.
             raw=b'RAM_CAPTURE_CONTENT'*100
@@ -185,7 +184,7 @@ def test_legacy_contacts_receive_original_messages_without_unknown_collaboration
         a,b,old=clients
         original=old.hello
         def hello(kind='hello'):
-            frame=original(kind);frame['caps']=['rooms2' if c == 'rooms3' else c for c in frame['caps']]
+            frame=original(kind);frame['caps']=[c for c in frame['caps'] if c not in ('rooms2','rooms3')]
             return old.crypto.sign_presence(frame)
         old.hello=hello
         try:

@@ -99,9 +99,9 @@ class PollBook:
     def __init__(self):
         self.items = OrderedDict()
 
-    def create(self, frame, chat):
+    def create(self, frame, chat, *, final=True):
         poll = dict(id=frame['id'], author=frame['from'], chat=chat, question=frame['question'],
-                    options=list(frame['options']), multiple=frame.get('multiple', False), audience=list(frame['audience']), votes={}, sequences={}, deleted=False)
+                    options=list(frame['options']), final=final, multiple=frame.get('multiple',False), audience=list(frame['audience']), votes={}, sequences={}, deleted=False)
         self.items[frame['id']] = poll
         while len(self.items) > MAX_POLLS:
             self.items.popitem(last=False)
@@ -113,19 +113,15 @@ class PollBook:
             return False
         value = frame.get('options') if poll['multiple'] else frame.get('option')
         if poll['multiple']:
-            if (not isinstance(value, list) or len(value) > len(poll['options'])
-                    or any(type(i) is not int or not 0 <= i < len(poll['options']) for i in value) or len(set(value)) != len(value)):
-                return False
-            value = sorted(value)
-        elif type(value) is not int or not -1 <= value < len(poll['options']):
-            return False
-        if frame['seq'] <= poll['sequences'].get(frame['from'], -1):
-            return True
-        poll['sequences'][frame['from']] = frame['seq']
-        if value == -1 or value == []:
-            poll['votes'].pop(frame['from'], None)
-        else:
-            poll['votes'][frame['from']] = value
+            if not isinstance(value,list) or len(value)>len(poll['options']) or any(type(i) is not int or not 0<=i<len(poll['options']) for i in value) or len(set(value))!=len(value):return False
+            value=sorted(value)
+        elif type(value) is not int or not (-1 if not poll['final'] else 0)<=value<len(poll['options']):return False
+        if poll['final'] and frame['from'] in poll['votes']:
+            return poll['votes'][frame['from']]==value
+        if frame['seq']<=poll['sequences'].get(frame['from'],-1):return True
+        poll['sequences'][frame['from']]=frame['seq']
+        if value==-1 or value==[]:poll['votes'].pop(frame['from'],None)
+        else:poll['votes'][frame['from']]=value
         return True
 
     def public(self, reference):

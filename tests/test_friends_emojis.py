@@ -55,9 +55,9 @@ def test_profile_contact_survives_rename_and_process_restart_without_messages(tm
     b = ChatClient('AnotherNick42', contact_id=own_id)
     a.port = b.port = 39742
     assert a.sid != b.sid and a.contact_id == b.contact_id
-    assert contact_from_caps(a.hello()['caps']) == own_id
+    assert a.hello()['contact_id']==own_id and a.crypto.check_presence(a.hello())[0]==own_id
     assert len(encode(a.hello())) < 1024
-    assert set(a.hello()) == {'v','type','sid','nick','status','port','caps','avatar','avatar_hash','crypto'}
+    assert set(a.hello()) == {'v','type','sid','nick','status','port','caps','avatar','avatar_hash','crypto','contact_id'}
     assert not Conversations().get('general')
     assert 'text' not in json.loads(store.path.read_text())
 

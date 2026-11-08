@@ -19,7 +19,7 @@ MAX_FRAME = 32768  # Includes the base64 overhead of the authenticated envelope.
 MAX_MESSAGE = 2000
 MAX_PEERS = 512
 ID = re.compile(r'[a-f0-9]{32}\Z')
-EVENTS = {'message', 'wizz', 'break_invite', 'break_reply'} | SOCIAL_EVENTS | CARD_EVENTS | READ_EVENTS | COLLAB_EVENTS
+EVENTS = {'client_info', 'message', 'wizz', 'break_invite', 'break_reply'} | SOCIAL_EVENTS | CARD_EVENTS | READ_EVENTS | COLLAB_EVENTS
 
 
 class ProtocolError(ValueError):
@@ -141,7 +141,7 @@ def validate(data):
         validate_context(data)
         if kind in COLLAB_EVENTS:
             base = {'v', 'type', 'id', 'from', 'to'}
-            fields = {'group_invite': {'room', 'profile'}, 'group_state': {'room', 'profile'},
+            fields = {'group_invite': ({'room','name','members'} if 'members' in data else {'room', 'profile'}), 'group_state': {'room', 'profile'},
                       'group_update': {'room', 'revision', 'changes'}, 'group_removed': {'room', 'revision'}, 'group_sync': {'rooms'},
                       'group_popup_request': {'room', 'batch'}, 'group_popup_grant': {'room', 'request', 'permit'}, 'group_join': {'room'}, 'group_leave': {'room'},
                       'message_edit': {'message', 'seq', 'text'}, 'message_delete': {'message', 'seq'},
@@ -149,8 +149,7 @@ def validate(data):
             if kind not in GROUP_EVENTS:
                 fields |= set(data) & {'group'}
             if kind == 'poll_create': fields |= set(data) & {'multiple'}
-            if kind == 'poll_vote' and 'options' in data:
-                fields = (fields - {'option'}) | {'options'}
+            if kind == 'poll_vote' and 'options' in data: fields=(fields-{'option'})|{'options'}
             if kind == 'message_edit': fields |= set(data) & {'mentions'}
             if set(data) != base | fields:
                 raise ProtocolError('Champs de collaboration invalides')
@@ -162,7 +161,10 @@ def validate(data):
                         raise ProtocolError('Synchronisation de groupe invalide')
                 elif not valid_id(data['room']):
                     raise ProtocolError('Groupe invalide')
-                if kind in ('group_invite', 'group_state'):
+                if kind=='group_invite' and 'members' in data:
+                    members=data['members']
+                    if not plain(data['name'],64) or not isinstance(members,list) or not 2<=len(members)<=MAX_MEMBERS or any(not valid_id(cid) for cid in members) or len(set(members))!=len(members):raise ProtocolError('Invitation ancienne invalide')
+                if kind in ('group_invite', 'group_state') and 'profile' in data:
                     try:
                         if validate_profile(data['profile'])['id'] != data['room']:
                             raise SecurityError('Groupe incohérent')
@@ -193,7 +195,7 @@ def validate(data):
                     raise ProtocolError('Popup de groupe invalide')
                 if kind == 'group_popup_grant':
                     permit = data['permit']
-                    if not valid_id(data['request']) or not isinstance(permit, dict) or (permit and len(permit) != 7):
+                    if not valid_id(data['request']) or not isinstance(permit, dict) or (permit and len(permit) not in (5,7)):
                         raise ProtocolError('Autorisation invalide')
             if kind in CHANGE_EVENTS and not valid_id(data['message']):
                 raise ProtocolError('Message à modifier invalide')
@@ -202,7 +204,7 @@ def validate(data):
             if kind == 'message_edit' and (not plain(data['text'], MAX_MESSAGE) or len(data['text'].encode('utf-8')) > 8000):
                 raise ProtocolError('Message modifié invalide')
             if kind == 'poll_create':
-                if 'multiple' in data and type(data['multiple']) is not bool: raise ProtocolError('Mode du sondage invalide')
+                if 'multiple' in data and type(data['multiple']) is not bool:raise ProtocolError('Mode du sondage invalide')
                 options, audience = data['options'], data['audience']
                 if (not plain(data['question'], 200) or not isinstance(options, list) or not 2 <= len(options) <= 8
                         or any(not plain(option, 80) or any(c in option for c in '\n\t') for option in options)
@@ -214,11 +216,15 @@ def validate(data):
             if kind == 'poll_vote':
                 if not valid_id(data['poll']): raise ProtocolError('Sondage invalide')
                 if 'options' in data:
-                    choices = data['options']
-                    if not isinstance(choices, list) or len(choices) > 8 or any(type(i) is not int or not 0 <= i < 8 for i in choices) or len(set(choices)) != len(choices):
-                        raise ProtocolError('Vote invalide')
-                elif type(data['option']) is not int or not -1 <= data['option'] < 8:
-                    raise ProtocolError('Vote invalide')
+                    choices=data['options']
+                    if not isinstance(choices,list) or len(choices)>8 or any(type(i) is not int or not 0<=i<8 for i in choices) or len(set(choices))!=len(choices):raise ProtocolError('Vote invalide')
+                elif type(data['option']) is not int or not -1<=data['option']<8:raise ProtocolError('Vote invalide')
+        if kind=='client_info':
+            from ..features.versions import version_tuple
+            features=data.get('features')
+            if (set(data)-{'locked'}!={'v','type','id','from','to','version','features'} or 'locked' in data and type(data['locked']) is not bool or not version_tuple(data.get('version'))
+                    or not isinstance(features,list) or len(features)>16 or any(not isinstance(f,str) or len(f)>32 for f in features)):
+                raise ProtocolError('Version annoncée invalide')
         if kind in READ_EVENTS:
             references = data.get('messages')
             if (set(data) != {'v', 'type', 'id', 'from', 'to', 'messages'}
@@ -229,7 +235,7 @@ def validate(data):
             fields = {'title', 'text', 'emoji'} | ({'request', 'answer'} if kind == 'card_reply' else set())
             if kind == 'card_invite' and 'group' in data:
                 fields |= {'group', 'permit'}
-                if not isinstance(data.get('permit'), dict) or len(data['permit']) != 7:
+                if not isinstance(data.get('permit'), dict) or len(data['permit']) not in (5,7):
                     raise ProtocolError('Autorisation de popup requise')
             if kind == 'card_invite' and 'responses' in data:
                 fields.add('responses')

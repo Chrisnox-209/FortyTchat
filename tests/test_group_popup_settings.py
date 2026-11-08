@@ -131,6 +131,8 @@ def test_group_settings_ui_permissions_and_countdown_follow_setting():
             assert manager.popup_delay.value()==5 and manager.popup_delay.isEnabled()
             manager.popup_delay.setValue(1);manager.popup_delay_button.click()
             assert values==[{'popup_interval':60}]
+            manager.change_result({'popup_interval':60},False)
+            assert 'refusé' in manager.feedback.text()
         assert managers[2].popup_delay.value()==5 and not managers[2].popup_delay.isEnabled() and not managers[2].popup_delay_button.isEnabled()
         assert not view.composer.card_button.isEnabled() and '5 min' in view.composer.card_button.toolTip()
         view.set_group(dict(room,popup_interval=60))

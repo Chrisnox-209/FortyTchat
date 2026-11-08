@@ -36,16 +36,16 @@ def test_dnd_keeps_pause_invites_and_replies_but_refuses_wizz_over_tcp():
             # Both ends can be in DND: neither invitation nor its answer is lost.
             alice.preferences(wizz_enabled=True, dnd=True)
             bob.preferences(wizz_enabled=True, dnd=True)
-            requests = [await alice.send('break_invite', bob.sid) for _ in range(3)]
-            assert all(requests) and len(set(requests)) == 3
-            assert len(frames(bob_events, 'break_invite')) == 3
+            requests = [await alice.send('break_invite', bob.sid) for _ in range(2)]
+            assert all(requests) and len(set(requests)) == 2
+            assert len(frames(bob_events, 'break_invite')) == 2
             answer = await bob.send('break_reply', alice.sid,
                                     request=requests[0], answer='accepted')
             assert answer is not None
             assert frames(alice_events, 'break_reply')[0]['answer'] == 'accepted'
-            # A fourth rapid invitation is blocked at the sender, with feedback.
+            # A third rapid invitation is blocked at the sender, with feedback.
             assert await alice.send('break_invite', bob.sid) is None
-            assert len(frames(bob_events, 'break_invite')) == 3
+            assert len(frames(bob_events, 'break_invite')) == 2
             notices = [data['text'].lower() for kind, data in alice_events if kind == 'notice']
             assert any('5' in text and 'min' in text for text in notices)
             assert await alice.send('message', bob.sid, text='Le chat reste disponible.')
@@ -77,16 +77,16 @@ def test_incoming_pause_protection_survives_rename_and_reconnect_by_contact():
             assert await alice._send_direct(alice.peers[bob.sid], first)
             assert await alice._send_direct(alice.peers[bob.sid], first)
             assert len(frames(bob_events, 'break_invite')) == 1  # ACK retry is not another invite.
-            for _ in range(2):
+            for _ in range(1):
                 assert await alice._send_direct(alice.peers[bob.sid],
                                                 event('break_invite', alice.sid, bob.sid))
             assert not await alice._send_direct(alice.peers[bob.sid],
                                                 event('break_invite', alice.sid, bob.sid))
-            assert len(frames(bob_events, 'break_invite')) == 3
+            assert len(frames(bob_events, 'break_invite')) == 2
             # Another student is unaffected by Alice's pause-only block.
             assert await charlie._send_direct(charlie.peers[bob.sid],
                                               event('break_invite', charlie.sid, bob.sid))
-            assert len(frames(bob_events, 'break_invite')) == 4
+            assert len(frames(bob_events, 'break_invite')) == 3
             assert await alice.send('message', bob.sid, text='Un blocage des pauses uniquement.')
             assert frames(bob_events, 'message')[-1]['text'] == 'Un blocage des pauses uniquement.'
             alice.rename('NouveauPseudo42')
@@ -106,7 +106,7 @@ def test_incoming_pause_protection_survives_rename_and_reconnect_by_contact():
             clock[0] = 300
             assert await replacement._send_direct(replacement.peers[bob.sid],
                                                   event('break_invite', replacement.sid, bob.sid))
-            assert len(frames(bob_events, 'break_invite')) == 5
+            assert len(frames(bob_events, 'break_invite')) == 4
             assert frames(bob_events, 'break_invite')[-1]['from'] == replacement.sid
             assert replacement.sid not in bob.blocked
         finally:
@@ -125,15 +125,22 @@ def test_outgoing_pause_limit_resets_after_five_minutes_for_same_contact():
             bootstrap(clients)
             alice.outgoing_break_limit.clock = lambda: clock[0]
             bob.incoming_break_limit.clock = lambda: clock[0]
-            assert all([await alice.send('break_invite', bob.sid) for _ in range(3)])
+            assert all([await alice.send('break_invite', bob.sid) for _ in range(2)])
             assert await alice.send('break_invite', bob.sid) is None
             clock[0] = 299
             assert await alice.send('break_invite', bob.sid) is None
             clock[0] = 300
-            # Outgoing protection doesn't transmit its fourth attempt, so the
+            # Outgoing protection doesn't transmit its third attempt, so the
             # receiver's idle series also ends after these five minutes.
             assert await alice.send('break_invite', bob.sid)
-            assert len(frames(bob_events, 'break_invite')) == 4
+            assert len(frames(bob_events, 'break_invite')) == 3
+            assert await alice.send('break_invite', bob.sid)
+            assert alice.outgoing_break_limit.remaining(bob.contact_id)==900
+            assert bob.incoming_break_limit.remaining(alice.contact_id)==900
+            clock[0]=1199
+            assert await alice.send('break_invite', bob.sid) is None
+            clock[0]=1200
+            assert await alice.send('break_invite', bob.sid)
         finally:
             await asyncio.gather(*(client.stop() for client in clients))
     asyncio.run(scenario())
@@ -165,18 +172,18 @@ def test_real_relay_pause_limits_dnd_retry_reconnect_and_message_fairness():
             bob.incoming_break_limit.clock = lambda: clock[0]
             alice.preferences(wizz_enabled=True, dnd=True)
             bob.preferences(wizz_enabled=True, dnd=True)
-            requests = [await alice.send('break_invite', bob.sid) for _ in range(3)]
+            requests = [await alice.send('break_invite', bob.sid) for _ in range(2)]
             assert all(requests)
-            await until(lambda: len(frames(bob_events, 'break_invite')) == 3)
+            await until(lambda: len(frames(bob_events, 'break_invite')) == 2)
             # A repeated accepted frame is acknowledged without spending another
             # invitation slot or showing another popup at the receiver.
             original = next(data['frame'] for kind, data in alice_events
                             if kind == 'sent' and data['frame']['id'] == requests[0])
             assert await alice._send_relay(original)
             await asyncio.sleep(0.01)
-            assert len(frames(bob_events, 'break_invite')) == 3
+            assert len(frames(bob_events, 'break_invite')) == 2
             assert await alice.send('break_invite', bob.sid) is None
-            # Bypass the sender limiter: the decrypting recipient refuses the fourth.
+            # Bypass the sender limiter: the decrypting recipient refuses the third.
             assert not await alice._send_relay(event('break_invite', alice.sid, bob.sid))
             assert await bob.send('break_reply', alice.sid, request=requests[1], answer='declined')
             await until(lambda: len(frames(alice_events, 'break_reply')) == 1)
@@ -196,10 +203,10 @@ def test_real_relay_pause_limits_dnd_retry_reconnect_and_message_fairness():
             assert not await replacement._send_relay(event('break_invite', replacement.sid, bob.sid))
             assert await replacement.send('message', bob.sid, text='Une pause bloquée ne bloque pas le chat.')
             await until(lambda: len(frames(bob_events, 'message')) == 2)
-            assert len(frames(bob_events, 'break_invite')) == 3
+            assert len(frames(bob_events, 'break_invite')) == 2
             clock[0] = 300
             assert await replacement._send_relay(event('break_invite', replacement.sid, bob.sid))
-            await until(lambda: len(frames(bob_events, 'break_invite')) == 4)
+            await until(lambda: len(frames(bob_events, 'break_invite')) == 3)
             assert frames(bob_events, 'break_invite')[-1]['from'] == replacement.sid
         finally:
             await asyncio.gather(*(client.stop() for client in clients))
@@ -240,7 +247,7 @@ def test_already_blocked_pause_attempts_leave_message_buckets_available():
                     return await alice._send_direct(alice.peers[bob.sid], frame)
                 return await alice._send_relay(frame)
 
-            assert all([await invite() for _ in range(3)])
+            assert all([await invite() for _ in range(2)])
             assert not await invite()
             for _ in range(20):
                 assert not await invite()

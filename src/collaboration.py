@@ -5,6 +5,8 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QListWidget, QListWidgetItem, QMessageBox, QInputDialog
+from .features.versions import room_capable,group_capable,version_tuple
+from . import __version__
 from .features.collaboration import CAPABILITY, group_id, group_key
 from .identity import valid_contact_id
 from .memory import Message
@@ -46,10 +48,10 @@ class CollaborationController:
         return dialog
 
     def show_group_editor(self):
-        peers = [p for p in self.latest_peers if p.get('encrypted') and CAPABILITY in p.get('caps', ())
+        peers = [p for p in self.latest_peers if p.get('encrypted') and group_capable(p.get('caps', ()))
                  and p['contact_id'] not in self.preferences.blocked_contacts and p['sid'] not in self.window.sidebar.blocked]
         if not peers:
-            self.window.show_notice('Une autre personne connectée avec FortyTchat 2.2.0 est nécessaire pour créer un groupe.')
+            self.window.show_notice('Une personne connectée qui prend en charge les groupes est nécessaire.')
             return None
         editor = GroupEditor(peers, self.window)
         editor.submitted.connect(lambda name, contacts:self.worker.submit(self.worker.client.create_group(name, contacts)))
@@ -92,10 +94,17 @@ class CollaborationController:
     def manage_group(self, reference):
         room = self.groups.get(group_key(reference))
         if not room: return None
-        peers = [p for p in self.latest_peers if p.get('encrypted') and CAPABILITY in p.get('caps', ()) and p['sid'] not in self.window.sidebar.blocked]
+        peers = [p for p in self.latest_peers if p.get('encrypted') and group_capable(p.get('caps', ())) and p['sid'] not in self.window.sidebar.blocked]
         dialog = GroupManager(room, self.preferences.contact_id, self.group_names, peers, self.view_for(group_key(reference)) or self.window)
-        dialog.changed.connect(lambda changes:self.worker.submit(self.worker.client.update_group(reference, changes)))
+        dialog.changed.connect(lambda changes:self.update_group_from_ui(reference, changes))
         return self.keep_dialog(dialog)
+
+    def update_group_from_ui(self, reference, changes):
+        future = self.worker.submit(self.worker.client.update_group(reference, changes))
+        def finished(result):
+            ok = not result.cancelled() and result.exception() is None and bool(result.result())
+            self.worker.received.emit('group_update_result', {'reference':reference,'changes':changes,'ok':ok})
+        future.add_done_callback(finished)
 
     def close_group_window(self, key):
         view = self.group_windows.pop(key, None)
@@ -107,8 +116,15 @@ class CollaborationController:
         if target != 'general' and not group_id(target):
             return None
         editor = PollEditor(view)
-        editor.submitted.connect(lambda question, options, multiple:self.worker.send('poll_create', target, question=question, options=options, multiple=multiple))
+        editor.submitted.connect(lambda question, options:self.worker.send('poll_create', target, question=question, options=options))
         return self.keep_dialog(editor)
+
+    def vote_poll(self, target, reference, option):
+        future = self.worker.send('poll_vote', target, poll=reference, option=option)
+        def finished(result):
+            ok = not result.cancelled() and result.exception() is None and bool(result.result())
+            self.worker.received.emit('poll_vote_result', {'target':target, 'poll':reference, 'ok':ok})
+        future.add_done_callback(finished)
 
     def edit_message(self, target, reference):
         message = self.history.find(target, reference)
@@ -238,6 +254,15 @@ class CollaborationController:
         if kind == 'file_queue_ready':
             self.file_queue_busy = False
             self.file_queue_next = time.monotonic() + 1.5
+        elif kind=='peer_version':
+            version=version_tuple(data['version'])
+            current=version_tuple(__version__)
+            if version and version>current and version>version_tuple(getattr(self,'newer_version',__version__)):
+                self.newer_version=data['version'];self.window.show_update_banner(data['version'])
+        elif kind == 'group_update_result':
+            for dialog in self.collaboration_dialogs:
+                if isinstance(dialog, GroupManager) and dialog.room['id'] == data['reference']:
+                    dialog.change_result(data['changes'], data['ok'])
         elif kind == 'groups':
             self.groups = {group_key(room['id']):room for room in data['groups']}
             self.window.sidebar.groups = self.groups
@@ -283,6 +308,10 @@ class CollaborationController:
                 outgoing=data['outgoing'], poll=poll, avatar=data.get('avatar', -1), avatar_image=data.get('avatar_image', '')))
             if not data['outgoing'] and not self.preferences.dnd and not self.is_viewed(target):
                 self.notifications.show(data['nickname'] + ' · nouveau sondage')
+        elif kind == 'poll_vote_result':
+            view = self.view_for(data['target'])
+            if view and data['poll'] in view.chat.poll_cards:
+                view.chat.poll_cards[data['poll']].finish_submit(data['ok'])
         elif kind == 'poll_updated':
             message = self.history.find(data['target'], data['poll']['id'])
             if message and not message.deleted:

@@ -10,33 +10,32 @@ from src.ui.break_popup import BreakPopup, BreakReplyPopup
 from src.ui.theme import apply_theme
 
 
-def test_fourth_break_request_blocks_only_this_contact_for_five_minutes():
-    now = [0.0]
-    gate = BreakRateLimit(lambda: now[0])
-    assert [gate.allow('stable-alice') for _ in range(4)] == [True, True, True, False]
-    assert gate.remaining('stable-alice') == INVITE_BLOCK_TIME
-    assert gate.allow('bob')
-    now[0] = 299
-    assert not gate.allow('stable-alice')
-    assert gate.remaining('stable-alice') == 1  # Repeated attempts never prolong a block.
-    now[0] = 300
-    assert gate.remaining('stable-alice') == 0
-    assert [gate.allow('stable-alice') for _ in range(4)] == [True, True, True, False]
-
-
-def test_invitation_series_resets_after_idle_and_storage_is_bounded():
-    now = [0.0]
-    gate = BreakRateLimit(lambda: now[0], maximum=2)
-    assert gate.allow('alice') and gate.allow('alice')
-    now[0] += INVITE_SERIES_WINDOW - 1
+def test_two_private_popups_then_five_minutes_and_repeat_fifteen_minutes():
+    now=[0.0];gate=BreakRateLimit(lambda:now[0])
+    assert [gate.allow('alice') for _ in range(3)]==[True,True,False]
+    assert gate.remaining('alice')==300 and gate.allow('bob')
+    now[0]=299
+    assert not gate.allow('alice') and gate.remaining('alice')==1
+    now[0]=300
+    assert [gate.allow('alice') for _ in range(3)]==[True,True,False]
+    assert gate.remaining('alice')==900 and '15 minutes' in gate.notice('alice')
+    now[0]=1199
+    assert not gate.allow('alice') and gate.remaining('alice')==1
+    now[0]=1200
     assert gate.allow('alice')
-    now[0] += INVITE_SERIES_WINDOW
-    assert [gate.allow('alice') for _ in range(3)] == [True, True, True]
-    assert gate.allow('bob')
-    assert not gate.allow('mallory')
-    assert len(gate.states) == 2
-    now[0] += INVITE_SERIES_WINDOW
-    assert gate.allow('mallory') and len(gate.states) == 1
+
+
+def test_invitation_series_quiet_reset_and_bounded_storage():
+    now=[0.0];gate=BreakRateLimit(lambda:now[0],maximum=2)
+    assert gate.allow('alice')
+    now[0]+=INVITE_SERIES_WINDOW
+    assert gate.allow('alice') and gate.remaining('alice')==0
+    assert gate.allow('alice') and gate.remaining('alice')==300
+    assert gate.allow('bob') and not gate.allow('mallory')
+    now[0]+=300+900  # A quiet repeat window after the block clears the tier.
+    assert gate.allow('mallory') and len(gate.states)==1
+    assert gate.allow('alice') and gate.allow('alice')
+    assert gate.remaining('alice')==300
 
 
 @pytest.fixture(scope='module')

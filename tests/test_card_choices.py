@@ -96,10 +96,10 @@ def test_author_choices_enforced_private_and_close_only_rejects_answers(relay):
             await until(lambda: len(frames(1, 'card_invite')) == 2)
             assert await b.send('card_reply', a.sid, request=request, answer='custom', **CARD) is None
             assert not a._receive(event('break_reply', b.sid, a.sid, request=request, answer='dismissed'))[0]
-            request2 = await a.send('card_invite', b.sid, **CARD, responses={'buttons': [], 'free':True})
+            request2 = await c.send('card_invite', b.sid, **CARD, responses={'buttons': [], 'free':True})
             await until(lambda: len(frames(1, 'card_invite')) == 3)
-            assert await b.send('card_reply', a.sid, request=request2, answer='custom', **CARD)
-            await until(lambda: len(frames(0, 'card_reply')) == 2)
+            assert await b.send('card_reply', c.sid, request=request2, answer='custom', **CARD)
+            await until(lambda: len(frames(2, 'card_reply')) == 1)
             a.outgoing_invites.pending[request] = (b.sid, 0)
             a.prune_card_policies()
             assert request not in a.card_policies['outgoing']

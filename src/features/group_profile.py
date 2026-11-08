@@ -80,10 +80,10 @@ def popup_permit(identity, p):
 
 def validate_permit(permit, profile, sender, now=None):
     now = time.time() if now is None else now
-    if (not isinstance(permit, dict) or set(permit) != {'room', 'id', 'sender', 'at', 'interval', 'revision', 'signature'}
+    if (not isinstance(permit, dict) or set(permit) not in ({'room','id','sender','at','signature'},{'room','id','sender','at','interval','revision','signature'})
             or permit['room'] != profile['id'] or not identifier(permit['id']) or permit['sender'] != sender
-            or not valid_popup_interval(permit['interval'])
-            or type(permit['revision']) is not int or not 1 <= permit['revision'] < 2**53
+            or not valid_popup_interval(permit.get('interval',POPUP_INTERVAL))
+            or type(permit.get('revision',1)) is not int or not 1 <= permit.get('revision',1) < 2**53
             or type(permit['at']) not in (int, float) or not now - 120 <= permit['at'] <= now + 5):
         raise SecurityError('Autorisation de popup expirée ou invalide')
     verify(permit, profile['key'], PERMIT_DOMAIN)
@@ -144,7 +144,9 @@ class GroupStore:
                 raise SecurityError('Le groupe a changé sur une autre session. Attends sa synchronisation.')
             if previous:
                 old = previous['profile']
-                if profile['owner'] != old['owner'] or profile['key'] != old['key'] or profile['revision'] < old['revision'] or profile['revision'] == old['revision'] and profile != old:
+                legacy_upgrade=('popup_interval' not in old and 'popup_interval' in profile
+                                and {k:v for k,v in old.items() if k!='signature'}=={k:v for k,v in profile.items() if k not in ('signature','popup_interval')})
+                if profile['owner'] != old['owner'] or profile['key'] != old['key'] or profile['revision'] < old['revision'] or profile['revision'] == old['revision'] and profile != old and not legacy_upgrade:
                     raise SecurityError('Ancien état ou identité de groupe incompatible')
             elif len(records) >= MAX_GROUPS:
                 raise SecurityError('32 groupes maximum')
@@ -157,7 +159,7 @@ class GroupStore:
             record = records[reference]
             validate_permit(permit, record['profile'], permit['sender'])
             # The signed grant also carries the policy in case it arrives before group_state.
-            interval = (permit['interval'] if permit['revision'] >= record['profile']['revision']
+            interval = (permit.get('interval',POPUP_INTERVAL) if permit.get('revision',0) >= record['profile']['revision']
                         else popup_interval(record['profile']))
             if permit['id'] == record['seen_id'] or record['seen_at'] and permit['at'] < record['seen_at'] + interval:
                 raise SecurityError(f'Une seule popup de groupe toutes les {interval // 60} minutes')

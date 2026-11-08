@@ -120,6 +120,8 @@ def test_real_controllers_create_join_edit_delete_poll_clipboard_and_block(tmp_p
         until(qt,lambda:bool(bv.chat.poll_cards))
         pid=next(iter(bv.chat.poll_cards))
         bv.chat.poll_cards[pid].options[1].click()
+        assert not a.history.find(key,pid).poll['votes']
+        bv.chat.poll_cards[pid].apply.click()
         until(qt,lambda:a.history.find(key,pid).poll['votes'].get(bc.sid)==1)
         assert bv.chat.poll_cards[pid].options[1].isChecked()
         assert av.chat.poll_cards[pid].total.text().startswith('1/2 participant')
@@ -211,7 +213,7 @@ for theme in ('dark','light'):
     card=view.chat.poll_cards[poll['id']]
     assert card.width()<=view.chat.scroll.viewport().width()
     for control in card.options:
-        assert control.width()<=card.width() and control.height()>=control.sizeHint().height()
+        assert control.width()<=card.width() and control.height()>=control.heightForWidth(control.width())
         assert control.toolTip().startswith(('A'*80,'B'*80))
     view.close();editor.close();qt.processEvents()
 '''
@@ -252,17 +254,29 @@ def test_real_group_manager_custom_popup_multi_poll_mentions_and_file_batch(tmp_
         manager.popup_delay.setValue(15);manager.popup_delay_button.click()
         until(qt,lambda:b.groups[key]['popup_interval']==15*60)
         assert a.groups[key]['popup_interval']==15*60
+        manager.popup_delay.setText('20')
+        b.worker.call('set_screen_locked',True)
+        def member_locked():
+            for i in range(manager.members.count()):
+                item=manager.members.item(i)
+                if item.data(Qt.ItemDataRole.UserRole)==bc.contact_id:
+                    return any('verrouillée' in label.text() for label in manager.members.itemWidget(item).findChildren(QLabel))
+            return False
+        until(qt,member_locked)
+        assert manager.popup_delay.text()=='20'
+        b.worker.call('set_screen_locked',False)
+        until(qt,lambda:not member_locked())
         assert av.composer.card_button.isVisible() and not a.window.composer.card_button.isVisible()
         until(qt,lambda:bc.nickname in av.input.mention_model.stringList())
-        av.input.setPlainText('@'+bc.nickname+' voici mon code :\n```c\nprintf("safe");\n```');av.send_button.click()
+        av.input.setPlainText('@'+bc.nickname+' voici mon code :\n====c\nprintf("safe");\n====');av.send_button.click()
         until(qt,lambda:any(m.mentions==[bc.contact_id] for m in b.history.get(key)))
         assert bv.chat.findChild(__import__('PySide6.QtWidgets',fromlist=['QPlainTextEdit']).QPlainTextEdit).isReadOnly()
         poll=a.show_poll_editor(key);poll.question.setText('Les boissons ?')
-        poll.options[0].setText('Café');poll.options[1].setText('Thé');poll.multiple.setChecked(True);poll.submit()
+        poll.options[0].setText('Café');poll.options[1].setText('Thé');poll.submit()
         until(qt,lambda:bool(bv.chat.poll_cards))
         pid=next(iter(bv.chat.poll_cards));card=bv.chat.poll_cards[pid]
         card.options[0].click();card.options[1].click();card.apply.click()
-        until(qt,lambda:a.history.find(key,pid).poll['votes'].get(bc.sid)==[0,1])
+        until(qt,lambda:a.history.find(key,pid).poll['votes'].get(bc.sid)==1)
         editor=a.show_card_editor(key);assert editor is not None
         editor.submitted.emit(dict(title='Tous ensemble',text='Une pause ?',emoji='1f44d'))
         until(qt,lambda:bool(b.popups))

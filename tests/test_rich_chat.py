@@ -15,7 +15,7 @@ from src.features.wizz import TokenBucket
 def test_mentions_exclude_code_and_code_is_plain_selectable_text():
     qt=QApplication.instance() or QApplication([])
     peers=[{'nick':'Alice42','contact_id':'a'*32},{'nick':'Bob42','contact_id':'b'*32}]
-    text='Hey @Alice42 👋\n```python\nprint("<script>")\n# @Bob42\n```\n@alice42'
+    text='Hey @Alice42 👋\n====python\nprint("<script>")\n# @Bob42\n====\n@alice42'
     assert mention_ids(text,peers)==['a'*32]
     assert [p[0] for p in text_parts(text)]==['text','code','text']
     view=MessageText(text,True)
@@ -51,15 +51,19 @@ def test_input_completion_and_file_drop_copy_only(tmp_path):
     edit.close();edit.deleteLater();qt.processEvents()
 
 
-def test_multiple_poll_visual_results_and_explicit_selection_submit():
+def test_single_poll_selection_confirmation_visible_results_and_lock():
     qt=QApplication.instance() or QApplication([])
-    poll=dict(id='1'*32,question='Une pause ?',options=['Café','Thé','Chocolat'],audience=['a','b','c'],multiple=True,votes={'a':[0,2],'b':[2]},deleted=False)
+    poll=dict(id='1'*32,question='Une pause ?',options=['Café','Thé','Chocolat'],audience=['a','b','c'],votes={'a':0,'b':2},deleted=False)
     card=PollCard(poll,'c');votes=[];card.voted.connect(votes.append)
-    assert [bar.value() for bar in card.bars]==[50,0,100]
+    assert not card.apply.isEnabled()
     card.options[0].click();card.options[1].click()
-    assert not votes
-    card.apply.click();assert votes==[[0,1]]
-    card.options[0].click();card.options[1].click();card.apply.click();assert votes[-1]==[]
+    assert not votes and card.options[1].selected and not card.options[0].selected
+    card.apply.click();assert votes==[1] and not card.apply.isEnabled()
+    card.update_poll(dict(poll,votes={'a':0,'b':2,'c':1}))
+    assert [option.percentage for option in card.options]==[33,33,33]
+    assert all(option.results for option in card.options)
+    card.options[0].click();card.apply.click();assert votes==[1]
+    assert card.options[1].selected and 'définitif' in card.feedback.text()
     card.deleteLater();qt.processEvents()
 
 
@@ -99,7 +103,8 @@ import pytest
 
 @pytest.mark.parametrize('scale', ['1','1.5','2'])
 @pytest.mark.parametrize('theme', ['dark','light'])
-def test_group_controls_and_rich_bubbles_remain_readable_at_small_sizes(scale,theme):
+@pytest.mark.parametrize('font_size', ['14','20'])
+def test_group_controls_and_rich_bubbles_remain_readable_at_small_sizes(scale,theme,font_size):
     code = '''
 from PySide6.QtWidgets import QApplication,QPlainTextEdit
 from PySide6.QtCore import Qt
@@ -107,27 +112,31 @@ from src.ui.theme import apply_theme
 from src.ui.groups import GroupManager,GroupWindow
 from src.memory import Message
 app=QApplication([]);apply_theme(app, THEME)
+app.setStyleSheet(app.styleSheet()+'QWidget {font-size: FONTpx;}')
 owner,member='a'*32,'b'*32
 room=dict(id='c'*32,name='Un nom très long pour la petite fenêtre du groupe',owner=owner,members=[owner,member],admins=[member],state='joined',joined=[owner,member],left=[],photo='',popup_at=0)
 manager=GroupManager(room,owner,{owner:'Proprietaire42',member:'Administrateur42'},[])
 manager.resize(390,500);manager.show()
-window=GroupWindow(room,[Message('sender','Pote42','@Pote42 hello\\n```c\\n' + 'x'*100 + '\\n```')],'assets/icons/fortytchat.svg')
+window=GroupWindow(room,[Message('sender','Pote42','@Pote42 hello\\n====c\\n' + 'x'*100 + '\\n====')],'assets/icons/fortytchat.svg')
 window.resize(480,660);window.show()
 for _ in range(10):app.processEvents()
 assert manager.width() <= 430
-for control in (manager.name,manager.rename_button,manager.photo_button,manager.add_button,manager.promote,manager.popup_delay,manager.popup_delay_button):
-    assert control.geometry().right() < manager.width()
-    assert control.height() >= control.fontMetrics().height()
 from PySide6.QtWidgets import QScrollArea,QLineEdit
-scroll=manager.findChild(QScrollArea)
-assert scroll.horizontalScrollBar().maximum()==0
-scroll.ensureWidgetVisible(manager.popup_delay_button)
-app.processEvents()
-assert manager.popup_delay.findChild(QLineEdit).height() >= manager.popup_delay.fontMetrics().height()
+from PySide6.QtCore import QPoint
+for index,controls in [(0,[manager.name,manager.rename_button,manager.photo_button,manager.popup_delay,manager.popup_delay_button]),(1,[manager.add_button,manager.promote])]:
+    manager.tabs.setCurrentIndex(index)
+    for _ in range(6):app.processEvents()
+    scroll=manager.tabs.currentWidget();content=scroll.widget()
+    assert scroll.horizontalScrollBar().maximum()==0
+    for control in controls:
+        assert control.mapTo(content,QPoint(0,0)).x()+control.width() <= content.width()
+        assert control.height()>=control.fontMetrics().height()+20
+    scroll.ensureWidgetVisible(controls[-1]);app.processEvents()
+assert manager.popup_delay.height()>=manager.popup_delay.fontMetrics().height()+20
 assert window.width()==480
 editor=window.chat.findChild(QPlainTextEdit)
 assert editor and editor.isReadOnly() and editor.width() < window.width()
 for widget in (manager,window):widget.close()
-'''.replace('THEME',repr(theme))
+'''.replace('THEME',repr(theme)).replace('FONT',font_size)
     result=subprocess.run([sys.executable,'-c',code],env={**os.environ,'QT_QPA_PLATFORM':'offscreen','QT_SCALE_FACTOR':scale},capture_output=True,text=True,timeout=20)
     assert result.returncode==0,result.stderr

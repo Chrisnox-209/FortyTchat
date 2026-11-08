@@ -102,6 +102,7 @@ class PrivateWindow(QMainWindow):
             self.avatar.online = False
         self.avatar.update()
         text = 'Utilisateur bloqué' if blocked else ({'online': '● En ligne', 'away': '● Absent·e', 'dnd': '● Ne pas déranger'}.get(peer['status'], '') if peer else '○ Hors ligne')
+        if peer and peer.get('locked') and not blocked:text='🔒 Session verrouillée · dans le cluster'
         self.status_label.setText(text)
         state = peer.get('security', 'unverified') if peer else ''
         self.security_button.setEnabled(bool(peer and peer.get('identity_key')))

@@ -1,46 +1,51 @@
 import time
+import math
 
 INVITE_LIFETIME = 120
-INVITE_LIMIT = 3
+INVITE_LIMIT = 2
 INVITE_SERIES_WINDOW = 5 * 60
 INVITE_BLOCK_TIME = 5 * 60
+INVITE_REPEAT_BLOCK = 15 * 60
+INVITE_REPEAT_WINDOW = 15 * 60
 
 
 class BreakRateLimit:
-    """Allow three invites per peer; block the fourth and further ones for 5 min.
+    """Two private invitations, then 5 min; repeated bursts block for 15 min.
 
-    Five minutes without an allowed invite ends a series. Attempts during a block
-    do not prolong it. Use a stable contact ID as key when one is available.
-    Only invitations pass through this gate; messages and Wizz are independent.
+    Stable contact IDs share the budget across sessions/nicknames. Blocked
+    attempts never extend it. Fifteen quiet minutes after a block clear the tier.
+    A single unpaired invitation expires after five minutes. Replies stay allowed.
     """
-
     def __init__(self, clock=time.monotonic, maximum=1024):
-        self.clock, self.maximum = clock, maximum
-        self.states = {}
+        self.clock, self.maximum, self.states = clock, maximum, {}
 
     def prune(self):
         now = self.clock()
-        self.states = {
-            key: state for key, state in self.states.items()
-            if state[2] > now or (not state[2] and now - state[1] < INVITE_SERIES_WINDOW)
-        }
+        self.states = {key: state for key, state in self.states.items()
+                       if (now < state['until'] + INVITE_REPEAT_WINDOW if state['until']
+                           else now - state['last'] < INVITE_SERIES_WINDOW)}
 
     def remaining(self, key):
         self.prune()
-        return max(0.0, self.states.get(key, (0, 0, 0))[2] - self.clock())
+        return max(0.0, self.states.get(key, {}).get('until', 0) - self.clock())
+
+    def notice(self, key):
+        return f'Popups et pauses bloquées pendant {max(1, math.ceil(self.remaining(key) / 60))} minutes. Les messages restent disponibles.'
 
     def allow(self, key):
-        self.prune()
-        now = self.clock()
-        count, last, blocked_until = self.states.get(key, (0, now, 0))
-        if blocked_until > now:
-            return False
-        if key not in self.states and len(self.states) >= self.maximum:
-            return False
-        if count >= INVITE_LIMIT:
-            self.states[key] = (count, last, now + INVITE_BLOCK_TIME)
-            return False
-        self.states[key] = (count + 1, now, 0)
+        self.prune(); now = self.clock()
+        state = self.states.get(key)
+        if state and state['until'] > now: return False
+        if state is None:
+            if len(self.states) >= self.maximum: return False
+            state = dict(count=0, last=now, until=0, repeat=False)
+            self.states[key] = state
+        elif state['until']:
+            state.update(count=0, until=0)
+        state['count'] += 1; state['last'] = now
+        if state['count'] == INVITE_LIMIT:
+            state['until'] = now + (INVITE_REPEAT_BLOCK if state['repeat'] else INVITE_BLOCK_TIME)
+            state['repeat'] = True
         return True
 
 

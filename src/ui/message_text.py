@@ -64,6 +64,7 @@ class CodeEditor(QDialog):
         self.setWindowTitle('Insérer un bloc de code · FortyTchat'); self.resize(500, 410)
         box = QVBoxLayout(self)
         box.addWidget(label('Un bout de code à partager.', 'title', True))
+        box.addWidget(label('Colle ton code ci-dessous. Le bouton Insérer prépare les séparateurs ==== pour toi.', 'muted', True))
         self.language = QLineEdit(); self.language.setPlaceholderText('Langage (facultatif) : c, python, sh…'); self.language.setMaxLength(24)
         box.addWidget(self.language)
         self.code = QPlainTextEdit(); self.code.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)); box.addWidget(self.code, 1)
@@ -71,7 +72,7 @@ class CodeEditor(QDialog):
         insert = button('Insérer dans le message', 'primary'); box.addWidget(insert)
         def submit():
             language = re.sub(r'[^A-Za-z0-9_+#.-]', '', self.language.text())
-            value = '\n```' + language + '\n' + self.code.toPlainText() + '\n```\n'
+            value = '\n====' + language + '\n' + self.code.toPlainText() + '\n====\n'
             if len(value) + len(input_widget.toPlainText()) > 2000:
                 self.feedback.setText('Le message complet doit rester sous 2 000 caractères.'); return
             input_widget.insertPlainText(value); self.accept()

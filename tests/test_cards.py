@@ -101,12 +101,12 @@ def test_cards_and_custom_pause_replies_are_private_bound_and_rate_limited(relay
             await until(lambda: len(frames(ae, 'card_reply')) == 2)
             assert frames(ae, 'card_reply')[-1]['text'] == custom['text']
             # A classic pause can receive a custom animated answer from a new client.
-            request = await a.send('break_invite', b.sid)
+            request = await c.send('break_invite', b.sid)
             await until(lambda: bool(frames(be, 'break_invite')))
             forged = event('card_reply', c.sid, a.sid, request=request, answer='custom', **custom)
             assert not a._receive(forged)[0]
-            await b.send('card_reply', a.sid, request=request, answer='custom', **custom)
-            await until(lambda: len(frames(ae, 'card_reply')) == 3)
+            await b.send('card_reply', c.sid, request=request, answer='custom', **custom)
+            await until(lambda: len(frames(ce, 'card_reply')) == 1)
             assert await a.send('card_invite', b.sid, **CARD) is None
             assert await a.send('message', b.sid, text='Les messages restent disponibles.')
             await until(lambda: bool(frames(be, 'message')))

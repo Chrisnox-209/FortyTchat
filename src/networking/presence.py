@@ -16,6 +16,9 @@ class Peer:
     timeout: float = PEER_TIMEOUT
     relay: bool = False
     caps: tuple = ()
+    locked: bool = False
+    version: str = ''
+    features: tuple = ()
     avatar: int = -1
     avatar_hash: str = ''
     avatar_image: str = ''
@@ -37,6 +40,6 @@ class Peer:
 
     def public(self):
         return {'sid': self.sid, 'nick': self.nick, 'status': self.status, 'direct': self.direct,
-                'relay': self.relay, 'caps': self.caps, 'avatar': self.avatar,
+                'relay': self.relay, 'caps': self.caps, 'version':self.version, 'features':self.features, 'locked':self.locked, 'avatar': self.avatar,
                 'avatar_hash': self.avatar_hash, 'avatar_image': self.avatar_image, 'contact_id': self.contact_id,
                 'encrypted': self.secure, 'security': self.security, 'identity_key': self.identity_key}
