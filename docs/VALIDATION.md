@@ -1,4 +1,16 @@
-# Validation locale de FortyTchat 2.3.1
+# Validation locale de FortyTchat 2.3.2
+
+Tests réalisés le **9 novembre 2026**, sous Python **3.12.13**, Qt/PySide6 **6.8.3** et PyNaCl **1.6.2** : **256 tests réussis en 41,74 s**. Profils temporaires, Qt hors écran, sockets locales et anciens clients chargés depuis leurs archives Git ; aucune modification de l’application personnelle installée.
+
+Même suite sous Python **3.14.4**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2** : **256 tests réussis en 41,50 s**, avec les exceptions de destruction traitées comme erreurs. Un avertissement de dépréciation Qt préexistant concerne un événement de glisser-déposer synthétique. Après ajustement des longs libellés de fermeture, les onze tests de l’interface des réponses passent aussi sous Qt 6.8, dont les rendus à 100/150/200 %.
+
+- Vrai parcours Qt : bouton Paramétrer la réponse, fenêtre indépendante, ajout/suppression, validation du titre, des doublons et des champs vides, annulation sans perte des anciens choix. Un champ par réponse, types Oui/Non/Personnalisée et emoji facultativement modifié. Les anciens titres/corps/animations et réponses libres restent conservés si non édités.
+- Une carte avec seulement le bouton Bien reçu ! ferme sans callback de réponse : clic, croix, Échap et expiration contrôlés. Envoi du libellé sur TCP et via relais, en privé et en groupe. Les réponses existantes restent authentifiées et liées à l’invitation.
+- Vraies archives **1.8.1, 2.0.0, 2.1.0, 2.2.0, 2.3.0 et 2.3.1**, sur TCP et leurs propres anciens relais : la fermeture personnalisée est projetée en Fermer sans champ inconnu. Les anciens chargeurs relisent le fichier de modèles sauvegardé par 2.3.2 ; les nouveaux libellés sont dans un fichier séparé et privé. Métadonnées endommagées, bornes et quotas vérifiés.
+- Fenêtre de réglage dans les deux thèmes, échelles 100/150/200 % et police 20 px : champs lisibles, pas de défilement horizontal, validation accessible et repli du formulaire en mode fermeture seule. Captures réellement rendues : `notification-editor-2.3.2.png`, `notification-responses-2.3.2.png`, `notification-info-2.3.2.png`.
+- **Verrouillage : non corrigé sur le poste réel du cluster à ce stade.** L’utilisateur indique le 9 novembre que le problème persiste ; il fournira le bureau et le raccourci utilisés lorsqu’il sera à l’école. Le moniteur de verrouillage n’est pas modifié dans 2.3.2. Les tests D-Bus locaux ne prouvent pas le fonctionnement sur cette session physique.
+
+## Historique : validation 2.3.1
 
 Tests réalisés le **8 novembre 2026**, sous Python **3.14.4** avec Qt/PySide6 **6.12.0**, et sous Python **3.12.13** avec Qt/PySide6 **6.8.3** ; PyNaCl **1.6.2** dans les deux cas. Le créateur signale un essai réussi d’une version précédente en cluster, puis des problèmes de notifications et de verrouillage sous Ubuntu 22.04.5. Les corrections 2.3.1 sont vérifiées localement ; le bureau réel de l’école reste à contrôler sur place. Ces essais ne constituent pas un audit cryptographique externe.
 

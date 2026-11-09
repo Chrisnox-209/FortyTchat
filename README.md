@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.3.1</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.3.2</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -20,7 +20,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.3.1** corrige les **notifications de connexion des amis** et la **détection du verrouillage**, notamment pour Ubuntu 22.04 : un **cadenas remplace la pastille verte** lorsque le poste est verrouillé. Elle conserve les sondages définitifs, les réglages des groupes, le code avec `====` et les limites des popups de la version 2.3.0. Les échanges avec les anciennes versions sont conservés ; les nouveautés sont proposées aux clients qui les comprennent.
+La version **2.3.2** simplifie les **réponses des popups** : un bouton **Paramétrer la réponse** ouvre une fenêtre dédiée, avec le titre et jusqu’à trois réponses ajoutées avec **+**. Un seul texte suffit par réponse. On peut aussi choisir un unique bouton pour fermer, avec son propre libellé et sans rien renvoyer. Les échanges et les modèles des anciennes versions restent compatibles.
 
 ## Installer et démarrer
 
@@ -310,18 +310,19 @@ Les pauses et popups privées partagent une limite de **deux envois par destinat
 Dans une conversation, cliquer sur **✦**, ou choisir **Envoyer une popup…** dans les amis :
 
 1. Choisir un **titre** (80 caractères), un **texte** (400 caractères) et un des **11 emojis animés**.
-2. Préparer jusqu’à **trois boutons** : libellé, type **Oui / Non / Autre**, texte et emoji de la réponse renvoyée.
-3. Autoriser une **réponse libre**, ou choisir **Fermer uniquement** pour une information sans réponse attendue.
-4. Vérifier l’**Aperçu**, puis **Envoyer**.
+2. Cliquer sur **Paramétrer la réponse** : une **nouvelle fenêtre** affiche le titre et les réponses proposées.
+3. Choisir **Oui**, **Non** ou **Personnalisée**, puis écrire le texte du bouton : c’est aussi le texte qui sera renvoyé. **+ Ajouter une réponse** permet d’en proposer jusqu’à trois ; **×** en retire une. Le petit emoji à droite permet de changer l’animation.
+4. Pour une simple information, cocher **Un seul bouton, sans réponse** et choisir son texte, par exemple **Bien reçu !**. Cliquer dessus fermera la popup sans envoyer de message à l’expéditeur.
+5. Cliquer sur **Valider**, puis **Envoyer** dans la fenêtre principale. **Annuler** conserve les anciens réglages. L’**Aperçu** permet de voir la popup avant l’envoi.
 
 <table>
 <tr>
-<td align="center" width="50%" valign="top"><a href="docs/notification-editor-1.7.0.png"><img src="docs/notification-editor-1.7.0.png" width="340" alt="Éditeur : titre, texte, animation et réponses proposées"></a><p>Prépare ton message et ses réponses.</p></td>
-<td align="center" width="50%" valign="top"><a href="docs/notification-choices-1.7.0.png"><img src="docs/notification-choices-1.7.0.png" width="340" alt="Popup reçue avec les réponses choisies par l’expéditeur"></a><p>Le destinataire choisit parmi tes propositions.</p></td>
+<td align="center" width="50%" valign="top"><a href="docs/notification-editor-2.3.2.png"><img src="docs/notification-editor-2.3.2.png" width="340" alt="Éditeur avec un unique bouton Paramétrer la réponse"></a><p>Un bouton pour régler les réponses.</p></td>
+<td align="center" width="50%" valign="top"><a href="docs/notification-responses-2.3.2.png"><img src="docs/notification-responses-2.3.2.png" width="340" alt="Fenêtre dédiée avec Oui, Non et une réponse personnalisée"></a><p>Un seul texte à saisir par réponse.</p></td>
 </tr>
 </table>
 
-**Fermer reste disponible**. Sur les cartes avec choix explicites, bouton Fermer, croix, Échap et expiration ne renvoient ni oui ni non. Une réponse préparée renvoie exactement son contenu ; le retour est bleu pour Oui/Autre et rouge pour Non. Voir aussi [une carte Fermer uniquement](docs/notification-info-1.7.0.png) et [l’édition d’une réponse](docs/notification-response-editor-1.7.0.png).
+**Fermer reste disponible**. Sur les cartes avec choix explicites, le bouton pour fermer, la croix, Échap et l’expiration ne renvoient ni oui ni non. Une réponse préparée renvoie exactement son contenu ; le retour est bleu pour Oui/Personnalisée et rouge pour Non. Les anciens modèles gardent leurs textes, emojis et éventuelle réponse libre. Voir [une carte avec le bouton Bien reçu !](docs/notification-info-2.3.2.png).
 
 <p align="center">
   <img src="assets/animated/1f44d.gif" width="48" height="48" alt="Pouce en haut animé">
@@ -331,7 +332,7 @@ Dans une conversation, cliquer sur **✦**, ou choisir **Envoyer une popup…** 
 
 Animations intégrées : **👍 😭 🤣 😘 👎 😛 💩 ❌ ✅ 🤯 💪**. Aucun téléchargement d’image n’est demandé au destinataire. **Enregistrer ce modèle** conserve volontairement son contenu et ses choix ; jusqu’à **12 modèles**, notifications et réponses confondues, sont disponibles depuis **Paramètres → Mes notifications animées**, même hors connexion.
 
-Une demande expire après **deux minutes** et suit la limite des pauses. **Ne pas déranger** refuse les nouvelles notifications personnalisées ; les pauses classiques et les réponses aux demandes déjà reçues restent actives. Les choix explicites nécessitent **1.7.0 chez les deux participants** ; un ancien client chiffré garde les cartes classiques. L’éditeur signale une incompatibilité sans transformer une information en question Oui/Non. Toutes les cartes et réponses sont chiffrées.
+Une demande expire après **deux minutes** et suit la limite des pauses. **Ne pas déranger** refuse les nouvelles notifications personnalisées ; les pauses classiques et les réponses aux demandes déjà reçues restent actives. Les choix explicites nécessitent **1.7.0 chez les deux participants** ; un ancien client chiffré garde les cartes classiques. Le texte personnalisé du bouton pour fermer nécessite **2.3.2** ; sur les versions précédentes, le bouton s’appelle **Fermer** et reste sans réponse. Le fichier historique des modèles reste lisible par ces versions. L’éditeur signale une incompatibilité sans transformer une information en question Oui/Non. Toutes les cartes et réponses sont chiffrées.
 
 ## Envoyer des fichiers
 
@@ -356,11 +357,12 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.3.1 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.3.2 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
 | **2.3.0** | Nouveaux sondages définitifs, code `====`, détail du verrouillage et annonces de version |
+| **2.3.1** | Échanges précédents, choix des popups et anciens modèles ; fermeture personnalisée affichée comme Fermer |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -393,6 +395,8 @@ L’intégration utilise **PyNaCl/libsodium**, Box Curve25519/XSalsa20/Poly1305 
 Quand le bureau signale le verrouillage, la personne reste dans le cluster : un **cadenas remplace la pastille verte de son avatar** dans les contacts, les conversations et les groupes, avec le texte **Session verrouillée**. Au déverrouillage, son statut manuel revient. **Ne pas déranger reste prioritaire**. Les clients 2.3.0 comprennent déjà le détail du verrouillage ; les versions plus anciennes voient leur statut **Absent** habituel, ou Ne pas déranger si celui-ci est activé.
 
 La détection lit ensemble GNOME/ScreenSaver et logind, toutes les **deux secondes**, ainsi que les signaux du bureau. La session Ubuntu indiquée par `XDG_SESSION_ID` est recherchée explicitement. Une source répondant « non verrouillé » ne masque plus un verrouillage signalé par une autre. L’état est rafraîchi sur le réseau pour réparer un changement perdu. Aucun enregistrement de frappes ou d’activité et aucune commande de verrouillage ne sont utilisés. Si le bureau ne fournit pas cet état, le statut manuel reste disponible. [Interface GNOME](https://raw.githubusercontent.com/GNOME/gnome-shell/main/data/dbus-interfaces/org.gnome.ScreenSaver.xml), [état de session logind](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
+
+La détection sur les postes de l’école reste à diagnostiquer avec le bureau et le mécanisme de verrouillage réellement utilisés. La version **2.3.2** simplifie les réponses des popups ; elle ne modifie pas ce détecteur.
 
 <p align="center">
   <a href="docs/presence-2.3.1.png"><img src="docs/presence-2.3.1.png" width="312" alt="Liste des amis : cadenas sur l’avatar de la session verrouillée, pastille verte pour l’ami disponible"></a>

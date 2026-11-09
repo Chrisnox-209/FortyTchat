@@ -2,6 +2,14 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Réponses simples et compatibilité (2.3.2)
+
+- Depuis ✦, cliquer sur **Paramétrer la réponse** : vérifier qu’une fenêtre indépendante affiche le titre et les réponses. Ajouter une réponse avec +, choisir Oui/Non/Personnalisée, écrire un seul texte, choisir éventuellement un emoji puis Valider. Vérifier le bouton reçu et le texte renvoyé.
+- Tester Annuler après modification : conserver le titre et les réponses précédentes. Ajouter trois réponses, en supprimer une, puis enregistrer et recharger le modèle.
+- Cocher **Un seul bouton, sans réponse**, saisir **Bien reçu !**, valider et envoyer. Cliquer sur ce bouton chez le destinataire : aucune popup de réponse chez l’expéditeur. Refaire via une popup de groupe.
+- Garder un destinataire 1.8.1/2.0/2.1/2.2/2.3.0/2.3.1 : les mêmes choix restent utilisables ; le bouton de fermeture s’appelle Fermer. Vérifier la relecture des modèles avec une ancienne copie.
+- Le détecteur de verrouillage est inchangé dans cette version. Le problème signalé au cluster reste à diagnostiquer avec le bureau exact et le raccourci de verrouillage. Relever ce soir : `echo "$XDG_CURRENT_DESKTOP / $XDG_SESSION_TYPE"`.
+
 ## Correctifs Ubuntu 22.04 (2.3.1)
 
 - Avec deux clients 2.3.1, ajouter l’autre profil comme ami. Après la découverte initiale, quitter complètement l’un, attendre au moins cinq secondes puis le relancer : une bannière native Ubuntu doit apparaître chez l’ami. Attendre une minute entre deux alertes pour respecter la protection contre les reconnexions répétées. Essayer aussi sans `notify-send` dans le chemin de recherche : `gdbus` doit suffire.

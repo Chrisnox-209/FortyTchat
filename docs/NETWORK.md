@@ -1,4 +1,4 @@
-# Réseau et chiffrement de FortyTchat 2.3.1
+# Réseau et chiffrement de FortyTchat 2.3.2
 
 ## Groupes durables, rôles et popups (2.1.0)
 
@@ -182,3 +182,11 @@ Une liste vide et `free: false` définit une information à fermer. Fermer, Éch
 Un bouton renvoie `card_reply` avec `choice` (indice entier 0–2) et la carte exactement définie par l’auteur. Les extrémités contrôlent le choix, le type et le contenu avant de consommer l’invitation. Sans `choice`, seule une réponse `custom` est admise quand `free` l’autorise. Une réponse interdite, un autre expéditeur, un index ou un texte modifié ne consomment pas la demande valide. Une fermeture informative ne peut pas être transformée en acceptation ou refus. Les politiques sont bornées par les invitations (100 par registre, TTL 120 secondes), nettoyées avec elles et effacées à l’arrêt.
 
 Les modèles acceptent ces options uniquement pour les notifications. Les anciennes données restent lisibles. Le fichier conserve les limites de douze modèles et 64 Kio ; la taille est contrôlée avant remplacement atomique à permissions privées, avec synchronisation des données. Une sauvegarde trop grande ne remplace pas le fichier valide. Aucune notification reçue n’est ajoutée automatiquement aux modèles.
+
+### Réglages simplifiés et bouton pour fermer (2.3.2)
+
+L’éditeur ouvre une seule fenêtre dédiée avec le titre et des lignes Oui/Non/Personnalisée. Chaque nouveau texte est utilisé comme libellé et comme titre de réponse ; le corps reste vide. L’emoji reste modifiable. Les anciens modèles gardent leurs titres, corps, animations et réponse libre tant que leurs lignes ne sont pas modifiées. Annuler ne modifie ni la popup ni son modèle.
+
+`card_invite` peut ajouter `close_label` (1–32 caractères, une seule ligne), seulement en présence de `responses`. Il change l’affichage du bouton qui ferme la carte ; aucune réponse n’est envoyée. La prise en charge est annoncée dans `client_info.features` par `close_label`. Avant chiffrement, ce champ est retiré pour les pairs qui ne l’ont pas annoncé : leurs validateurs et leurs relais restent compatibles, et le bouton conserve le nom Fermer. Les politiques de réponse, indices et autorisations restent inchangés.
+
+Le fichier historique `notification_templates.json` conserve exactement son format. Les libellés supplémentaires sont enregistrés séparément dans `notification_close_labels.json`, à permissions 600, au plus douze entrées et 4 Kio. Une copie ancienne lit donc toujours les modèles. Un fichier de libellés illisible ne rend pas les modèles inutilisables : le nom Fermer est utilisé. Aucun champ du protocole de présence, clé ou profil de groupe n’est modifié.
