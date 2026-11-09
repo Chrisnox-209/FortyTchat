@@ -120,6 +120,7 @@ def test_real_editor_send_yes_and_custom_replies_and_saved_templates(qt, tmp_pat
         view = controller.open_private(peer.sid)
         view.composer.card_button.click()
         editor = controller.card_editors[(peer.sid, '')]
+        editor.responses.set_policy({**editor.responses.policy(), 'free':True})
         editor.title.setText('Mon petit message')
         editor.text.setPlainText('Ça te dit de bouger ?')
         editor.choices.buttons['1f923'].click()

@@ -158,6 +158,9 @@ class _PauseCard(QDialog):
     def fit_choice_labels(self):
         for control, full in getattr(self, 'choice_buttons', []):
             control.setText(control.fontMetrics().elidedText(full, Qt.TextElideMode.ElideRight, max(60, control.width() - 44)))
+        if hasattr(self, 'close_label'):
+            control=self.close_button
+            control.setText(control.fontMetrics().elidedText(self.close_label, Qt.TextElideMode.ElideRight, max(60,control.width()-44)))
 
     def present(self):
         if not self.isVisible():
@@ -276,7 +279,13 @@ class CardPopup(BreakPopup):
                 self.choice_buttons.append((control, choice['label']))
                 position += 1
             self.custom_button.setVisible(self.policy['free'])
-            self.close_button = button('Fermer', 'pauseSecondary')
+            self.close_label=card.get('close_label', 'Fermer')
+            self.close_button = button(self.close_label, 'pauseSecondary')
+            self.close_button.setMinimumWidth(0)
+            self.close_button.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+            self.close_button.setAccessibleName(self.close_label)
+            self.close_button.setAccessibleDescription('Fermer sans envoyer de réponse')
+            self.close_button.setToolTip('<qt>'+html.escape(self.close_label)+' · Fermer sans envoyer de réponse</qt>')
             self.close_button.clicked.connect(self.reject)
             self.box.insertWidget(self.box.indexOf(self.custom_button) + 1, self.close_button)
             if not self.policy['buttons'] and not self.policy['free']:

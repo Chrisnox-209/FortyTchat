@@ -125,3 +125,51 @@ def test_old_encrypted_clients_keep_classic_cards_but_do_not_receive_choices():
             assert await a.send('card_invite', b.sid, **CARD)
         finally: await asyncio.gather(a.stop(), b.stop())
     asyncio.run(scenario())
+
+
+def test_custom_close_label_is_bounded_and_saved_outside_legacy_templates(tmp_path):
+    import json
+    closed={'buttons':[],'free':False}
+    a,b=session_id(),session_id()
+    card={**CARD,'responses':closed,'close_label':'Bien reçu !'}
+    encode(event('card_invite',a,b,**card))
+    for bad in ('', 'x'*33, 'Fermer\nOui', True, None):
+        with pytest.raises(ProtocolError):encode(event('card_invite',a,b,**{**card,'close_label':bad}))
+    with pytest.raises(ProtocolError):encode(event('card_invite',a,b,**CARD,close_label='Fermer'))
+    with pytest.raises(ProtocolError):encode(event('message',a,b,text='Test',close_label='Fermer'))
+    models=CardTemplates(tmp_path);mid=models.save(card,'invite')
+    assert 'close_label' not in json.loads(models.path.read_text())[0]
+    assert CardTemplates(tmp_path).items[0]['close_label']=='Bien reçu !'
+    assert models.labels_path.stat().st_mode&0o777==0o600
+    # Invalid new metadata never makes the old model file unreadable.
+    models.labels_path.write_text('{broken')
+    loaded=CardTemplates(tmp_path)
+    assert len(loaded.items)==1 and 'close_label' not in loaded.items[0]
+    loaded.remove(mid)
+    assert not CardTemplates(tmp_path).items
+
+
+@pytest.mark.parametrize('relay',[False,True])
+def test_new_peers_deliver_custom_close_labels_private_and_group(relay):
+    async def run():
+        server=RelayServer() if relay else None
+        options=dict(relay_host='127.0.0.1',relay_port=await server.start(port=0),tls=False) if relay else {}
+        logs=[[],[]]
+        a,b=[ChatClient(name,lambda kind,data,i=i:logs[i].append((kind,data)),discovery=False,tcp_port=0,**options)
+             for i,name in enumerate(('Alice42','Bob42'))]
+        def cards():return [data['frame'] for kind,data in logs[1] if kind=='event' and data['frame']['type']=='card_invite']
+        try:
+            await a.start();await b.start()
+            if relay:await until(lambda:a.sid in b.peers and b.sid in a.peers)
+            else:a.observe(b.hello(),'127.0.0.1');b.observe(a.hello(),'127.0.0.1')
+            await until(lambda:'close_label' in a.peers[b.sid].features)
+            payload={**CARD,'responses':{'buttons':[],'free':False},'close_label':'Ça roule !'}
+            assert await a.send('card_invite',b.sid,**payload)
+            assert cards()[-1]['close_label']=='Ça roule !'
+            gid=await a.create_group('Le groupe',[b.contact_id]);await b.answer_group(gid,True)
+            assert await a.send('card_invite','group:'+gid,**payload)
+            assert len(cards())==2 and cards()[-1]['close_label']=='Ça roule !' and cards()[-1]['group']==gid
+        finally:
+            await a.stop();await b.stop()
+            if server:await server.stop()
+    asyncio.run(run())

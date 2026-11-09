@@ -30,6 +30,8 @@ class CollaborationNetwork(GroupNetwork):
                 and (self.group_access(peer, reference) if reference else target == 'general' or target == peer.sid)]
 
     def wire_frame(self, frame, peer):
+        if frame['type'] == 'card_invite' and 'close_label' in frame and 'close_label' not in peer.features:
+            frame = {key:value for key,value in frame.items() if key != 'close_label'}
         reference = group_id(frame['to'])
         if reference:
             frame = {**frame, 'to': peer.sid, 'group': reference}

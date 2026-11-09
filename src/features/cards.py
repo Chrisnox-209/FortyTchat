@@ -53,9 +53,14 @@ def valid_responses(value):
 
 
 def valid_invite(value):
-    return (isinstance(value, dict) and not set(value) - {'title', 'text', 'emoji', 'responses'}
+    return (isinstance(value, dict) and not set(value) - {'title', 'text', 'emoji', 'responses', 'close_label'}
             and valid_card({key: value.get(key) for key in ('title', 'text', 'emoji')})
-            and ('responses' not in value or valid_responses(value['responses'])))
+            and ('responses' not in value or valid_responses(value['responses']))
+            and ('close_label' not in value or 'responses' in value and valid_close_label(value['close_label'])))
+
+
+def valid_close_label(value):
+    return card_text(value, 32) and not any(c in value for c in '\n\t')
 
 
 def allowed_reply(policy, frame):
@@ -75,6 +80,7 @@ def answer_card(answer):
 class CardTemplates:
     def __init__(self, root):
         self.path = Path(root) / 'notification_templates.json'
+        self.labels_path = Path(root) / 'notification_close_labels.json'
         self.items, self.error = [], ''
         if self.path.exists():
             try:
@@ -95,10 +101,26 @@ class CardTemplates:
                 self.items = data
             except (OSError, ValueError, TypeError, KeyError, RecursionError):
                 self.error = 'Les modèles enregistrés sont illisibles. Tu peux créer une nouvelle notification.'
+        # Keep the existing template file readable by all previous releases.
+        # New display labels live separately; damaged labels do not lose models.
+        if self.labels_path.exists():
+            try:
+                if self.labels_path.stat().st_size > 4096:
+                    raise ValueError('Libellés trop volumineux')
+                labels = json.loads(self.labels_path.read_text(encoding='utf-8'))
+                if (not isinstance(labels, dict) or len(labels) > MAX_TEMPLATES
+                        or any(not isinstance(key, str) or len(key) != 32 or any(c not in '0123456789abcdef' for c in key)
+                               or not valid_close_label(value) for key, value in labels.items())):
+                    raise ValueError('Libellés invalides')
+                for item in self.items:
+                    if item['kind'] == 'invite' and 'responses' in item and item['id'] in labels:
+                        item['close_label'] = labels[item['id']]
+            except (OSError, ValueError, TypeError, RecursionError):
+                if not self.error:self.error = 'Les libellés de fermeture enregistrés sont illisibles ; « Fermer » sera utilisé.'
 
     def _write(self, items):
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        encoded = json.dumps(items, ensure_ascii=False, separators=(',', ':'))
+        encoded = json.dumps([{k:v for k,v in item.items() if k != 'close_label'} for item in items], ensure_ascii=False, separators=(',', ':'))
         if len(encoded.encode('utf-8')) > 65536:
             raise ValueError('Modèles trop volumineux : raccourcis les réponses ou supprime un modèle.')
         fd, name = tempfile.mkstemp(prefix='.notifications-', dir=self.path.parent)
@@ -110,6 +132,16 @@ class CardTemplates:
             os.replace(name, self.path)
         finally:
             if os.path.exists(name): os.unlink(name)
+        labels = {item['id']:item['close_label'] for item in items if 'close_label' in item}
+        if labels or self.labels_path.exists():
+            fd, name = tempfile.mkstemp(prefix='.notification-labels-', dir=self.path.parent)
+            try:
+                with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+                    json.dump(labels, stream, ensure_ascii=False, separators=(',', ':'))
+                    stream.flush();os.fsync(stream.fileno())
+                os.replace(name, self.labels_path)
+            finally:
+                if os.path.exists(name):os.unlink(name)
         self.items, self.error = items, ''
 
     def save(self, payload, kind, template_id=''):

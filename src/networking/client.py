@@ -248,7 +248,7 @@ class ChatClient(CollaborationNetwork):
         locked=self.screen_locked
         async def publish():
             try:
-                await self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock'],locked=locked))
+                await self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock','close_label'],locked=locked))
             finally:
                 self.info_tasks.pop(peer.sid,None)
                 if not self._closing and self.peers.get(peer.sid) is peer and self.screen_locked!=locked:
@@ -525,7 +525,7 @@ class ChatClient(CollaborationNetwork):
         if kind == 'message':
             self.receipts.received(frame)
         # Keep only validated fields; never trust a network-provided display name.
-        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'group', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active', 'title', 'responses', 'choice', 'mentions') if k in frame}
+        payload = {k: frame[k] for k in ('type', 'id', 'from', 'to', 'group', 'text', 'request', 'answer', 'reply_to', 'message', 'emoji', 'active', 'title', 'responses', 'choice', 'mentions', 'close_label') if k in frame}
         self.emit('event', frame=payload, nickname=peer.nick, avatar=peer.avatar, avatar_image=peer.avatar_image,
                   contact_id=peer.contact_id)
         if kind == 'message':

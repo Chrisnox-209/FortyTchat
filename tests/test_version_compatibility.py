@@ -13,7 +13,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -61,12 +61,12 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             if relay:await until(lambda:old.peers[new.sid].status=='away')
             else:old.observe(new.hello(),'127.0.0.1')
             assert old.peers[new.sid].status=='away'
-            if version=='2.3.0':await until(lambda:old.peers[new.sid].locked)
+            if version.startswith('2.3.'):await until(lambda:old.peers[new.sid].locked)
             new.set_screen_locked(False)
             if relay:await until(lambda:old.peers[new.sid].status=='online')
             else:old.observe(new.hello(),'127.0.0.1')
             assert old.peers[new.sid].status=='online'
-            if version=='2.3.0':await until(lambda:not old.peers[new.sid].locked)
+            if version.startswith('2.3.'):await until(lambda:not old.peers[new.sid].locked)
             mid=await new.send('message','general',text='NEW_TO_OLD_SECRET')
             assert frames(1,'message')[-1]['id']==mid
             await old.send('message',new.sid,text='OLD_TO_NEW_SECRET')
@@ -74,6 +74,18 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             offer=await new.offer_file(old.sid,memory=b'MIXED_FILE_SECRET',name='test.txt')
             target=tmp_path/'received.txt';await old.accept_file(offer,new.sid,target)
             await until(target.exists);assert target.read_bytes()==b'MIXED_FILE_SECRET'
+            # Old validators must never see the new optional display label.
+            closed={'buttons':[],'free':False}
+            assert await new.send('card_invite',old.sid,title='Information',text='Bien reçu ?',emoji='2705',responses=closed,close_label='Compris !')
+            assert frames(1,'card_invite')[-1]['responses']==closed
+            assert 'close_label' not in frames(1,'card_invite')[-1]
+            old_cards=importlib.import_module(LegacyClient.__module__.rsplit('.networking.client',1)[0]+'.features.cards')
+            from src.features.cards import CardTemplates
+            templates=CardTemplates(tmp_path/'templates')
+            templates.save(dict(title='Information',text='',emoji='2705',responses=closed,close_label='Compris !'),'invite')
+            compatible=old_cards.CardTemplates(tmp_path/'templates')
+            assert not compatible.error and len(compatible.items)==1
+            assert 'close_label' not in compatible.items[0]
             if LegacyStore is None:
                 private=dict(title='Compatible',text='Une pause ?',emoji='1f44d')
                 assert await new.send('card_invite',old.sid,**private)
@@ -100,7 +112,7 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             await new.answer_group(old_gid,True)
             assert await old.send('card_invite',group_key(old_gid),**card)
             assert frames(0,'card_invite')[-1]['group']==old_gid
-            if version=='2.3.0':
+            if version.startswith('2.3.'):
                 poll=await new.send('poll_create','general',question='Toujours compatible ?',options=['Oui','Non'])
                 assert poll in old.polls.items
                 assert await old.send('poll_vote','general',poll=poll,option=0)

@@ -17,36 +17,43 @@ def test_editor_choice_buttons_preview_templates_and_silent_close(tmp_path):
     try:
         assert 'responses' in editor.payload()
         chooser = editor.responses
-        chooser.add_button.click(); qt.processEvents()
+        chooser.configure_button.click(); qt.processEvents()
         child = chooser.editor
-        child.choice_label.setText('Dans cinq minutes')
-        child.choice_type.setCurrentIndex(child.choice_type.findData('custom'))
-        child.title.setText('Je te rejoins !')
-        child.text.setPlainText('Je finis juste mon exercice.')
-        child.select_emoji('1f4aa'); child.send_button.click(); qt.processEvents()
-        assert len(chooser.buttons) == 3
-        assert chooser.buttons[2]['emoji'] == '1f4aa'
+        assert child.isWindow() and not child.findChildren(CardEditor)
+        child.add_button.click(); qt.processEvents()
+        row = child.rows[2]
+        row.text.setText('Dans cinq minutes')
+        row.select_emoji('1f4aa')
+        child.apply_button.click(); qt.processEvents()
+        assert len(chooser.policy()['buttons']) == 3
+        assert chooser.policy()['buttons'][2]['emoji'] == '1f4aa'
         editor.save_template()
         assert CardTemplates(tmp_path).items[0]['responses']['buttons'][2]['label'] == 'Dans cinq minutes'
         replies = []
         popup = CardPopup('Alice42', editor.payload(), replies.append)
         popup.show(); qt.processEvents()
         popup.choice_buttons[2][0].click(); qt.processEvents()
-        assert replies == [{'answer':'custom', 'title':'Je te rejoins !', 'text':'Je finis juste mon exercice.', 'emoji':'1f4aa', 'choice':2}]
+        assert replies == [{'answer':'custom', 'title':'Dans cinq minutes', 'text':'', 'emoji':'1f4aa', 'choice':2}]
         popup.deleteLater()
         escaped = editor.payload()
         escaped['responses']['buttons'][0]['label'] = '<b>Mon bouton</b>'
         popup = CardPopup('Alice42', escaped, lambda value: None)
         assert popup.choice_buttons[0][0].toolTip() == '<qt>&lt;b&gt;Mon bouton&lt;/b&gt;</qt>'
         popup.expire(); popup.deleteLater()
-        chooser.close_only.setChecked(True)
+        chooser.configure_button.click(); qt.processEvents()
+        chooser.editor.close_only.setChecked(True)
+        chooser.editor.close_text.setText('Bien reçu !')
+        chooser.editor.apply_button.click(); qt.processEvents()
         assert editor.payload()['responses'] == {'buttons':[], 'free':False}
+        assert editor.payload()['close_label'] == 'Bien reçu !'
         editor.preview(); qt.processEvents()
         assert not editor.preview_window.choice_buttons and not editor.preview_window.custom_button.isVisible()
         editor.preview_window.close()
         replies = []
         popup = CardPopup('Alice42', editor.payload(), replies.append)
-        popup.show(); qt.processEvents(); popup.close_button.click(); qt.processEvents()
+        popup.show(); qt.processEvents()
+        assert popup.close_button.text() == 'Bien reçu !'
+        popup.close_button.click(); qt.processEvents()
         assert not replies and not popup.isVisible() and popup.answered
         popup.deleteLater()
         for close in ('reject','close','expire'):
@@ -79,16 +86,24 @@ def test_cancel_new_choice_keeps_existing_buttons_and_saves_close_mode(tmp_path)
     editor = CardEditor('Alice42', models)
     editor.show(); qt.processEvents()
     try:
-        editor.responses.add_button.click(); qt.processEvents()
+        editor.responses.configure_button.click(); qt.processEvents()
+        editor.responses.editor.add_button.click(); qt.processEvents()
+        editor.responses.editor.title.setText('Brouillon annulé')
         editor.responses.editor.reject(); qt.processEvents()
-        assert len(editor.responses.buttons) == 2
-        editor.responses.close_only.setChecked(True)
+        assert len(editor.responses.policy()['buttons']) == 2
+        assert editor.title.text() == 'On fait une pause ?'
+        editor.responses.configure_button.click(); qt.processEvents()
+        editor.responses.editor.close_only.setChecked(True)
+        editor.responses.editor.close_text.setText('Compris')
+        editor.responses.editor.apply_button.click(); qt.processEvents()
         editor.save_template()
         stored = CardTemplates(tmp_path).items[0]
         assert stored['responses'] == {'buttons': [], 'free': False}
-        editor.responses.close_only.setChecked(False)
+        assert stored['close_label'] == 'Compris'
+        editor.responses.set_policy(default_responses())
         editor.load_template(editor.models.currentIndex())
-        assert editor.responses.close_only.isChecked()
+        assert editor.responses.policy() == {'buttons': [], 'free': False}
+        assert editor.responses.close_label == 'Compris'
     finally: editor.close(); editor.deleteLater(); qt.processEvents()
 
 
@@ -131,8 +146,10 @@ def test_real_application_sends_author_preset_and_closes_information_silently(tm
         until(lambda: bool(replies()))
         assert replies()[0]['choice'] == 0 and replies()[0]['text'] == 'Je te rejoins ensuite.'
         assert replies()[0]['emoji'] == '1f4aa' and request not in app.popups
-        request = app.worker.submit(peer.send('card_invite', client.sid, **CARD, responses={'buttons':[],'free':False})).result(4)
+        until(lambda:'close_label' in peer.peers[client.sid].features)
+        request = app.worker.submit(peer.send('card_invite', client.sid, **CARD, responses={'buttons':[],'free':False},close_label='Bien reçu !')).result(4)
         until(lambda: request in app.popups)
+        assert app.popups[request][1].close_button.text() == 'Bien reçu !'
         app.popups[request][1].close_button.click()
         until(lambda: request not in app.popups)
         end = time.monotonic() + .15
@@ -161,7 +178,7 @@ policy=default_responses()
 policy['buttons'].append(dict(label='W'*32, answer='custom', title='W'*80, text='W'*400, emoji='1f4aa'))
 for theme in ('dark','light'):
     apply_theme(qt,theme)
-    popup=CardPopup('Alice42',dict(title='W'*80,text='W'*400,emoji='1f923',responses=policy),lambda value:None)
+    popup=CardPopup('Alice42',dict(title='W'*80,text='W'*400,emoji='1f923',responses=policy,close_label='W'*32),lambda value:None)
     popup.show()
     for _ in range(8):qt.processEvents()
     assert abs(popup.content.width() - popup.scroll.viewport().width()) <= 1
@@ -172,9 +189,65 @@ for theme in ('dark','light'):
     for _ in range(4):qt.processEvents()
     assert popup.close_button.height()>=popup.close_button.sizeHint().height()
     assert popup.choice_buttons[2][0].toolTip()=='W'*32
+    assert popup.close_button.accessibleName()=='W'*32
     popup.close();popup.deleteLater();qt.processEvents()
 '''
     result = subprocess.run([sys.executable,'-c',source],cwd=Path(__file__).resolve().parents[1],
                             env={**os.environ,'QT_QPA_PLATFORM':'offscreen','QT_SCALE_FACTOR':scale},
                             text=True,capture_output=True,timeout=20)
+    assert result.returncode==0,result.stdout+result.stderr
+
+
+def test_simple_settings_validate_remove_and_preserve_old_rich_replies(tmp_path):
+    qt=QApplication.instance() or QApplication([])
+    models=CardTemplates(tmp_path)
+    editor=CardEditor('Alice42',models);editor.show();qt.processEvents()
+    try:
+        editor.responses.configure_button.click();qt.processEvents();dialog=editor.responses.editor
+        assert len(dialog.rows)==2 and dialog.apply_button.isEnabled()
+        dialog.add_button.click();qt.processEvents()
+        assert len(dialog.rows)==3 and not dialog.add_button.isEnabled() and not dialog.apply_button.isEnabled()
+        dialog.rows[2].text.setText('Oui');assert not dialog.apply_button.isEnabled()
+        dialog.rows[2].text.setText('Je te rejoins !');assert dialog.apply_button.isEnabled()
+        dialog.rows[2].kind.setCurrentIndex(dialog.rows[2].kind.findData('declined'))
+        assert dialog.rows[2].item['answer']=='declined'
+        dialog.rows[1].remove.click();qt.processEvents();assert len(dialog.rows)==2
+        dialog.title.setText('Ma question');dialog.apply_button.click();qt.processEvents()
+        assert editor.title.text()=='Ma question' and len(editor.payload()['responses']['buttons'])==2
+        policy=default_responses();policy['buttons'][0].update(title='Ancien titre',text='Ancien texte riche',emoji='1f618')
+        editor.responses.set_policy(policy)
+        editor.responses.configure_button.click();qt.processEvents()
+        editor.responses.editor.apply_button.click();qt.processEvents()
+        assert editor.payload()['responses']==policy
+    finally:editor.close();editor.deleteLater();qt.processEvents()
+
+
+@pytest.mark.parametrize('scale',['1','1.5','2'])
+def test_simple_response_window_readable_at_scales(scale):
+    source='''
+from PySide6.QtWidgets import QApplication,QLabel,QScrollArea
+from PySide6.QtGui import QFont
+from src.ui.response_choices import ResponseSettings,simple_responses
+from src.ui.theme import apply_theme
+app=QApplication([])
+for theme in ('dark','light'):
+    apply_theme(app,theme)
+    app.setStyleSheet(app.styleSheet()+' QWidget { font-size:20px; }')
+    dialog=ResponseSettings('On fait une pause ?',simple_responses())
+    dialog.resize(430,500);dialog.show()
+    for _ in range(8):app.processEvents()
+    scroll=dialog.findChild(QScrollArea)
+    assert scroll.horizontalScrollBar().maximum()==0
+    for text in dialog.findChildren(QLabel):
+        if text.wordWrap() and text.text():assert text.height()>=text.heightForWidth(text.width()),text.text()
+    for row in dialog.rows:
+        assert row.text.height()>=row.text.fontMetrics().height()+16
+    dialog.close_only.setChecked(True);dialog.close_text.setText('D’accord !')
+    for _ in range(8):app.processEvents()
+    assert dialog.apply_button.isEnabled() and not dialog.answers.isVisible()
+    assert dialog.apply_button.height()>=dialog.apply_button.sizeHint().height()
+    dialog.reject();dialog.deleteLater();app.processEvents()
+'''
+    result=subprocess.run([sys.executable,'-c',source],cwd=Path(__file__).resolve().parents[1],
+        env={**os.environ,'QT_QPA_PLATFORM':'offscreen','QT_SCALE_FACTOR':scale},capture_output=True,text=True,timeout=20)
     assert result.returncode==0,result.stdout+result.stderr

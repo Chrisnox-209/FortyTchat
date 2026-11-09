@@ -130,7 +130,7 @@ def validate(data):
                 if not 0 < len(raw) <= CHUNK_SIZE:
                     raise ProtocolError('Taille du bloc invalide')
     elif kind in EVENTS:
-        if ('responses' in data and kind != 'card_invite') or ('choice' in data and kind != 'card_reply'):
+        if ('responses' in data and kind != 'card_invite') or ('choice' in data and kind != 'card_reply') or ('close_label' in data and kind != 'card_invite'):
             raise ProtocolError('Choix de réponse réservé aux notifications personnalisées')
         if not valid_id(data.get('id')) or not valid_id(data.get('from')):
             raise ProtocolError('Identifiant invalide')
@@ -241,6 +241,11 @@ def validate(data):
                 fields.add('responses')
                 if not valid_responses(data['responses']):
                     raise ProtocolError('Choix de réponse invalides')
+            if kind == 'card_invite' and 'close_label' in data:
+                from ..features.cards import valid_close_label
+                fields.add('close_label')
+                if 'responses' not in data or not valid_close_label(data['close_label']):
+                    raise ProtocolError('Bouton de fermeture invalide')
             if kind == 'card_reply' and 'choice' in data:
                 fields.add('choice')
                 if type(data['choice']) is not int or not 0 <= data['choice'] < 3:
