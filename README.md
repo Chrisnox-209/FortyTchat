@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.4.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.4.1</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -21,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.4.0** ajoute le **partage d’écran privé et chiffré**, avec invitation à accepter et bouton pour arrêter. Les réponses simplifiées des popups restent disponibles. Les échanges, profils et modèles des anciennes versions restent compatibles ; le partage d’écran nécessite la nouvelle version chez les deux personnes.
+La version **2.4.1** permet de **copier les commandes de mise à jour depuis le bandeau**, avec les étapes pour les coller dans un terminal. Le **partage d’écran privé et chiffré** ajouté en 2.4.0 et les réponses simplifiées des popups restent disponibles. Les échanges, profils et modèles des anciennes versions restent compatibles ; le partage d’écran nécessite au moins 2.4.0 chez les deux personnes.
 
 ## Installer et démarrer
 
@@ -72,6 +72,12 @@ Le module **Qt Multimedia** nécessaire à la capture est installé automatiquem
 </details>
 
 ## Mettre à jour
+
+Depuis le bandeau rouge de l’application, cliquer sur **Mettre à jour**, puis **Copier**. Ouvrir le terminal avec **Ctrl+Alt+T**, coller avec **Ctrl+Maj+V**, puis appuyer sur **Entrée**. La fenêtre affiche le bloc ci-dessous. Pour un dossier de clonage différent de `~/.FortyTchat`, le choisir avant de copier. L’application prépare les instructions ; leur exécution démarre lorsque tu les valides dans le terminal.
+
+<p align="center">
+  <a href="docs/update-instructions-2.4.1.png"><img src="docs/update-instructions-2.4.1.png" width="580" alt="Fenêtre Mettre à jour : instructions pour le terminal, dossier du projet, bloc de commandes et bouton Copier"></a>
+</p>
 
 Ce bloc **ferme proprement la copie installée de FortyTchat**, attend sa fermeture (jusqu’à dix secondes), puis récupère et installe la mise à jour. Copier le bloc entier dans le terminal :
 
@@ -389,13 +395,14 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.4.0 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.4.1 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
 | **2.3.0** | Nouveaux sondages définitifs, code `====`, détail du verrouillage et annonces de version |
 | **2.3.1** | Échanges précédents, choix des popups et anciens modèles ; fermeture personnalisée affichée comme Fermer |
 | **2.3.2** | Réponses simplifiées et libellés de fermeture conservés ; le partage d’écran reste désactivé vers cet ancien client |
+| **2.4.0** | Échanges précédents et partage d’écran chiffré entre les deux versions |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -435,7 +442,7 @@ La détection sur les postes de l’école reste à diagnostiquer avec le bureau
   <a href="docs/presence-2.3.1.png"><img src="docs/presence-2.3.1.png" width="312" alt="Liste des amis : cadenas sur l’avatar de la session verrouillée, pastille verte pour l’ami disponible"></a>
 </p>
 
-Un **petit bandeau rouge** apparaît lorsqu’un poste compatible annonce une version plus récente. Le bouton **Mettre à jour ↗** ouvre directement les [instructions GitHub](https://github.com/Chrisnox-209/FortyTchat#mettre-à-jour), y compris pour les installations dans un dossier personnalisé. La capture d’aperçu utilise une version future de démonstration pour montrer ce bandeau.
+Un **petit bandeau rouge** apparaît lorsqu’un poste compatible annonce une version plus récente. Le bouton **Mettre à jour** ouvre une fenêtre avec le bloc de commandes, un bouton **Copier** et les étapes pour le coller dans un terminal. Le dossier de clonage est modifiable avant copie. Ces instructions sont préparées localement ; un autre poste fournit seulement son numéro de version. Ce changement d’interface ne modifie ni le protocole réseau ni les fichiers de profil. Les anciennes versions conservent leur bouton vers GitHub. La capture d’aperçu utilise une version future de démonstration pour montrer le bandeau.
 
 ## Préférences et données conservées
 
@@ -489,7 +496,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.4.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.4.1** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Bouton de partage d’écran désactivé | Mettre les deux clients à jour en 2.4.0. Les anciennes conversations restent utilisables. |
 | Capture refusée ou écran noir sous Wayland | Vérifier les autorisations ScreenCast et PipeWire du bureau. Sous XWayland, quitter complètement puis relancer avec `QT_QPA_PLATFORM=wayland "$HOME/.local/bin/fortytchat"`. |
 | Icône absente ou mal placée | La session doit prendre en charge GNOME/StatusNotifier/AppIndicator. Utiliser le dock ou le lanceur sinon ; la place dans la barre dépend du bureau. |

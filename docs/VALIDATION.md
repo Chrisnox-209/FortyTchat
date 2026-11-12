@@ -1,4 +1,16 @@
-# Validation locale de FortyTchat 2.4.0
+# Validation locale de FortyTchat 2.4.1
+
+Tests réalisés le **12 novembre 2026** : **305 tests réussis en 45,70 s** sous Python **3.12.13**, Qt/PySide6 **6.8.3** et PyNaCl **1.6.2**, puis **305 en 45,46 s** sous Python **3.14.4** et Qt/PySide6 **6.12.0**. Les exceptions de destruction sont traitées comme erreurs ; Qt 6.12 conserve l’avertissement préexistant sur un événement de glisser-déposer synthétique.
+
+- **Huit versions réelles archivées** : 1.8.1, 2.0.0, 2.1.0, 2.2.0, 2.3.0, 2.3.1, 2.3.2 et 2.4.0. **24 tests de compatibilité**, en TCP direct et avec leurs propres relais : messages, fichiers, présence, groupes et sondages selon les capacités existantes, popups et relecture des modèles. Le partage d’écran est également testé dans les deux sens entre 2.4.1 et 2.4.0 ; les clients antérieurs à 2.4 ne reçoivent pas ces contrôles. Deux nouveaux clients restent capables de partager à travers chacun des huit anciens relais.
+- **Fenêtre de mise à jour locale** : le bouton du bandeau ouvre les instructions sans appeler le navigateur. Réutilisation de la fenêtre, fermeture/réouverture, texte en lecture seule, copie intégrale sans ajout de retours de ligne visuels, retour Copié ! et changement du dossier vérifiés. Aucune commande n’est exécutée par ce bouton.
+- **Bloc shell identique au README** : outils simulés dans un dossier temporaire, avec espaces, apostrophe et syntaxe de substitution traitée littéralement. Ordre fermeture → Git → installation ; arrêt au premier échec, dossier manquant et absence de faux message de réussite vérifiés. Aucun programme personnel n’est fermé par ces tests.
+- **Lisibilité** : rendus Qt à 100/150/200 %, adaptation de la fenêtre à l’espace disponible, thèmes sombre/clair et police 20 px à la taille minimale. Les instructions défilent, les longues lignes du code se replient visuellement et Copier/Fermer restent accessibles. Après l’adaptation finale de taille, les 25 tests ciblés de la fenêtre et du bandeau sont revérifiés sur Qt 6.8 et Qt 6.12. Capture rendue : `update-instructions-2.4.1.png`.
+- **Rétrocompatibilité de cette modification** : aucun changement des modules réseau, du chiffrement ou du format des profils. Seul le numéro de version annoncé passe à 2.4.1. Les anciens clients conservent leur bouton vers GitHub ; la nouvelle fenêtre ne requiert aucune mise à jour simultanée des autres postes.
+
+Les limites d’essai physique Wayland et le diagnostic de verrouillage restent ceux décrits ci-dessous. Cette modification d’interface ne corrige pas le détecteur de verrouillage.
+
+## Historique : validation 2.4.0
 
 Tests réalisés le **12 novembre 2026** : **281 tests réussis en 44,79 s** sous Python **3.12.13**, Qt/PySide6 **6.8.3** et PyNaCl **1.6.2**, puis **281 en 44,77 s** sous Python **3.14.4** et Qt/PySide6 **6.12.0**. Les exceptions de destruction sont traitées comme erreurs ; Qt 6.12 émet un avertissement préexistant pour un événement de glisser-déposer synthétique. Les dix tests d’interface du partage ont été revérifiés sous Qt 6.8 et Qt 6.12 après amélioration visuelle du bouton d’arrêt.
 

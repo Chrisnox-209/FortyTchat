@@ -2,6 +2,12 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Fenêtre de mise à jour (2.4.1)
+
+- En présence d’un poste annonçant une version supérieure, cliquer sur Mettre à jour : une fenêtre s’ouvre dans FortyTchat, sans ouvrir le navigateur. Copier puis coller le bloc dans un éditeur pour vérifier qu’il est entier ; le coller dans le terminal et valider seulement pour effectuer réellement la mise à jour.
+- Vérifier les consignes Ctrl+Alt+T, Ctrl+Maj+V et Entrée, puis un chemin de clonage personnalisé avec des espaces. Contrôler que Copier et Fermer restent accessibles avec la mise à l’échelle du bureau.
+- Mélanger 2.4.1 et 2.4.0 : messages, fichiers, groupes, popups et partage d’écran restent utilisables. Les postes antérieurs à 2.4 gardent leurs fonctions habituelles ; leur bouton de mise à jour conserve son ancien comportement.
+
 ## Partage d’écran privé (2.4.0)
 
 - Mettre deux postes à jour. Dans une conversation privée, cliquer sur le bouton écran, choisir le moniteur puis Partager. Vérifier l’absence de capture avant acceptation de l’autre personne, puis le refus d’une invitation.
@@ -34,7 +40,7 @@ Une version précédente de FortyTchat a été testée en cluster par son créat
 - Envoyer deux popups privées : la troisième doit être refusée 5 minutes. Recommencer avec deux envois après ce blocage : le refus suivant doit durer 15 minutes. Messages et réponses doivent rester possibles.
 - Cliquer sur </>, coller du code et l’insérer ; essayer aussi une ligne ==== avant et après. Vérifier police et copie, sans mention détectée dans le code.
 - Verrouiller une session : elle doit rester connectée, montrer un cadenas sur 2.3.0 et Absent sur un ancien client. Déverrouiller et vérifier le statut précédent, y compris DND ; vérifier qu’aucune fausse alerte d’arrivée d’ami n’est déclenchée.
-- Lorsqu’une version supérieure est réellement installée sur un poste, vérifier le bandeau rouge et son lien vers la section Mettre à jour. Ne pas déclencher le bandeau pour une version égale ou inférieure.
+- Lorsqu’une version supérieure est réellement installée sur un poste, vérifier le bandeau rouge et son bouton Mettre à jour (fenêtre de copie depuis 2.4.1, lien GitHub auparavant). Ne pas déclencher le bandeau pour une version égale ou inférieure.
 
 ## Préparer deux postes
 
