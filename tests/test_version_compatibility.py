@@ -13,7 +13,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -65,7 +65,7 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
                 await until(lambda:FEATURE in new.peers[old.sid].features)
                 share=await new.screens.offer(old.sid);assert share
                 assert await old.screens.answer(share,True)
-                assert not await new.screens.annotate(share,dict(action='clear',points=[],color=0))
+                assert bool(await new.screens.annotate(share,dict(action='clear',points=[],color=0))) == (release>=(2,5,0))
                 assert await new.screens.send_frame(share,b'SCREEN_241_TO_240',800,450)
                 await until(lambda:any(k=='screen_frame' for k,d in logs[1]))
                 assert [d['data'] for k,d in logs[1] if k=='screen_frame'][-1]==b'SCREEN_241_TO_240'

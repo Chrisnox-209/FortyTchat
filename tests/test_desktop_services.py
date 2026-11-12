@@ -50,7 +50,7 @@ class Saver(QObject):
 class Manager(QObject):
     @Slot(str,result=QDBusObjectPath)
     def GetSession(self,name):
-        assert name=='school42'
+        assert name in ('auto','school42')
         return QDBusObjectPath('/org/freedesktop/login1/session/_31')
 @ClassInfo({'D-Bus Interface':'org.freedesktop.login1.Session'})
 class Session(QObject):
