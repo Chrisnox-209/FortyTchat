@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.5.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.5.1</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -21,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.5.0** ajoute des **annotations au partage d’écran** : pointeur coloré, crayon, cercles et rectangles, visibles des deux côtés. Le streamer garde sa souris et son clavier. Les commandes de mise à jour restent copiables depuis le bandeau. Les échanges, profils et modèles des anciennes versions restent compatibles ; le partage nécessite au moins 2.4.0 chez les deux personnes et les annotations 2.5.0.
+La version **2.5.1** renforce la recherche de la session verrouillée et ajoute un **script de diagnostic sans sudo**, avec un rapport texte à retourner. Les annotations du partage d’écran, le pointeur coloré et les commandes de mise à jour copiables restent disponibles. Les fonctions et profils antérieurs restent compatibles ; le partage nécessite au moins 2.4.0 chez les deux personnes et les annotations 2.5.0. Le fonctionnement du verrouillage sur le poste réel de l’école reste à confirmer avec ce diagnostic.
 
 ## Installer et démarrer
 
@@ -414,7 +414,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.5.0 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.5.1 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -423,6 +423,7 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.3.2** | Réponses simplifiées et libellés de fermeture conservés ; le partage d’écran reste désactivé vers cet ancien client |
 | **2.4.0** | Échanges précédents et partage d’écran chiffré entre les deux versions |
 | **2.4.1** | Partage d’écran conservé et mise à jour copiable ; aucun événement d’annotation envoyé à ces anciens clients |
+| **2.5.0** | Partage d’écran et annotations entre les deux versions ; indication du verrouillage au format existant |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -454,9 +455,33 @@ L’intégration utilise **PyNaCl/libsodium**, Box Curve25519/XSalsa20/Poly1305 
 
 Quand le bureau signale le verrouillage, la personne reste dans le cluster : un **cadenas remplace la pastille verte de son avatar** dans les contacts, les conversations et les groupes, avec le texte **Session verrouillée**. Au déverrouillage, son statut manuel revient. **Ne pas déranger reste prioritaire**. Les clients 2.3.0 comprennent déjà le détail du verrouillage ; les versions plus anciennes voient leur statut **Absent** habituel, ou Ne pas déranger si celui-ci est activé.
 
-La détection lit ensemble GNOME/ScreenSaver et logind, toutes les **deux secondes**, ainsi que les signaux du bureau. La session Ubuntu indiquée par `XDG_SESSION_ID` est recherchée explicitement. Une source répondant « non verrouillé » ne masque plus un verrouillage signalé par une autre. L’état est rafraîchi sur le réseau pour réparer un changement perdu. Aucun enregistrement de frappes ou d’activité et aucune commande de verrouillage ne sont utilisés. Si le bureau ne fournit pas cet état, le statut manuel reste disponible. [Interface GNOME](https://raw.githubusercontent.com/GNOME/gnome-shell/main/data/dbus-interfaces/org.gnome.ScreenSaver.xml), [état de session logind](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
+La détection lit ensemble GNOME/ScreenSaver et logind, toutes les **deux secondes**, ainsi que les signaux du bureau. Depuis **2.5.1**, logind recherche d’abord la session courante avec `GetSession("auto")`, puis utilise `XDG_SESSION_ID` en secours. Le chemin concret est réévalué et ses changements de propriétés déclenchent une relecture immédiate. Une source répondant « non verrouillé » ne masque pas un verrouillage signalé par une autre. L’état est rafraîchi sur le réseau pour réparer un changement perdu. Aucun enregistrement de frappes et aucune commande de verrouillage ne sont utilisés. Si le bureau ne fournit pas cet état, le statut manuel reste disponible. [Interface GNOME](https://raw.githubusercontent.com/GNOME/gnome-shell/main/data/dbus-interfaces/org.gnome.ScreenSaver.xml), [état de session logind](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
 
-La détection sur les postes de l’école reste à diagnostiquer avec le bureau et le mécanisme de verrouillage réellement utilisés. Le détecteur reste inchangé ; la version **2.4.0** arrête le partage lorsqu’un verrouillage est détecté.
+Le créateur confirme que le problème persiste à l’école avec les deux clients à jour, en utilisant le cadenas du menu système. **Le poste physique n’a pas encore été retesté avec 2.5.1.** Les tests relient une vraie lecture D-Bus au cadenas affiché dans une seconde application, mais ne remplacent pas l’essai à l’école.
+
+### Créer un rapport de verrouillage, sans sudo
+
+Après mise à jour, sur le PC concerné :
+
+```sh
+sh "$HOME/.FortyTchat/diagnostic-session.sh"
+```
+
+Depuis un autre dossier de clonage, utiliser `sh ./diagnostic-session.sh`. Le script est également copié dans le dossier de l’application installée. Il retrouve son environnement Python personnel ; **aucun sudo, aucune installation de paquet et aucun changement système**.
+
+1. Garder le terminal ouvert : le script annonce **60 secondes d’observation**.
+2. Verrouiller avec le **cadenas habituel du menu système**, attendre quelques secondes, puis déverrouiller.
+3. Attendre la fin, puis retourner le fichier **`FortyTchat-diagnostic-….txt`** créé dans le dossier personnel. Son chemin complet est affiché avant et après l’observation.
+
+Le rapport contient les versions Python/PySide6/FortyTchat, le système et le bureau, les réponses des sources de verrouillage et leurs erreurs, les transitions observées et quelques noms de processus de bureau/verrouillage du même utilisateur. Ces noms ne sont pas utilisés pour deviner l’état de verrouillage. **Aucun message, historique du tchat, mot de passe, clé ou contenu de configuration privée n’est collecté.** Le fichier est lisible seulement par son propriétaire, porte un nom unique et n’écrase aucun rapport existant. Il n’est envoyé à personne automatiquement.
+
+Pour choisir une durée ou un fichier nouveau, depuis le dossier du projet :
+
+```sh
+sh ./diagnostic-session.sh --duration 120 --output "$HOME/rapport-verrouillage.txt"
+```
+
+La durée accepte **5 à 120 secondes**. Le mode `~/.local/bin/fortytchat --diagnose-lock` affiche aussi le diagnostic directement dans le terminal, sans créer de fichier, même pendant que le tchat est actif. Le diagnostic n’ouvre aucune connexion de messagerie et ne verrouille pas le poste lui-même.
 
 <p align="center">
   <a href="docs/presence-2.3.1.png"><img src="docs/presence-2.3.1.png" width="312" alt="Liste des amis : cadenas sur l’avatar de la session verrouillée, pastille verte pour l’ami disponible"></a>
@@ -516,7 +541,8 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.5.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.5.1** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Le cadenas de session n’apparaît pas | Les clients qui l’affichent doivent être en 2.3.0 ou plus récent. Après mise à jour, lancer [le script de rapport](#créer-un-rapport-de-verrouillage-sans-sudo) sur le PC verrouillé pour identifier la source qui manque. |
 | Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |
 | Bouton de partage d’écran désactivé | Mettre les deux clients à jour en 2.4.0. Les anciennes conversations restent utilisables. |
 | Capture refusée ou écran noir sous Wayland | Vérifier les autorisations ScreenCast et PipeWire du bureau. Sous XWayland, quitter complètement puis relancer avec `QT_QPA_PLATFORM=wayland "$HOME/.local/bin/fortytchat"`. |

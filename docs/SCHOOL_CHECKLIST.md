@@ -2,6 +2,14 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Rapport de verrouillage et reprise de détection (2.5.1)
+
+- Les deux clients sont confirmés à jour ; le verrouillage utilisé à l’école est le cadenas du menu système. Le poste n’était pas disponible pendant la correction : ne pas marquer cet essai réussi sans retour physique.
+- Après mise à jour, lancer `sh "$HOME/.FortyTchat/diagnostic-session.sh"`, sans sudo. Pendant les 60 secondes, verrouiller via ce cadenas, attendre quelques secondes, puis déverrouiller. Retourner le fichier `FortyTchat-diagnostic-….txt` annoncé dans le dossier personnel.
+- Relever le système, le bureau, les versions et les transitions `locked` du rapport. Les erreurs de sources non installées sont normales ; vérifier surtout GNOME/ScreenSaver et logind sur ce poste. Un nom de processus n’est pas une preuve de verrouillage.
+- Depuis le second client, vérifier la disparition de la pastille verte, le cadenas et le retour au statut précédent. Refaire avec DND et Absent. Le format réseau est inchangé ; les clients antérieurs à 2.3 conservent Absent/DND.
+- L’outil n’ouvre aucun tchat, ne collecte pas de clés/messages et ne transmet rien. Son rapport est privé et unique ; supprimer le fichier après le diagnostic si souhaité.
+
 ## Annotations du partage (2.5.0)
 
 - Utiliser deux clients 2.5.0 : accepter le partage puis déplacer le pointeur du spectateur, changer sa couleur, tracer au crayon, un cercle et un rectangle. Vérifier les deux affichages, le plein écran, le redimensionnement et l’absence de dessin dans les bandes noires.
