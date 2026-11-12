@@ -2,6 +2,14 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Annotations du partage (2.5.0)
+
+- Utiliser deux clients 2.5.0 : accepter le partage puis déplacer le pointeur du spectateur, changer sa couleur, tracer au crayon, un cercle et un rectangle. Vérifier les deux affichages, le plein écran, le redimensionnement et l’absence de dessin dans les bandes noires.
+- Sous X11, partager un second moniteur si disponible : les annotations doivent apparaître sur celui choisi. Réduire la fenêtre de commande du streamer et cliquer dans son éditeur sous une annotation : il garde le contrôle de sa souris et du clavier.
+- Vérifier Effacer des deux côtés, puis arrêt, fermeture, blocage et verrouillage détecté : aucun dessin ne reste affiché et aucune ancienne annotation ne revient dans un nouveau partage.
+- Sous Wayland, vérifier les annotations dans l’aperçu du streamer. La superposition sur le bureau est réservée à X11 ; le portail ne fournit pas le moniteur cible à Qt. Le poste réel de l’école reste à tester.
+- Mélanger 2.5.0 et 2.4.0/2.4.1 : le partage fonctionne sans les nouveaux outils. Mélanger les versions plus anciennes pour leurs fonctions habituelles. Les relais E2EE antérieurs continuent à transporter les annotations entre deux nouveaux clients.
+
 ## Fenêtre de mise à jour (2.4.1)
 
 - En présence d’un poste annonçant une version supérieure, cliquer sur Mettre à jour : une fenêtre s’ouvre dans FortyTchat, sans ouvrir le navigateur. Copier puis coller le bloc dans un éditeur pour vérifier qu’il est entier ; le coller dans le terminal et valider seulement pour effectuer réellement la mise à jour.

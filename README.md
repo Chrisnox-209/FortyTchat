@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.4.1</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.5.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -21,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.4.1** permet de **copier les commandes de mise à jour depuis le bandeau**, avec les étapes pour les coller dans un terminal. Le **partage d’écran privé et chiffré** ajouté en 2.4.0 et les réponses simplifiées des popups restent disponibles. Les échanges, profils et modèles des anciennes versions restent compatibles ; le partage d’écran nécessite au moins 2.4.0 chez les deux personnes.
+La version **2.5.0** ajoute des **annotations au partage d’écran** : pointeur coloré, crayon, cercles et rectangles, visibles des deux côtés. Le streamer garde sa souris et son clavier. Les commandes de mise à jour restent copiables depuis le bandeau. Les échanges, profils et modèles des anciennes versions restent compatibles ; le partage nécessite au moins 2.4.0 chez les deux personnes et les annotations 2.5.0.
 
 ## Installer et démarrer
 
@@ -370,6 +370,25 @@ L’affichage conserve les proportions, jusqu’à **1280 × 720**, à **5 image
 
 **Rétrocompatibilité :** les deux clients doivent prendre en charge **2.4.0** pour partager un écran. Face à une ancienne version, le bouton est désactivé et aucun nouveau contrôle ou fragment vidéo ne lui est envoyé. Messages, fichiers et fonctions déjà disponibles continuent de fonctionner. Les anciens relais chiffrés restent utilisables sans mise à jour pour transporter ce partage.
 
+### Pointer et dessiner ensemble
+
+Avec **2.5.0 chez les deux participants**, le spectateur dispose d’une barre d’outils au-dessus de l’image :
+
+- **Pointeur** : déplacer la souris affiche une flèche colorée, distincte de la souris du streamer.
+- **Crayon**, **Cercle**, **Rectangle** : cliquer et glisser dans l’image, puis relâcher. Le tracé libre est partagé par segments ; les formes sont transmises au relâchement.
+- **Rose, jaune, bleu ou vert** : choisir la couleur de ses annotations.
+- **Effacer** : retirer les dessins des deux côtés. Le streamer possède aussi ce bouton.
+
+<p align="center">
+  <a href="docs/screen-share-annotations-2.5.0.png"><img src="docs/screen-share-annotations-2.5.0.png" width="780" alt="Vue du spectateur avec outils d’annotation, rectangle rose, cercle jaune et pointeur coloré sur un exemple de code"></a>
+</p>
+
+Sous **X11**, une couche transparente affiche les annotations directement sur le moniteur partagé, même lorsque la fenêtre de commande est réduite. **Les clics traversent cette couche : le streamer continue à utiliser ses applications normalement.** Le spectateur ne déclenche aucun clic, aucune touche ni commande sur son poste. Les positions restent alignées sur l’image après redimensionnement ou passage en plein écran ; les bandes noires ne sont pas une zone de dessin.
+
+Sous **Wayland**, les annotations sont visibles dans l’aperçu de la fenêtre du streamer. La superposition sur son bureau est réservée à X11, car le portail ne donne pas à Qt l’identité du moniteur capturé. Voir les [limites de QScreenCapture](https://doc.qt.io/qt-6/qscreencapture.html#screen-capture-limitations). La couche X11 peut apparaître dans les images capturées ; le flux à cinq images par seconde peut laisser un bref écho du pointeur pendant ses déplacements.
+
+Les annotations sont **chiffrées de bout en bout**, réservées au partage accepté et effacées à son arrêt. Elles restent en mémoire, avec un maximum de **64 formes** ; les plus anciennes sont retirées lorsque cette limite est atteinte. Les outils ne sont pas proposés avec un client 2.4, qui conserve le partage habituel. Aucun nouveau port, compte ou fichier de configuration n’est requis.
+
 **Linux :** la capture X11 a été vérifiée sur un écran virtuel isolé, avec le vrai moteur Qt, un envoi chiffré et le décodage chez l’autre client. Sous Wayland, les services **ScreenCast du portail XDG** et **PipeWire** doivent être disponibles ; le fonctionnement sur les postes physiques de l’école reste à vérifier. [Conditions Qt Multimedia sous Linux](https://doc.qt.io/qt-6/qtmultimedia-linux.html). Les captures ci-dessus utilisent des données de démonstration.
 
 ## Envoyer des fichiers
@@ -395,7 +414,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.4.1 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.5.0 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -403,6 +422,7 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.3.1** | Échanges précédents, choix des popups et anciens modèles ; fermeture personnalisée affichée comme Fermer |
 | **2.3.2** | Réponses simplifiées et libellés de fermeture conservés ; le partage d’écran reste désactivé vers cet ancien client |
 | **2.4.0** | Échanges précédents et partage d’écran chiffré entre les deux versions |
+| **2.4.1** | Partage d’écran conservé et mise à jour copiable ; aucun événement d’annotation envoyé à ces anciens clients |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -496,7 +516,8 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.4.1** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.5.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |
 | Bouton de partage d’écran désactivé | Mettre les deux clients à jour en 2.4.0. Les anciennes conversations restent utilisables. |
 | Capture refusée ou écran noir sous Wayland | Vérifier les autorisations ScreenCast et PipeWire du bureau. Sous XWayland, quitter complètement puis relancer avec `QT_QPA_PLATFORM=wayland "$HOME/.local/bin/fortytchat"`. |
 | Icône absente ou mal placée | La session doit prendre en charge GNOME/StatusNotifier/AppIndicator. Utiliser le dock ou le lanceur sinon ; la place dans la barre dépend du bureau. |
