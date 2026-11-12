@@ -66,7 +66,7 @@ class GroupWindow(PrivateWindow):
         super().__init__('group:' + room['id'], room['name'], messages, icon_path)
         self.room, self.member_names = room, {}
         self.name_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        for control in (self.friend_button, self.security_button, self.composer.wizz_button,
+        for control in (self.friend_button, self.security_button, self.screen_button, self.composer.wizz_button,
                         self.composer.break_button):
             control.hide()
         self.composer.poll_button.show()
@@ -85,8 +85,7 @@ class GroupWindow(PrivateWindow):
         self.composer.group_popup_interval = popup_interval(room)
         if names is not None:
             self.member_names = names
-        self.name_label.setText(self.name_label.fontMetrics().elidedText(room['name'], Qt.TextElideMode.ElideRight, max(100, self.width() - 150)))
-        self.name_label.setToolTip(room['name'])
+        self.name_label.set_full_text(room['name'])
         self.setWindowTitle(room['name'] + ' · FortyTchat')
         joined = len(set(room['joined']) - set(room['left']))
         self.status_label.setText(f'{joined}/{len(room["members"])} membres ont rejoint' if room['state'] == 'joined'
@@ -111,7 +110,7 @@ class GroupWindow(PrivateWindow):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if hasattr(self, 'room'):
-            self.name_label.setText(self.name_label.fontMetrics().elidedText(self.room['name'], Qt.TextElideMode.ElideRight, max(100, self.width() - 150)))
+            self.name_label.set_full_text(self.room['name'])
 
     def show_members(self):
         lines = []

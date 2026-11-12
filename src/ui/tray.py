@@ -12,6 +12,7 @@ class Tray(QObject):
     status_requested = Signal(str)
     friend_requested = Signal(str)
     popup_requested = Signal(str)
+    screen_stop_requested = Signal()
 
     def __init__(self, icon_path, parent=None, clock=time.monotonic):
         super().__init__(parent)
@@ -39,6 +40,8 @@ class Tray(QObject):
         for text, key in [('En ligne', 'online'), ('Absent·e', 'away'), ('Ne pas déranger', 'dnd')]:
             statuses.addAction(text, lambda checked=False, s=key: self.status_requested.emit(s))
         self.menu.addAction('Paramètres', self.settings_requested.emit)
+        self.screen_stop_action=self.menu.addAction('Arrêter le partage d’écran',self.screen_stop_requested.emit)
+        self.screen_stop_action.setVisible(False)
         self.menu.addSeparator()
         self.menu.addAction('Quitter complètement', self.quit_requested.emit)
         self.menu.aboutToShow.connect(self.menu_opened)

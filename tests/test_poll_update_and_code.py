@@ -71,10 +71,13 @@ def test_higher_authenticated_peer_version_shows_banner_and_fixed_github_link(mo
     controller=SimpleNamespace(window=window)
     assert CollaborationController.collaboration_event(controller,'peer_version',{'version':'2.2.0'})
     assert window.update_banner.isHidden()
-    CollaborationController.collaboration_event(controller,'peer_version',{'version':'2.4.0'})
-    assert not window.update_banner.isHidden() and '2.4.0' in window.update_text.text()
+    from src import __version__
+    major,minor,patch=map(int,__version__.split('.'))
+    future=f'{major}.{minor+1}.0'
+    CollaborationController.collaboration_event(controller,'peer_version',{'version':future})
+    assert not window.update_banner.isHidden() and future in window.update_text.text()
     CollaborationController.collaboration_event(controller,'peer_version',{'version':'2.3.1'})
-    assert '2.4.0' in window.update_text.text()
+    assert future in window.update_text.text()
     opened=[];monkeypatch.setattr(QDesktopServices,'openUrl',lambda url:opened.append(url.toString()) or True)
     window.update_button.click();assert opened==[UPDATE_URL]
     for bad in ['2.4.0; echo bad','https://example.com','1.0',None]:assert version_tuple(bad) is None

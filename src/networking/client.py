@@ -26,6 +26,8 @@ from .interfaces import interfaces
 from .diagnostics import socket_error
 from .presence import Peer, HEARTBEAT, PEER_TIMEOUT
 from .protocol import MAX_FRAME, MAX_PEERS, EVENTS, ProtocolError, ack, encode, event, read_frame
+from ..features.screen_share import SCREEN_EVENTS, FEATURE as SCREEN_FEATURE
+from .screen_share import ScreenSharing
 
 
 class ChatClient(CollaborationNetwork):
@@ -91,6 +93,7 @@ class ChatClient(CollaborationNetwork):
         self._queued = 0
         self.port = 0
         self.files = FileTransfers(self)
+        self.screens = ScreenSharing(self)
 
     def emit(self, kind, **data):
         self.callback(kind, data)
@@ -154,6 +157,7 @@ class ChatClient(CollaborationNetwork):
         self.publish_groups()
         if self.group_store.error: self.emit('notice', text=self.group_store.error)
         self.task(self._heartbeat())
+        self.task(self.screens.watchdog())
         if self.relay_host:
             self.task(self._relay_loop())
 
@@ -248,7 +252,7 @@ class ChatClient(CollaborationNetwork):
         locked=self.screen_locked
         async def publish():
             try:
-                await self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock','close_label'],locked=locked))
+                await self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock','close_label',SCREEN_FEATURE],locked=locked))
             finally:
                 self.info_tasks.pop(peer.sid,None)
                 if not self._closing and self.peers.get(peer.sid) is peer and self.screen_locked!=locked:
@@ -276,6 +280,7 @@ class ChatClient(CollaborationNetwork):
         self.emit('security_verified', sid=sid)
 
     def _remove_peer(self, sid):
+        if self.screens.state and self.screens.state.peer==sid:self.screens.close('Contact déconnecté.')
         peer = self.peers.pop(sid, None)
         self.group_syncing.discard(sid)
         self.info_attempts.pop(sid,None)
@@ -349,6 +354,7 @@ class ChatClient(CollaborationNetwork):
         if type(locked) is not bool:raise ValueError('État de session invalide')
         if self.screen_locked==locked:return
         self.screen_locked=locked
+        if locked:self.screens.close('Session verrouillée.',notify=True)
         self.status='dnd' if self.dnd else 'away' if locked else self.manual_status
         self._announce()
         if self.relay_writer:self.relay_writer.write(encode(self.hello()))
@@ -357,6 +363,7 @@ class ChatClient(CollaborationNetwork):
     def block(self, sid, blocked=True):
         if blocked:
             self.blocked.add(sid)
+            if self.screens.state and self.screens.state.peer==sid:self.screens.close('Contact bloqué.')
             for request, offer in list(self.files.outgoing.items()):
                 if sid in offer['recipients']:
                     self.task(self.files.cancel(request, sid))
@@ -453,6 +460,7 @@ class ChatClient(CollaborationNetwork):
         if frame['id'] in self.seen.ids:
             return True, ''
         kind = frame['type']
+        if kind in SCREEN_EVENTS:return self.screens.receive(peer,frame)
         if kind=='client_info':
             if not modern_caps(peer.caps) or not peer.control_bucket.allow():return False,'Information de version indisponible'
             first=not peer.version
@@ -543,7 +551,9 @@ class ChatClient(CollaborationNetwork):
             if self.ack_peers.get(frame['id']) == peer.sid and future and not future.done():
                 future.set_result(frame['ok'])
             return frame, None
-        if kind in FILE_EVENTS:
+        if kind in SCREEN_EVENTS:
+            ok,reason=self.screens.receive(peer,frame)
+        elif kind in FILE_EVENTS:
             ok, reason = await self.files.receive(frame)
             if not ok and kind in ('file_chunk', 'file_end'):
                 self.task(self.deliver_file(self.files.control('file_cancel', frame['from'], frame['request'])))
@@ -590,7 +600,9 @@ class ChatClient(CollaborationNetwork):
                     return
                 writer.write(encode(receipt))
                 await asyncio.wait_for(writer.drain(), 3)
-                if inner['type'] not in FILE_EVENTS or inner['type'] == 'file_end':
+                if inner['type']=='screen_chunk':
+                    if not self.screens.accepts(peer.sid,inner['share']):return
+                elif inner['type'] not in FILE_EVENTS or inner['type'] == 'file_end':
                     return
                 frame = await read_frame(reader, 15)
         except (OSError, ConnectionError, ProtocolError, SecurityError, asyncio.TimeoutError):
@@ -637,7 +649,7 @@ class ChatClient(CollaborationNetwork):
         if (not self.relay_writer or not self.relay_e2ee or not peer or not peer.secure or peer.sid in self.blocked
                 or frame.get('from') != self.sid):
             return False
-        frame = self.crypto.seal(peer, frame, 'stream' if frame['type'] == 'file_chunk' else 'event')
+        frame = self.crypto.seal(peer, frame, 'stream' if frame['type'] in ('file_chunk','screen_chunk') else 'event')
         future = asyncio.get_running_loop().create_future()
         self.acks[frame['id']] = future
         self.ack_peers[frame['id']] = peer.sid
@@ -663,6 +675,7 @@ class ChatClient(CollaborationNetwork):
         self.prune_card_policies()
         if self._closing:
             return None
+        if kind in SCREEN_EVENTS:return None  # ScreenSharing enforces consent and capability negotiation.
         if kind in READ_EVENTS:
             return None  # Only mark_read() may confirm messages actually received.
         if kind in COLLAB_EVENTS:
@@ -1075,6 +1088,7 @@ class ChatClient(CollaborationNetwork):
 
     async def stop(self):
         self._closing = True
+        self.screens.close('Application fermée.')
         if self.discovery:
             self.discovery.announce(encode({'v': 1, 'type': 'bye', 'sid': self.sid}), self.discovery_port)
             self.discovery.close()

@@ -6,6 +6,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Signal, QTimer, QSignalBlocker, QStandardPaths
 from PySide6.QtWidgets import QApplication, QFileDialog
 from .collaboration import CollaborationController
+from .screen_share import ScreenShareController
 from .features.collaboration import group_id, chat_target
 from .features.group_profile import popup_interval, popup_remaining
 from .ui.images import ImageViewer
@@ -41,8 +42,10 @@ class AlreadyRunning(Exception):
     pass
 
 
-class Application(QObject, CollaborationController):
+class Application(QObject, CollaborationController, ScreenShareController):
     activation_requested = Signal()
+    screen_frame_finished = Signal(str)
+    screen_offer_finished = Signal(str,bool)
 
     def __init__(self, project_root, args):
         super().__init__()
@@ -139,6 +142,7 @@ class Application(QObject, CollaborationController):
             options.update(relay_host='127.0.0.1', relay_port=args.insecure_local_relay, tls=False)
         self.worker = NetworkWorker(self.preferences.nickname, **options)
         self.init_collaboration_ui()
+        self.init_screen_sharing_ui()
         self.window.sidebar.popup_available = self.cards_available
         self.worker.received.connect(self.on_network)
         self.peer_timer = QTimer(self)
@@ -229,6 +233,7 @@ class Application(QObject, CollaborationController):
         view.block_requested.connect(self.block)
         view.friend_requested.connect(self.change_friend)
         view.security_requested.connect(self.show_security)
+        view.screen_requested.connect(self.show_screen_sharing)
         view.viewed.connect(self.mark_viewed)
         view.closed.connect(self.close_private)
         self.window.sidebar.refresh()
@@ -594,6 +599,8 @@ class Application(QObject, CollaborationController):
     def on_network(self, kind, data):
         if self.stopping:
             return
+        if kind.startswith('screen_'):
+            self.screen_event(kind,data);return
         if self.collaboration_event(kind, data):
             return
         if kind.startswith('file_'):
@@ -965,6 +972,7 @@ class Application(QObject, CollaborationController):
         self.window.sidebar.avatar.update()
 
     def screen_lock_changed(self,locked):
+        if locked:self.stop_screen_sharing('Session verrouillée.')
         self.screen_locked=locked;self.worker.call('set_screen_locked',locked)
         shown='🔒 Session verrouillée' if locked else '●  Ne pas déranger' if self.preferences.dnd else '●  Absent·e' if self.status=='away' else '●  En ligne'
         self.window.sidebar.status_button.setText(shown)
@@ -1017,6 +1025,7 @@ class Application(QObject, CollaborationController):
         if self.stopping:
             return
         self.stopping = True
+        self.close_screen_sharing_ui()
         self.session_monitor.stop()
         self.typing_timer.stop()
         self.file_queue_timer.stop()

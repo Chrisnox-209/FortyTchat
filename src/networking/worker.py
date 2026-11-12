@@ -67,6 +67,11 @@ class NetworkWorker(QObject):
     def cancel_file(self, request, peer='general'):
         return self.submit(self.client.cancel_file(request, peer))
 
+    def offer_screen(self,sid,share=None):return self.submit(self.client.screens.offer(sid,share))
+    def answer_screen(self,share,accepted):return self.submit(self.client.screens.answer(share,accepted))
+    def stop_screen(self,share='',reason='Partage terminé.'):return self.submit(self.client.screens.stop(share,reason))
+    def screen_frame(self,share,data,width,height):return self.submit(self.client.screens.send_frame(share,data,width,height))
+
     def stop(self):
         if not self.thread.is_alive():
             return

@@ -12,6 +12,7 @@ from ..features.file_transfer import FILE_EVENTS, CHUNK_SIZE, MAX_FILE_SIZE, val
 from ..features.social import SOCIAL_EVENTS, valid_reaction
 from ..features.cards import CARD_EVENTS, valid_card, valid_responses
 from ..features.receipts import READ_EVENTS, READ_BATCH
+from ..features.screen_share import SCREEN_EVENTS, valid_screen_frame
 from ..features.collaboration import COLLAB_EVENTS, GROUP_EVENTS, CHANGE_EVENTS, POLL_EVENTS, MAX_MEMBERS, MAX_VOTERS, plain
 
 VERSION = 1
@@ -19,7 +20,7 @@ MAX_FRAME = 32768  # Includes the base64 overhead of the authenticated envelope.
 MAX_MESSAGE = 2000
 MAX_PEERS = 512
 ID = re.compile(r'[a-f0-9]{32}\Z')
-EVENTS = {'client_info', 'message', 'wizz', 'break_invite', 'break_reply'} | SOCIAL_EVENTS | CARD_EVENTS | READ_EVENTS | COLLAB_EVENTS
+EVENTS = {'client_info', 'message', 'wizz', 'break_invite', 'break_reply'} | SOCIAL_EVENTS | CARD_EVENTS | READ_EVENTS | COLLAB_EVENTS | SCREEN_EVENTS
 
 
 class ProtocolError(ValueError):
@@ -129,6 +130,8 @@ def validate(data):
                     raise ProtocolError('Encodage de fichier invalide') from exc
                 if not 0 < len(raw) <= CHUNK_SIZE:
                     raise ProtocolError('Taille du bloc invalide')
+    elif kind in SCREEN_EVENTS:
+        if not valid_screen_frame(data):raise ProtocolError('Partage d’écran invalide')
     elif kind in EVENTS:
         if ('responses' in data and kind != 'card_invite') or ('choice' in data and kind != 'card_reply') or ('close_label' in data and kind != 'card_invite'):
             raise ProtocolError('Choix de réponse réservé aux notifications personnalisées')

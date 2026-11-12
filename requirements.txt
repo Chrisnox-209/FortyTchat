@@ -1,3 +1,5 @@
 PySide6-Essentials>=6.8,<7; python_version < "3.14"
 PySide6-Essentials>=6.12,<7; python_version >= "3.14"
+PySide6-Addons>=6.8,<7; python_version < "3.14"
+PySide6-Addons>=6.12,<7; python_version >= "3.14"
 PyNaCl>=1.6.2,<2

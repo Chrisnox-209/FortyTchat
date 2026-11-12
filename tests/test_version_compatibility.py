@@ -13,7 +13,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -57,6 +57,8 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             if relay:await until(lambda:len(new.peers)==len(old.peers)==1)
             else:new.observe(old.hello(),'127.0.0.1');old.observe(new.hello(),'127.0.0.1')
             assert old.peers[new.sid].contact_id==new.contact_id
+            assert await new.screens.offer(old.sid) is None
+            assert new.screens.state is None
             new.set_screen_locked(True)
             if relay:await until(lambda:old.peers[new.sid].status=='away')
             else:old.observe(new.hello(),'127.0.0.1')
@@ -78,14 +80,16 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             closed={'buttons':[],'free':False}
             assert await new.send('card_invite',old.sid,title='Information',text='Bien reçu ?',emoji='2705',responses=closed,close_label='Compris !')
             assert frames(1,'card_invite')[-1]['responses']==closed
-            assert 'close_label' not in frames(1,'card_invite')[-1]
+            if version=='2.3.2':assert frames(1,'card_invite')[-1]['close_label']=='Compris !'
+            else:assert 'close_label' not in frames(1,'card_invite')[-1]
             old_cards=importlib.import_module(LegacyClient.__module__.rsplit('.networking.client',1)[0]+'.features.cards')
             from src.features.cards import CardTemplates
             templates=CardTemplates(tmp_path/'templates')
             templates.save(dict(title='Information',text='',emoji='2705',responses=closed,close_label='Compris !'),'invite')
             compatible=old_cards.CardTemplates(tmp_path/'templates')
             assert not compatible.error and len(compatible.items)==1
-            assert 'close_label' not in compatible.items[0]
+            if version=='2.3.2':assert compatible.items[0]['close_label']=='Compris !'
+            else:assert 'close_label' not in compatible.items[0]
             if LegacyStore is None:
                 private=dict(title='Compatible',text='Une pause ?',emoji='1f44d')
                 assert await new.send('card_invite',old.sid,**private)
@@ -135,4 +139,34 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
         finally:
             await asyncio.gather(*(c.stop() for c in clients))
             if server:await server.stop()
+    asyncio.run(run())
+
+
+def test_new_screen_share_through_each_older_opaque_relay(legacy):
+    async def run():
+        from src.features.screen_share import FEATURE
+        version,LegacyClient,LegacyRelay,LegacyStore=legacy
+        server=LegacyRelay();port=await server.start(port=0);logs=[];wire=[]
+        route=server.route
+        def observe(connection,data):
+            wire.append(dict(data));return route(connection,data)
+        server.route=observe
+        options=dict(discovery=False,tcp_port=0,relay_host='127.0.0.1',relay_port=port,tls=False)
+        a=ChatClient('Alice42',**options)
+        b=ChatClient('Bob42',lambda k,d:logs.append((k,d)),**options)
+        try:
+            await a.start();await b.start()
+            await until(lambda:b.sid in a.peers and FEATURE in a.peers[b.sid].features)
+            share=await a.screens.offer(b.sid);assert share
+            assert await b.screens.answer(share,True)
+            data=b'SCREEN_TEST_ONLY_'+bytes(range(256))*100
+            assert await a.screens.send_frame(share,data,800,450)
+            frames=[d for k,d in logs if k=='screen_frame']
+            assert frames and frames[0]['data']==data
+            assert any(frame['type']=='sealed' and frame['channel']=='stream' for frame in wire)
+            assert not any(frame.get('type','').startswith('screen_') for frame in wire)
+            assert await b.screens.stop(share)
+            await until(lambda:a.screens.state is None)
+        finally:
+            await a.stop();await b.stop();await server.stop()
     asyncio.run(run())

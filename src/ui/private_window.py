@@ -6,6 +6,8 @@ from PySide6.QtWidgets import QMainWindow, QWidget, QFrame, QVBoxLayout, QHBoxLa
 from .chat_view import ChatView
 from .composer import Composer
 from .widgets import Avatar, button, label
+from .social import ElidedLabel
+from ..features.screen_share import FEATURE as SCREEN_FEATURE
 
 
 class PrivateWindow(QMainWindow):
@@ -16,6 +18,7 @@ class PrivateWindow(QMainWindow):
     block_requested = Signal(str, bool)
     friend_requested = Signal(str, bool)
     security_requested = Signal(str)
+    screen_requested = Signal(str)
     viewed = Signal(str)
     closed = Signal(str)
 
@@ -41,7 +44,7 @@ class PrivateWindow(QMainWindow):
         head.addWidget(self.avatar)
         title = QVBoxLayout()
         title.setSpacing(5)
-        self.name_label = label(nickname, 'title')
+        self.name_label = ElidedLabel(nickname, 'title')
         self.status_label = label('● En ligne', 'caption')
         title.addWidget(self.name_label)
         title.addWidget(self.status_label)
@@ -53,6 +56,13 @@ class PrivateWindow(QMainWindow):
         self.security_button = button('🔒', 'flat', 'Vérifier le chiffrement et les empreintes', 38)
         self.security_button.clicked.connect(lambda: self.security_requested.emit(self.current))
         head.addWidget(self.security_button)
+        from pathlib import Path
+        self.screen_button=button('', 'flat', 'Partager mon écran',38)
+        self.screen_button.setIcon(QIcon(str(Path(icon_path).parent/'screen.svg')))
+        self.screen_button.setAccessibleName('Partager mon écran')
+        self.screen_button.setEnabled(False)
+        self.screen_button.clicked.connect(lambda:self.screen_requested.emit(self.current))
+        head.addWidget(self.screen_button)
         more = button('···', 'flat', 'Options de la conversation')
         more.clicked.connect(self.menu)
         head.addWidget(more)
@@ -92,7 +102,7 @@ class PrivateWindow(QMainWindow):
         if peer:
             self.contact_id = peer.get('contact_id', '')
             self.nickname = peer['nick']
-            self.name_label.setText(self.nickname)
+            self.name_label.set_full_text(self.nickname)
             self.avatar.nickname = self.nickname
             self.avatar.avatar = peer.get('avatar', -1)
             self.avatar.image_data = peer.get('avatar_image', '')
@@ -113,6 +123,9 @@ class PrivateWindow(QMainWindow):
                                    'changed': 'Clé modifiée · échanges bloqués · vérifie le cadenas',
                                    'unverified': 'Chiffré de bout en bout · identité à vérifier via le cadenas'}.get(state, 'Contact hors ligne · aucun envoi en attente'))
         available = bool(peer and not blocked and peer.get('encrypted', True))
+        share_available=bool(available and SCREEN_FEATURE in peer.get('features',()))
+        self.screen_button.setEnabled(share_available)
+        self.screen_button.setToolTip('Partager mon écran' if share_available else 'Le partage d’écran nécessite deux clients 2.4.0 ou plus récents')
         self.composer.available = available
         self.input.setEnabled(available)
         self.send_button.setEnabled(available)
