@@ -2,6 +2,15 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Partage d’écran privé (2.4.0)
+
+- Mettre deux postes à jour. Dans une conversation privée, cliquer sur le bouton écran, choisir le moniteur puis Partager. Vérifier l’absence de capture avant acceptation de l’autre personne, puis le refus d’une invitation.
+- Accepter : vérifier que le destinataire reçoit bien le moniteur choisi et peut agrandir la fenêtre ou passer en plein écran. Montrer du code, changer de fenêtre et garder le tchat utilisable pendant le partage. Le flux reste en lecture seule, sans audio.
+- Sous Wayland, vérifier le sélecteur système et l’autorisation ScreenCast/PipeWire ; annuler ce sélecteur puis refaire une tentative. Sous XWayland, vérifier le message expliquant la relance native. Cette validation sur le bureau physique reste à faire ; la capture X11 a été testée sur un écran virtuel isolé.
+- Tester Arrêter depuis chacun des deux postes, la fermeture de la fenêtre et l’action du menu FT. Débrancher un écran sélectionné, quitter un client, bloquer le contact et vérifier l’arrêt. Si le bureau signale le verrouillage, le partage doit aussi s’arrêter.
+- Annuler immédiatement après Partager, puis refaire une demande : aucun ancien accord ne doit relancer une capture. Aucun partage ne doit reprendre automatiquement après reconnexion ou redémarrage.
+- Garder un client 1.8.1/2.0/2.1/2.2/2.3.0/2.3.1/2.3.2 : le bouton de partage reste désactivé vers lui et le tchat continue. Deux clients 2.4.0 peuvent utiliser leur ancien relais E2EE pour partager sans modifier ce relais.
+
 ## Réponses simples et compatibilité (2.3.2)
 
 - Depuis ✦, cliquer sur **Paramétrer la réponse** : vérifier qu’une fenêtre indépendante affiche le titre et les réponses. Ajouter une réponse avec +, choisir Oui/Non/Personnalisée, écrire un seul texte, choisir éventuellement un emoji puis Valider. Vérifier le bouton reçu et le texte renvoyé.

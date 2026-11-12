@@ -1,4 +1,17 @@
-# Validation locale de FortyTchat 2.3.2
+# Validation locale de FortyTchat 2.4.0
+
+Tests réalisés le **12 novembre 2026** : **281 tests réussis en 44,79 s** sous Python **3.12.13**, Qt/PySide6 **6.8.3** et PyNaCl **1.6.2**, puis **281 en 44,77 s** sous Python **3.14.4** et Qt/PySide6 **6.12.0**. Les exceptions de destruction sont traitées comme erreurs ; Qt 6.12 émet un avertissement préexistant pour un événement de glisser-déposer synthétique. Les dix tests d’interface du partage ont été revérifiés sous Qt 6.8 et Qt 6.12 après amélioration visuelle du bouton d’arrêt.
+
+- **Capture native réelle sur écran virtuel isolé** : Xvfb ouvre un nouvel affichage sans écoute TCP ; le moteur Qt QScreenCapture capture une fenêtre de démonstration, puis deux clients réels échangent les images chiffrées par TCP et les décodent. Trois images reçues au minimum, dimensions et pixels contrôlés, arrêt du périphérique et libération des références vérifiés. Aucun bureau personnel capturé. Le test natif est ignoré explicitement si Xvfb est absent ; il a bien été exécuté dans les deux suites ci-dessus.
+- Invitations acceptées/refusées, consentement requis avant émission, tierce personne refusée, mauvais identifiant, DND, expiration, blocage, verrouillage détecté, arrêt des deux côtés et coexistence avec les messages vérifiés sur TCP et relais. Le flux TCP réutilise une seule connexion par partage.
+- Fragments bornés, types stricts, limites d’images, ordre/numéros de séquence et débit contrôlés. Assemblage limité à une seule image en mémoire ; dimensions du JPEG vérifiées avant décodage et images incohérentes rejetées. Aucune écriture d’image dans le profil.
+- Interface avec faux périphériques et vraies QVideoFrame générées : aucun démarrage avant l’accord, arrêt depuis le menu FT, annulation immédiate, nouvelle tentative, anciennes images mises en attente ignorées après redémarrage de capture, écran débranché, saturation du réseau sans file d’images croissante. Thèmes et échelles 100/150/200 %, police 20 px et contrôles d’arrêt accessibles.
+- **Sept versions réelles archivées** : 1.8.1, 2.0.0, 2.1.0, 2.2.0, 2.3.0, 2.3.1 et 2.3.2. Le nouveau client refuse de leur envoyer les événements de partage ; messages, fichiers, groupes compatibles, popups et modèles restent vérifiés. Deux nouveaux clients partagent aussi un écran à travers chacun de ces sept anciens relais, qui ne voit que les enveloppes chiffrées.
+- Captures Qt réellement rendues : `screen-share-controls-2.4.0.png`, `screen-share-invitation-2.4.0.png`, `screen-share-viewer-2.4.0.png`. Les noms et l’éditeur de code affichés sont des données de démonstration.
+
+**Limite de validation :** le portail Wayland/PipeWire et les politiques du bureau réel de l’école restent à vérifier sur place. Les tests contrôlent le parcours de sélection et l’explication XWayland, mais ne remplacent pas cet essai physique. Le diagnostic de verrouillage signalé précédemment reste également en attente du bureau et du raccourci exacts ; la fonction de capture n’est pas présentée comme un correctif à ce problème.
+
+## Historique : validation 2.3.2
 
 Tests réalisés le **9 novembre 2026**, sous Python **3.12.13**, Qt/PySide6 **6.8.3** et PyNaCl **1.6.2** : **256 tests réussis en 41,74 s**. Profils temporaires, Qt hors écran, sockets locales et anciens clients chargés depuis leurs archives Git ; aucune modification de l’application personnelle installée.
 

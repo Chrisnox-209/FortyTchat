@@ -4,12 +4,13 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.3.2</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.4.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
   <a href="#mettre-à-jour">Mettre à jour</a> ·
   <a href="#aperçu">Aperçu</a> ·
+  <a href="#partager-son-écran">Partage d’écran</a> ·
   <a href="#amis">Amis</a> ·
   <a href="#groupes-privés">Groupes</a> ·
   <a href="#chiffrement-de-bout-en-bout">Chiffrement</a> ·
@@ -20,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.3.2** simplifie les **réponses des popups** : un bouton **Paramétrer la réponse** ouvre une fenêtre dédiée, avec le titre et jusqu’à trois réponses ajoutées avec **+**. Un seul texte suffit par réponse. On peut aussi choisir un unique bouton pour fermer, avec son propre libellé et sans rien renvoyer. Les échanges et les modèles des anciennes versions restent compatibles.
+La version **2.4.0** ajoute le **partage d’écran privé et chiffré**, avec invitation à accepter et bouton pour arrêter. Les réponses simplifiées des popups restent disponibles. Les échanges, profils et modèles des anciennes versions restent compatibles ; le partage d’écran nécessite la nouvelle version chez les deux personnes.
 
 ## Installer et démarrer
 
@@ -65,6 +66,8 @@ sh ./install.sh --use-current-python
 ```
 
 `--no-launch` installe sans lancer l’application ; `--bin-dir DOSSIER` choisit le dossier du lanceur. Le script ne modifie aucun paquet système. Avec Python 3.14, il utilise PySide6 **6.12 minimum**. L’absence de `venv` ou d’une bibliothèque native Qt est signalée ; aucun composant système n’est installé automatiquement.
+
+Le module **Qt Multimedia** nécessaire à la capture est installé automatiquement dans l’environnement personnel par `install.sh`. Avec `--use-current-python`, cet environnement doit déjà fournir `PySide6.QtMultimedia` pour pouvoir émettre un partage.
 
 </details>
 
@@ -334,6 +337,35 @@ Animations intégrées : **👍 😭 🤣 😘 👎 😛 💩 ❌ ✅ 🤯 💪*
 
 Une demande expire après **deux minutes** et suit la limite des pauses. **Ne pas déranger** refuse les nouvelles notifications personnalisées ; les pauses classiques et les réponses aux demandes déjà reçues restent actives. Les choix explicites nécessitent **1.7.0 chez les deux participants** ; un ancien client chiffré garde les cartes classiques. Le texte personnalisé du bouton pour fermer nécessite **2.3.2** ; sur les versions précédentes, le bouton s’appelle **Fermer** et reste sans réponse. Le fichier historique des modèles reste lisible par ces versions. L’éditeur signale une incompatibilité sans transformer une information en question Oui/Non. Toutes les cartes et réponses sont chiffrées.
 
+## Partager son écran
+
+Depuis une **conversation privée**, cliquer sur le **bouton écran** dans l’en-tête :
+
+1. Choisir l’écran à partager, puis **Partager**.
+2. L’ami reçoit une invitation et choisit **Voir l’écran** ou **Refuser**. Aucune capture ne commence avant son accord.
+3. Sous **Wayland**, le bureau ouvre ensuite son propre sélecteur d’écran et demande l’autorisation de capture.
+4. Le destinataire voit l’écran dans une fenêtre indépendante, avec un bouton **Plein écran**. L’expéditeur peut réduire sa fenêtre de commande pour travailler.
+5. Chacun peut **Arrêter**. L’expéditeur peut aussi utiliser **Arrêter le partage d’écran** dans le menu de l’icône FT.
+
+<p align="center">
+  <a href="docs/screen-share-viewer-2.4.0.png"><img src="docs/screen-share-viewer-2.4.0.png" width="780" alt="Fenêtre de visualisation d’un écran partagé, exemple avec du code C"></a>
+</p>
+
+Le partage est **chiffré de bout en bout**, en direct ou via le relais déjà configuré. Il reste en **lecture seule**, sans audio ni contrôle de souris ou de clavier. FortyTchat n’enregistre pas les images et ne les ajoute pas à l’historique. Un seul partage ou une seule invitation peut être en cours par application.
+
+L’affichage conserve les proportions, jusqu’à **1280 × 720**, à **5 images par seconde maximum**, avec adaptation lorsque la connexion ralentit. Il est adapté à la lecture de code. Le partage s’arrête après une déconnexion, un blocage, un verrouillage détecté ou une interruption de capture ; il ne reprend jamais automatiquement après reconnexion ou redémarrage. Ne pas déranger refuse les nouvelles invitations.
+
+<table>
+<tr>
+<td align="center" width="50%" valign="top"><a href="docs/screen-share-invitation-2.4.0.png"><img src="docs/screen-share-invitation-2.4.0.png" width="360" alt="Invitation à accepter ou refuser avant de voir l’écran"></a><p>L’ami choisit de regarder.</p></td>
+<td align="center" width="50%" valign="top"><a href="docs/screen-share-controls-2.4.0.png"><img src="docs/screen-share-controls-2.4.0.png" width="360" alt="Fenêtre de commande avec le bouton rouge Arrêter"></a><p>L’arrêt reste accessible.</p></td>
+</tr>
+</table>
+
+**Rétrocompatibilité :** les deux clients doivent prendre en charge **2.4.0** pour partager un écran. Face à une ancienne version, le bouton est désactivé et aucun nouveau contrôle ou fragment vidéo ne lui est envoyé. Messages, fichiers et fonctions déjà disponibles continuent de fonctionner. Les anciens relais chiffrés restent utilisables sans mise à jour pour transporter ce partage.
+
+**Linux :** la capture X11 a été vérifiée sur un écran virtuel isolé, avec le vrai moteur Qt, un envoi chiffré et le décodage chez l’autre client. Sous Wayland, les services **ScreenCast du portail XDG** et **PipeWire** doivent être disponibles ; le fonctionnement sur les postes physiques de l’école reste à vérifier. [Conditions Qt Multimedia sous Linux](https://doc.qt.io/qt-6/qtmultimedia-linux.html). Les captures ci-dessus utilisent des données de démonstration.
+
 ## Envoyer des fichiers
 
 Le bouton **＋** permet de sélectionner **plusieurs fichiers** pour le général, une conversation privée ou un groupe. On peut aussi les **glisser-déposer dans le champ de message**, ou coller des fichiers locaux copiés dans le gestionnaire de fichiers. Les dossiers et adresses distantes ne sont pas importés. Les fichiers sources sont conservés : le dépôt utilise une copie, sans déplacement. Le destinataire choisit **Enregistrer…**, son emplacement, ou refuse. Progression et annulation apparaissent dans le tchat.
@@ -357,18 +389,19 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.3.2 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.4.0 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
 | **2.3.0** | Nouveaux sondages définitifs, code `====`, détail du verrouillage et annonces de version |
 | **2.3.1** | Échanges précédents, choix des popups et anciens modèles ; fermeture personnalisée affichée comme Fermer |
+| **2.3.2** | Réponses simplifiées et libellés de fermeture conservés ; le partage d’écran reste désactivé vers cet ancien client |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
 ## Chiffrement de bout en bout
 
-Le chiffrement est **toujours actif**, en direct et via le relais : messages, fichiers, groupes, sondages, modifications, suppressions, citations, réactions, saisie, Wizz et notifications. Les clés de session sont renouvelées à chaque démarrage. Le relais transporte des enveloppes opaques et ne possède pas les clés pour les déchiffrer. Le général remet une copie chiffrée par destinataire ; ses participants peuvent naturellement lire ses messages.
+Le chiffrement est **toujours actif**, en direct et via le relais : messages, fichiers, groupes, sondages, modifications, suppressions, citations, réactions, saisie, Wizz, notifications et images du partage d’écran. Les clés de session sont renouvelées à chaque démarrage. Le relais transporte des enveloppes opaques et ne possède pas les clés pour les déchiffrer. Le général remet une copie chiffrée par destinataire ; ses participants peuvent naturellement lire ses messages.
 
 ### Vérifier un contact avec le cadenas
 
@@ -396,7 +429,7 @@ Quand le bureau signale le verrouillage, la personne reste dans le cluster : un 
 
 La détection lit ensemble GNOME/ScreenSaver et logind, toutes les **deux secondes**, ainsi que les signaux du bureau. La session Ubuntu indiquée par `XDG_SESSION_ID` est recherchée explicitement. Une source répondant « non verrouillé » ne masque plus un verrouillage signalé par une autre. L’état est rafraîchi sur le réseau pour réparer un changement perdu. Aucun enregistrement de frappes ou d’activité et aucune commande de verrouillage ne sont utilisés. Si le bureau ne fournit pas cet état, le statut manuel reste disponible. [Interface GNOME](https://raw.githubusercontent.com/GNOME/gnome-shell/main/data/dbus-interfaces/org.gnome.ScreenSaver.xml), [état de session logind](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
 
-La détection sur les postes de l’école reste à diagnostiquer avec le bureau et le mécanisme de verrouillage réellement utilisés. La version **2.3.2** simplifie les réponses des popups ; elle ne modifie pas ce détecteur.
+La détection sur les postes de l’école reste à diagnostiquer avec le bureau et le mécanisme de verrouillage réellement utilisés. Le détecteur reste inchangé ; la version **2.4.0** arrête le partage lorsqu’un verrouillage est détecté.
 
 <p align="center">
   <a href="docs/presence-2.3.1.png"><img src="docs/presence-2.3.1.png" width="312" alt="Liste des amis : cadenas sur l’avatar de la session verrouillée, pastille verte pour l’ami disponible"></a>
@@ -456,7 +489,9 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.3.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.4.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Bouton de partage d’écran désactivé | Mettre les deux clients à jour en 2.4.0. Les anciennes conversations restent utilisables. |
+| Capture refusée ou écran noir sous Wayland | Vérifier les autorisations ScreenCast et PipeWire du bureau. Sous XWayland, quitter complètement puis relancer avec `QT_QPA_PLATFORM=wayland "$HOME/.local/bin/fortytchat"`. |
 | Icône absente ou mal placée | La session doit prendre en charge GNOME/StatusNotifier/AppIndicator. Utiliser le dock ou le lanceur sinon ; la place dans la barre dépend du bureau. |
 | Un clic ouvre le menu, le doubleclic ne marche pas | L’option **Compatibilité doubleclic de l’icône (GNOME)** tente de reconnaître l’ouverture/fermeture rapide du menu. Elle dépend des événements transmis par la barre. Utiliser **Ouvrir FortyTchat** si nécessaire. |
 | Une fermeture rapide du menu ouvre le tchat | Désactiver cette compatibilité dans Général. Échap peut être indistinguable d’un second clic sur certaines barres. Aucune extension du bureau n’est modifiée. |
