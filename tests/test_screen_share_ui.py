@@ -136,8 +136,12 @@ def test_real_sender_ui_starts_after_acceptance_and_tray_stops_capture(qt,tmp_pa
         created[0][2].videoFrameChanged.emit(QVideoFrame(picture('orange')))
         until(qt,lambda:any(k=='screen_frame' for k,d in logs))
         assert window.canvas.image.isNull()  # No recursive local screen preview.
+        assert window.annotations_enabled
+        assert app.worker.submit(peer.screens.annotate(share,dict(action='ellipse',points=[[1000,2000],[8000,9000]],color=1))).result(4)
+        until(qt,lambda:bool(window.annotation_layer.board.shapes))
         app.tray.screen_stop_action.trigger()
         assert not window.source.running and window.source.latest is None
+        assert not window.annotation_layer.board.shapes and window.overlay is None
         until(qt,lambda:peer.screens.state is None and app.worker.client.screens.state is None)
         assert not app.tray.screen_stop_action.isVisible()
         # Cancel immediately, before the network event has reached the GUI.

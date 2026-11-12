@@ -3,9 +3,10 @@ import base64
 import binascii
 from ..identity import valid_contact_id
 from .file_transfer import CHUNK_SIZE
+from .screen_annotations import EVENT as ANNOTATION_EVENT, valid_annotation
 
 FEATURE = 'screen_share_v1'
-SCREEN_EVENTS = {'screen_offer', 'screen_answer', 'screen_stop', 'screen_chunk'}
+SCREEN_EVENTS = {'screen_offer', 'screen_answer', 'screen_stop', 'screen_chunk', ANNOTATION_EVENT}
 MAX_IMAGE = 128 * 1024
 MAX_WIDTH, MAX_HEIGHT, FPS = 1280, 720, 5
 MAX_PARTS = (MAX_IMAGE + CHUNK_SIZE - 1) // CHUNK_SIZE
@@ -17,10 +18,14 @@ def valid_screen_frame(frame):
     fields={'share'}
     if kind=='screen_answer':fields.add('accepted')
     elif kind=='screen_chunk':fields |= {'seq','part','total','data','width','height'}
+    elif kind==ANNOTATION_EVENT:fields |= {'seq','action','points','color'}
     elif kind not in ('screen_offer','screen_stop'):return False
     if set(frame)!={'v','type','id','from','to'}|fields:return False
     if not all(valid_contact_id(frame.get(key)) for key in ('id','from','to','share')):return False
     if frame['from']==frame['to']:return False
+    if kind==ANNOTATION_EVENT:
+        return (type(frame['seq']) is int and 0<frame['seq']<2**31
+                and valid_annotation({key:frame[key] for key in ('action','points','color')}))
     if kind=='screen_answer':return type(frame['accepted']) is bool
     if kind!='screen_chunk':return True
     for key,minimum,maximum in [('seq',1,2**31-1),('total',1,MAX_PARTS),('part',0,MAX_PARTS-1),

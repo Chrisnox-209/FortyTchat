@@ -9,6 +9,7 @@ class ScreenShareController:
         self.screen_window=None;self.screen_peer='';self.screen_prompt=None;self.screen_prompt_share=''
         self.screen_frame_finished.connect(self.screen_frame_done)
         self.screen_offer_finished.connect(self.screen_offer_done)
+        self.screen_annotation_finished.connect(self.screen_annotation_done)
         self.tray.screen_stop_requested.connect(self.stop_screen_sharing)
 
     def screen_contact(self,sid):
@@ -34,6 +35,7 @@ class ScreenShareController:
         window.stopped.connect(self.stop_screen_sharing)
         window.capture_failed.connect(self.stop_screen_sharing)
         window.encoded.connect(self.send_screen_frame)
+        window.annotation_requested.connect(self.send_screen_annotation)
         def closed():
             if self.screen_window is window:
                 if window.share:self.worker.stop_screen(window.share)
@@ -71,6 +73,19 @@ class ScreenShareController:
         window=self.screen_window
         if window and window.share==share and window.source:window.source.released()
 
+    def send_screen_annotation(self,payload):
+        window=self.screen_window
+        if not window or not window.share or window.phase!='active':return
+        share=window.share;future=self.worker.screen_annotation(share,payload)
+        def done(result):
+            try:self.screen_annotation_finished.emit(share,False if result.cancelled() or result.exception() else bool(result.result()))
+            except RuntimeError:pass
+        future.add_done_callback(done)
+
+    def screen_annotation_done(self,share,ok):
+        window=self.screen_window
+        if window and window.share==share:window.annotation_done(ok)
+
     def stop_screen_sharing(self,reason='Partage terminé.'):
         if self.screen_window:
             window=self.screen_window;share=window.share
@@ -87,6 +102,11 @@ class ScreenShareController:
             window=self.screen_window
             if window and not window.outgoing and window.share==data['share']:
                 if not window.receive_frame(data['data'],data['width'],data['height']):self.stop_screen_sharing('Image de partage invalide.')
+            return
+        if kind=='screen_annotation':
+            window=self.screen_window
+            if window and window.share==data['share'] and self.screen_peer==data['peer']:
+                window.receive_annotation(data['payload'])
             return
         if kind!='screen_state':return
         phase,share,sid=data['phase'],data['share'],data['peer']
@@ -108,7 +128,7 @@ class ScreenShareController:
                 self.worker.stop_screen(share);return
             if not self.screen_window:
                 self.create_screen_window(sid,peer['nick'],False)
-            self.screen_peer=sid;self.screen_window.set_state(share,phase)
+            self.screen_peer=sid;self.screen_window.set_state(share,phase,data.get('annotations',False))
             self.tray.screen_stop_action.setVisible(phase=='active')
         elif phase=='closed':
             if self.screen_prompt and self.screen_prompt_share==share:self.screen_prompt.finish()

@@ -13,7 +13,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -65,6 +65,7 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
                 await until(lambda:FEATURE in new.peers[old.sid].features)
                 share=await new.screens.offer(old.sid);assert share
                 assert await old.screens.answer(share,True)
+                assert not await new.screens.annotate(share,dict(action='clear',points=[],color=0))
                 assert await new.screens.send_frame(share,b'SCREEN_241_TO_240',800,450)
                 await until(lambda:any(k=='screen_frame' for k,d in logs[1]))
                 assert [d['data'] for k,d in logs[1] if k=='screen_frame'][-1]==b'SCREEN_241_TO_240'
@@ -171,13 +172,16 @@ def test_new_screen_share_through_each_older_opaque_relay(legacy):
             wire.append(dict(data));return route(connection,data)
         server.route=observe
         options=dict(discovery=False,tcp_port=0,relay_host='127.0.0.1',relay_port=port,tls=False)
-        a=ChatClient('Alice42',**options)
+        alogs=[]
+        a=ChatClient('Alice42',lambda k,d:alogs.append((k,d)),**options)
         b=ChatClient('Bob42',lambda k,d:logs.append((k,d)),**options)
         try:
             await a.start();await b.start()
             await until(lambda:b.sid in a.peers and FEATURE in a.peers[b.sid].features)
             share=await a.screens.offer(b.sid);assert share
             assert await b.screens.answer(share,True)
+            assert await b.screens.annotate(share,dict(action='rectangle',points=[[1000,2000],[5000,6000]],color=0))
+            await until(lambda:any(k=='screen_annotation' for k,d in alogs))
             data=b'SCREEN_TEST_ONLY_'+bytes(range(256))*100
             assert await a.screens.send_frame(share,data,800,450)
             frames=[d for k,d in logs if k=='screen_frame']

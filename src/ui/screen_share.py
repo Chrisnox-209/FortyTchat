@@ -1,12 +1,15 @@
 """Native screen chooser/capture and RAM-only JPEG viewing. Never captures on import."""
 import os
 import time
+from collections import deque
 from PySide6.QtCore import Qt, Signal, QObject, QTimer, QSize, QRect, QByteArray, QBuffer, QIODevice
 from PySide6.QtGui import QImage, QImageReader, QPainter, QColor, QIcon, QGuiApplication, QShortcut, QKeySequence
 from PySide6.QtWidgets import (QApplication, QWidget, QDialog, QMainWindow, QVBoxLayout,
                                QHBoxLayout, QComboBox, QSizePolicy)
 from .widgets import label, button
 from ..features.screen_share import MAX_IMAGE, MAX_WIDTH, MAX_HEIGHT, FPS
+from ..features.screen_annotations import COLORS
+from .screen_annotations import AnnotationCanvas, AnnotationLayer, AnnotationOverlay
 
 
 def encode_screen_image(image):
@@ -34,7 +37,7 @@ def decode_screen_image(data,width,height):
     return image if not image.isNull() and image.size()==QSize(width,height) else QImage()
 
 
-class ScreenCanvas(QWidget):
+class ScreenCanvas(AnnotationCanvas):
     def __init__(self,parent=None):
         super().__init__(parent)
         self.image=QImage();self.placeholder='En attente du partage…'
@@ -52,16 +55,21 @@ class ScreenCanvas(QWidget):
     def clear(self,text='Partage terminé.'):
         self.image=QImage();self.placeholder=text;self.update()
 
+    def image_rect(self):
+        if self.image.isNull():return QRect()
+        size=self.image.size().scaled(self.size(),Qt.AspectRatioMode.KeepAspectRatio)
+        return QRect((self.width()-size.width())//2,(self.height()-size.height())//2,size.width(),size.height())
+
     def paintEvent(self,event):
         painter=QPainter(self);painter.fillRect(self.rect(),QColor('#101217'))
         if self.image.isNull():
             painter.setPen(QColor('#a0a6b1'))
             painter.drawText(self.rect().adjusted(20,20,-20,-20),Qt.AlignmentFlag.AlignCenter|Qt.TextFlag.TextWordWrap,self.placeholder)
         else:
-            size=self.image.size().scaled(self.size(),Qt.AspectRatioMode.KeepAspectRatio)
-            target=QRect((self.width()-size.width())//2,(self.height()-size.height())//2,size.width(),size.height())
+            target=self.image_rect()
             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
             painter.drawImage(target,self.image)
+            self.paint_annotations(painter,target)
 
 
 class ScreenCaptureSource(QObject):
@@ -162,10 +170,16 @@ class ScreenWindow(QMainWindow):
     closed = Signal()
     encoded = Signal(object,int,int)
     capture_failed = Signal(str)
+    annotation_requested = Signal(object)
 
     def __init__(self,nickname,icon_path,*,outgoing=False,source_factory=ScreenCaptureSource):
         super().__init__()
         self.nickname=nickname;self.outgoing=outgoing;self.share='';self.phase='ready'
+        self.annotations_enabled=False;self.overlay=None;self.annotation_layer=AnnotationLayer(self)
+        self.annotation_queue=deque();self.annotation_busy=False;self.annotation_cursor=None
+        self.annotation_pointer_pending=False;self.annotation_last_pointer=0
+        self.annotation_clear_pending=False
+        self.annotation_timer=QTimer(self);self.annotation_timer.setInterval(80);self.annotation_timer.timeout.connect(self.flush_annotation)
         self.setWindowTitle(('Partager avec ' if outgoing else 'Écran de ')+nickname+' · FortyTchat')
         self.setWindowIcon(QIcon(icon_path));self.resize(620 if outgoing else 880,440 if outgoing else 640);self.setMinimumSize(420,360)
         root=QWidget();self.setCentralWidget(root);box=QVBoxLayout(root);box.setContentsMargins(18,18,18,18);box.setSpacing(12)
@@ -178,7 +192,29 @@ class ScreenWindow(QMainWindow):
             for index,screen in enumerate(QGuiApplication.screens(),1):
                 self.sources.addItem(f'Écran {index} · {screen.size().width()} × {screen.size().height()}',screen)
         self.sources.setVisible(outgoing);box.addWidget(self.sources)
+        self.annotation_tools=QWidget();tools=QHBoxLayout(self.annotation_tools);tools.setContentsMargins(0,0,0,0)
+        self.annotation_tool=QComboBox();self.annotation_tool.setAccessibleName('Outil d’annotation')
+        for text,key in [('Pointeur','pointer'),('Crayon','pen'),('Cercle','ellipse'),('Rectangle','rectangle')]:self.annotation_tool.addItem(text,key)
+        self.annotation_tool.setToolTip('Déplace le pointeur ou clique et glisse pour dessiner sur l’image.')
+        tools.addWidget(self.annotation_tool,1)
+        self.annotation_color=QComboBox();self.annotation_color.setAccessibleName('Couleur des annotations')
+        for text,color in zip(('Rose','Jaune','Bleu','Vert'),COLORS):
+            self.annotation_color.addItem(text)
+            self.annotation_color.setItemData(self.annotation_color.count()-1,QColor(color),Qt.ItemDataRole.DecorationRole)
+        tools.addWidget(self.annotation_color,1)
+        self.annotation_clear=button('Effacer','soft','Effacer les dessins des deux côtés')
+        self.annotation_clear.clicked.connect(self.clear_annotations);tools.addWidget(self.annotation_clear)
+        self.annotation_tool.setVisible(not outgoing);self.annotation_color.setVisible(not outgoing)
+        self.annotation_tools.hide();box.addWidget(self.annotation_tools)
+        self.annotation_hint=label('Les outils d’annotation nécessitent deux clients en 2.5.0 ou plus récent.','caption',True)
+        self.annotation_hint.hide();box.addWidget(self.annotation_hint)
         self.canvas=ScreenCanvas();self.canvas.clear('Aucune capture avant ton lancement et l’accord du destinataire.' if outgoing else 'En attente des premières images…');box.addWidget(self.canvas,1)
+        self.canvas.configure(self.annotation_layer,False)
+        self.annotation_layer.changed.connect(self.canvas.update)
+        self.canvas.annotation_submitted.connect(self.queue_annotation)
+        self.canvas.pointer_changed.connect(self.pointer_annotation)
+        self.annotation_tool.currentIndexChanged.connect(self.annotation_options)
+        self.annotation_color.currentIndexChanged.connect(self.annotation_options)
         row=QHBoxLayout()
         self.fullscreen=button('Plein écran','soft');self.fullscreen.clicked.connect(self.toggle_fullscreen);row.addWidget(self.fullscreen)
         self.fullscreen.setVisible(not outgoing)
@@ -197,7 +233,7 @@ class ScreenWindow(QMainWindow):
     def toggle_fullscreen(self):
         self.showNormal() if self.isFullScreen() else self.showFullScreen()
 
-    def set_state(self,share,phase):
+    def set_state(self,share,phase,annotations=False):
         self.share=share;self.phase=phase;self.sources.setEnabled(phase=='ready')
         self.start_button.setVisible(self.outgoing and phase=='ready')
         self.start_button.setEnabled(phase=='ready' and self.source is not None and self.source.availability()[0])
@@ -208,19 +244,97 @@ class ScreenWindow(QMainWindow):
         elif phase=='active':
             self.status.setText('Choisis ton écran dans la fenêtre du bureau…' if self.outgoing and self.portal else 'Connexion établie · en attente des premières images…')
             if self.source and not self.source.running:self.source.start(self.sources.currentData())
+            if self.phase=='active':self.configure_annotations(annotations)
 
     def frame_ready(self,data,width,height):
         if self.phase!='active':return
-        self.canvas.clear(f'Écran partagé avec {self.nickname}.\nRéduis cette fenêtre pour travailler.\nTu peux aussi arrêter depuis l’icône FT.')
+        if self.annotations_enabled and self.portal and QGuiApplication.platformName() not in ('offscreen','minimal'):
+            self.canvas.set_frame(data,width,height)
+        else:self.canvas.clear(f'Écran partagé avec {self.nickname}.\nRéduis cette fenêtre pour travailler.\nTu peux aussi arrêter depuis l’icône FT.')
         self.status.setText(f'Ton écran est visible par {self.nickname}.')
         self.status.setStyleSheet('color:#ff9da8; font-weight:600;')
         self.encoded.emit(data,width,height)
 
     def receive_frame(self,data,width,height):
         if not self.canvas.set_frame(data,width,height):return False
+        active=self.annotations_enabled and not self.outgoing
+        if self.canvas.annotating!=active:self.canvas.configure(self.annotation_layer,active)
         self.status.setText(f'Écran de {self.nickname} · en direct');return True
 
+    def annotation_options(self):
+        self.canvas.tool=self.annotation_tool.currentData();self.canvas.color=self.annotation_color.currentIndex()
+
+    def configure_annotations(self,enabled):
+        if enabled==self.annotations_enabled:
+            if not enabled:self.annotation_hint.show()
+            return
+        if not enabled:
+            self.reset_annotations();self.annotation_hint.setText('Les outils d’annotation nécessitent deux clients en 2.5.0 ou plus récent.')
+            self.annotation_hint.show();return
+        self.annotations_enabled=enabled
+        self.annotation_layer.clear();self.annotation_tools.setVisible(enabled)
+        self.annotation_hint.setVisible(not enabled or self.outgoing)
+        self.canvas.configure(self.annotation_layer,enabled and not self.outgoing and not self.canvas.image.isNull())
+        self.annotation_layer.timer.start();self.annotation_timer.start()
+        if self.outgoing:
+            screen=self.sources.currentData()
+            if AnnotationOverlay.supported() and screen is not None:
+                self.overlay=AnnotationOverlay(self.annotation_layer,screen)
+                self.annotation_hint.setText('Ton ami peut pointer et dessiner sur ton écran. Tu gardes le contrôle ; Effacer retire les annotations.')
+            elif self.portal:self.annotation_hint.setText('Annotations visibles dans cet aperçu. La superposition sur le bureau est disponible sous X11.')
+            else:self.annotation_hint.setText('La superposition des annotations nécessite une session X11.')
+
+    def pointer_annotation(self,payload):
+        self.annotation_cursor=payload;self.annotation_pointer_pending=True
+        self.annotation_layer.apply(payload)
+
+    def queue_annotation(self,payload):
+        if not self.annotations_enabled or self.phase!='active':return
+        if len(self.annotation_queue)>=32:
+            self.capture_failed.emit('Trop d’annotations en attente. Relance le partage.');return
+        self.annotation_queue.append(payload)
+
+    def clear_annotations(self):
+        if not self.annotations_enabled:return
+        self.annotation_queue.clear()
+        self.annotation_clear_pending=self.outgoing
+        self.canvas.drag=[];self.annotation_layer.clear()
+        self.queue_annotation(dict(action='clear',points=[],color=0))
+
+    def flush_annotation(self):
+        if not self.annotations_enabled or self.phase!='active' or self.annotation_busy:return
+        payload=None
+        if self.annotation_queue:payload=self.annotation_queue.popleft()
+        elif self.annotation_cursor and (self.annotation_pointer_pending or time.monotonic()-self.annotation_last_pointer>=1):
+            payload=self.annotation_cursor;self.annotation_pointer_pending=False;self.annotation_last_pointer=time.monotonic()
+        if payload:
+            if payload['action'] in ('pointer','hide'):self.annotation_layer.apply(payload)
+            self.annotation_busy=True;self.annotation_requested.emit(payload)
+
+    def annotation_done(self,ok):
+        self.annotation_busy=False
+        if not ok and self.annotations_enabled:self.capture_failed.emit('La transmission des annotations a été interrompue. Relance le partage.')
+
+    def receive_annotation(self,payload):
+        if self.annotations_enabled and self.phase=='active':
+            if payload['action']=='clear':
+                self.canvas.drag=[];self.annotation_queue.clear();self.annotation_clear_pending=False
+                # Echo after the in-flight viewer mark so a streamer's clear cannot
+                # be followed by an old drawing still waiting in the viewer UI.
+                if not self.outgoing:self.queue_annotation(payload)
+            elif self.annotation_clear_pending:return
+            self.annotation_layer.apply(payload)
+
+    def reset_annotations(self):
+        self.annotations_enabled=False;self.annotation_timer.stop();self.annotation_layer.timer.stop()
+        self.annotation_queue.clear();self.annotation_busy=False;self.annotation_cursor=None
+        self.annotation_clear_pending=False
+        self.annotation_pointer_pending=False;self.canvas.configure(self.annotation_layer,False)
+        if self.overlay:self.overlay.close();self.overlay.deleteLater();self.overlay=None
+        self.annotation_layer.clear();self.annotation_tools.hide();self.annotation_hint.hide()
+
     def finish(self,reason):
+        self.reset_annotations()
         if self.source:self.source.stop()
         self.share='';self.phase='ready';self.canvas.clear(reason);self.status.setText(reason);self.status.setStyleSheet('')
         self.sources.setEnabled(True);self.stop_button.setText('Fermer');self.start_button.setText('Partager à nouveau')
@@ -233,6 +347,7 @@ class ScreenWindow(QMainWindow):
         else:self.close()
 
     def closeEvent(self,event):
+        self.reset_annotations()
         if self.source:self.source.stop()
         self.canvas.clear();self.closed.emit();event.accept()
 
@@ -244,7 +359,7 @@ class ScreenPrompt(QDialog):
         self.setWindowTitle('Invitation à voir un écran · FortyTchat');self.resize(420,240)
         box=QVBoxLayout(self);box.setContentsMargins(24,24,24,24);box.setSpacing(16)
         box.addWidget(label(f'{nickname} te propose de voir son écran.','title',True))
-        box.addWidget(label('Tu pourras arrêter à tout moment. Aucun contrôle de souris ou de clavier.','caption',True))
+        box.addWidget(label('Tu pourras arrêter à tout moment et annoter avec une version compatible. Aucun contrôle de souris ou de clavier.','caption',True))
         row=QHBoxLayout();self.decline=button('Refuser','soft');self.accept_button=button('Voir l’écran','primary')
         self.decline.clicked.connect(self.reject);self.accept_button.clicked.connect(lambda:self.answer(True))
         row.addWidget(self.decline);row.addWidget(self.accept_button);box.addLayout(row)

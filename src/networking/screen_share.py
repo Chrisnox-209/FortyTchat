@@ -9,6 +9,7 @@ import time
 from ..features.screen_share import (FEATURE, SCREEN_EVENTS, MAX_IMAGE, MAX_WIDTH, MAX_HEIGHT,
                                     CHUNK_SIZE, INVITE_TTL, FIRST_FRAME_TTL, FRAME_TTL)
 from ..features.wizz import TokenBucket
+from ..features.screen_annotations import FEATURE as ANNOTATION_FEATURE, EVENT as ANNOTATION_EVENT, valid_annotation
 from ..identity import session_id, valid_contact_id
 from ..security import SecurityError
 from .protocol import event, encode, read_frame, MAX_FRAME, ProtocolError
@@ -38,6 +39,8 @@ class ScreenSession:
     width: int = 0
     height: int = 0
     buffer: bytearray = field(default_factory=bytearray)
+    annotation_sent: int = 0
+    annotation_received: int = 0
 
 
 class ScreenSharing:
@@ -49,6 +52,9 @@ class ScreenSharing:
         self.chunks=TokenBucket(128,160)
         self.images=TokenBucket(2,6)
         self.sending=TokenBucket(2,6)
+        self.annotation_lock=asyncio.Lock()
+        self.annotation_sending=TokenBucket(40,20,clock=self.clock)
+        self.annotation_receiving=TokenBucket(40,20,clock=self.clock)
 
     def eligible(self,peer,feature=True):
         return bool(peer and peer.secure and peer.sid not in self.client.blocked
@@ -57,7 +63,9 @@ class ScreenSharing:
 
     def emit(self,phase,ctx=None,reason=''):
         ctx=ctx or self.state
-        if ctx:self.client.emit('screen_state',share=ctx.share,peer=ctx.peer,direction=ctx.direction,phase=phase,reason=reason)
+        peer=self.client.peers.get(ctx.peer) if ctx else None
+        if ctx:self.client.emit('screen_state',share=ctx.share,peer=ctx.peer,direction=ctx.direction,phase=phase,reason=reason,
+                                annotations=bool(peer and ANNOTATION_FEATURE in peer.features and phase=='active'))
 
     def notice(self,text):self.client.emit('screen_notice',text=text)
 
@@ -153,6 +161,15 @@ class ScreenSharing:
         if not ctx or ctx.share!=share or ctx.peer!=peer.sid:
             return (True,'') if kind=='screen_stop' and (peer.sid,share) in self.recent else (False,'Partage non autorisé')
         if kind=='screen_stop':self.close('Le contact a arrêté le partage.');return True,''
+        if kind==ANNOTATION_EVENT:
+            if ctx.phase!='active' or ANNOTATION_FEATURE not in peer.features:return False,'Annotations indisponibles'
+            payload={key:frame[key] for key in ('action','points','color')}
+            if not valid_annotation(payload) or ctx.direction=='in' and payload['action']!='clear':return False,'Annotation non autorisée'
+            if frame['seq']<=ctx.annotation_received:return True,''
+            if not self.annotation_receiving.allow():return False,'Annotations trop rapides'
+            ctx.annotation_received=frame['seq']
+            self.client.emit('screen_annotation',share=ctx.share,peer=peer.sid,payload=payload)
+            return True,''
         if kind=='screen_answer':
             if ctx.direction!='out':return False,'Invitation incorrecte'
             if ctx.phase=='active':return (True,'') if frame['accepted'] else (False,'Réponse déjà reçue')
@@ -163,6 +180,19 @@ class ScreenSharing:
             return True,''
         if kind=='screen_chunk':return self.receive_chunk(peer,frame)
         return False,'Contrôle inconnu'
+
+    @tracked
+    async def annotate(self,share,payload):
+        ctx=self.state
+        if not ctx or ctx.share!=share or not valid_annotation(payload):return False
+        async with self.annotation_lock:
+            self.tick();peer=self.client.peers.get(ctx.peer)
+            if (self.state is not ctx or ctx.phase!='active' or not self.eligible(peer)
+                    or ANNOTATION_FEATURE not in peer.features
+                    or ctx.direction=='out' and payload['action']!='clear'
+                    or not self.annotation_sending.allow() or ctx.annotation_sent>=2**31-1):return False
+            ctx.annotation_sent+=1
+            return await self.control(peer,ANNOTATION_EVENT,share,seq=ctx.annotation_sent,**payload)
 
     def accepts(self,sid,share):
         ctx=self.state

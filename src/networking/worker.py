@@ -71,6 +71,7 @@ class NetworkWorker(QObject):
     def answer_screen(self,share,accepted):return self.submit(self.client.screens.answer(share,accepted))
     def stop_screen(self,share='',reason='Partage terminé.'):return self.submit(self.client.screens.stop(share,reason))
     def screen_frame(self,share,data,width,height):return self.submit(self.client.screens.send_frame(share,data,width,height))
+    def screen_annotation(self,share,payload):return self.submit(self.client.screens.annotate(share,payload))
 
     def stop(self):
         if not self.thread.is_alive():

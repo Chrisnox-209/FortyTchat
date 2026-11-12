@@ -46,6 +46,7 @@ class Application(QObject, CollaborationController, ScreenShareController):
     activation_requested = Signal()
     screen_frame_finished = Signal(str)
     screen_offer_finished = Signal(str,bool)
+    screen_annotation_finished = Signal(str,bool)
 
     def __init__(self, project_root, args):
         super().__init__()
