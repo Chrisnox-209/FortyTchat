@@ -1,8 +1,5 @@
 """Version notices are information only: never run a command supplied by a peer."""
 import re
-UPDATE_URL = 'https://github.com/Chrisnox-209/FortyTchat#mettre-à-jour'
-
-
 def version_tuple(value):
     if not isinstance(value,str) or not re.fullmatch(r'(?:0|[1-9][0-9]{0,3})\.(?:0|[1-9][0-9]{0,3})\.(?:0|[1-9][0-9]{0,3})',value):return None
     return tuple(map(int,value.split('.')))

@@ -13,7 +13,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -45,6 +45,7 @@ async def until(predicate):
 def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,relay,tmp_path):
     async def run():
         version,LegacyClient,LegacyRelay,LegacyStore=legacy
+        release=tuple(map(int,version.split('.')))
         server=LegacyRelay() if relay else None
         options=dict(relay_host='127.0.0.1',relay_port=await server.start(port=0),tls=False) if relay else {}
         logs=[[],[]]
@@ -57,18 +58,36 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             if relay:await until(lambda:len(new.peers)==len(old.peers)==1)
             else:new.observe(old.hello(),'127.0.0.1');old.observe(new.hello(),'127.0.0.1')
             assert old.peers[new.sid].contact_id==new.contact_id
-            assert await new.screens.offer(old.sid) is None
+            if release < (2,4,0):
+                assert await new.screens.offer(old.sid) is None
+            else:
+                from src.features.screen_share import FEATURE
+                await until(lambda:FEATURE in new.peers[old.sid].features)
+                share=await new.screens.offer(old.sid);assert share
+                assert await old.screens.answer(share,True)
+                assert await new.screens.send_frame(share,b'SCREEN_241_TO_240',800,450)
+                await until(lambda:any(k=='screen_frame' for k,d in logs[1]))
+                assert [d['data'] for k,d in logs[1] if k=='screen_frame'][-1]==b'SCREEN_241_TO_240'
+                assert await old.screens.stop(share)
+                await until(lambda:new.screens.state is None)
+                reverse=await old.screens.offer(new.sid);assert reverse
+                assert await new.screens.answer(reverse,True)
+                assert await old.screens.send_frame(reverse,b'SCREEN_240_TO_241',800,450)
+                await until(lambda:any(k=='screen_frame' for k,d in logs[0]))
+                assert [d['data'] for k,d in logs[0] if k=='screen_frame'][-1]==b'SCREEN_240_TO_241'
+                assert await new.screens.stop(reverse)
+                await until(lambda:old.screens.state is None)
             assert new.screens.state is None
             new.set_screen_locked(True)
             if relay:await until(lambda:old.peers[new.sid].status=='away')
             else:old.observe(new.hello(),'127.0.0.1')
             assert old.peers[new.sid].status=='away'
-            if version.startswith('2.3.'):await until(lambda:old.peers[new.sid].locked)
+            if release >= (2,3,0):await until(lambda:old.peers[new.sid].locked)
             new.set_screen_locked(False)
             if relay:await until(lambda:old.peers[new.sid].status=='online')
             else:old.observe(new.hello(),'127.0.0.1')
             assert old.peers[new.sid].status=='online'
-            if version.startswith('2.3.'):await until(lambda:not old.peers[new.sid].locked)
+            if release >= (2,3,0):await until(lambda:not old.peers[new.sid].locked)
             mid=await new.send('message','general',text='NEW_TO_OLD_SECRET')
             assert frames(1,'message')[-1]['id']==mid
             await old.send('message',new.sid,text='OLD_TO_NEW_SECRET')
@@ -80,7 +99,7 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             closed={'buttons':[],'free':False}
             assert await new.send('card_invite',old.sid,title='Information',text='Bien reçu ?',emoji='2705',responses=closed,close_label='Compris !')
             assert frames(1,'card_invite')[-1]['responses']==closed
-            if version=='2.3.2':assert frames(1,'card_invite')[-1]['close_label']=='Compris !'
+            if release >= (2,3,2):assert frames(1,'card_invite')[-1]['close_label']=='Compris !'
             else:assert 'close_label' not in frames(1,'card_invite')[-1]
             old_cards=importlib.import_module(LegacyClient.__module__.rsplit('.networking.client',1)[0]+'.features.cards')
             from src.features.cards import CardTemplates
@@ -88,7 +107,7 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             templates.save(dict(title='Information',text='',emoji='2705',responses=closed,close_label='Compris !'),'invite')
             compatible=old_cards.CardTemplates(tmp_path/'templates')
             assert not compatible.error and len(compatible.items)==1
-            if version=='2.3.2':assert compatible.items[0]['close_label']=='Compris !'
+            if release >= (2,3,2):assert compatible.items[0]['close_label']=='Compris !'
             else:assert 'close_label' not in compatible.items[0]
             if LegacyStore is None:
                 private=dict(title='Compatible',text='Une pause ?',emoji='1f44d')
@@ -116,7 +135,7 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             await new.answer_group(old_gid,True)
             assert await old.send('card_invite',group_key(old_gid),**card)
             assert frames(0,'card_invite')[-1]['group']==old_gid
-            if version.startswith('2.3.'):
+            if release >= (2,3,0):
                 poll=await new.send('poll_create','general',question='Toujours compatible ?',options=['Oui','Non'])
                 assert poll in old.polls.items
                 assert await old.send('poll_vote','general',poll=poll,option=0)

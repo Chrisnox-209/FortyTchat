@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication,QPushButton,QLabel
 from PySide6.QtGui import QDesktopServices
 from src.features.collaboration import PollBook
 from src.features.text import text_parts,mention_ids
-from src.features.versions import version_tuple,UPDATE_URL
+from src.features.versions import version_tuple
 from src.networking.client import ChatClient
 from src.networking.protocol import event,encode,ProtocolError
 from src.ui.composer import Composer
@@ -62,7 +62,7 @@ def test_group_delay_draft_survives_presence_and_feedback_confirms_saved_setting
     manager.close();manager.deleteLater();qt.processEvents()
 
 
-def test_higher_authenticated_peer_version_shows_banner_and_fixed_github_link(monkeypatch):
+def test_higher_authenticated_peer_version_opens_local_copy_instructions(monkeypatch):
     from src.config import Preferences
     from src.memory import Conversations
     from src.ui.main_window import MainWindow
@@ -79,7 +79,13 @@ def test_higher_authenticated_peer_version_shows_banner_and_fixed_github_link(mo
     CollaborationController.collaboration_event(controller,'peer_version',{'version':'2.3.1'})
     assert future in window.update_text.text()
     opened=[];monkeypatch.setattr(QDesktopServices,'openUrl',lambda url:opened.append(url.toString()) or True)
-    window.update_button.click();assert opened==[UPDATE_URL]
+    window.update_button.click()
+    assert opened==[]
+    assert window.update_dialog.isVisible() and window.update_dialog.code.isReadOnly()
+    first=window.update_dialog
+    window.update_button.click();assert window.update_dialog is first
+    first.reject();assert not first.isVisible()
+    window.update_button.click();assert window.update_dialog is first and first.isVisible()
     for bad in ['2.4.0; echo bad','https://example.com','1.0',None]:assert version_tuple(bad) is None
     window.quitting_now=True;window.close();window.deleteLater();qt.processEvents()
 

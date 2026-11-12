@@ -102,13 +102,9 @@ class MainWindow(QMainWindow):
         self.update_banner.setStyleSheet('QFrame#updateBanner {background:#692b3a;border-bottom:1px solid #dc637e;} QLabel {color:#fff1f4;} QPushButton {background:#b33f5b;color:white;border-radius:9px;padding:9px 12px;}')
         update_box=QHBoxLayout(self.update_banner);update_box.setContentsMargins(16,10,16,10)
         self.update_text=label('',wrap=True);update_box.addWidget(self.update_text,1)
-        self.update_button=button('Mettre à jour ↗')
-        def open_update():
-            from PySide6.QtGui import QDesktopServices
-            from PySide6.QtCore import QUrl
-            from ..features.versions import UPDATE_URL
-            QDesktopServices.openUrl(QUrl(UPDATE_URL))
-        self.update_button.clicked.connect(open_update);update_box.addWidget(self.update_button)
+        self.update_dialog=None
+        self.update_button=button('Mettre à jour')
+        self.update_button.clicked.connect(self.open_update);update_box.addWidget(self.update_button)
         self.update_banner.hide();pane_box.addWidget(self.update_banner)
         self.notice = label('', 'notice', True)
         self.notice.hide()
@@ -169,6 +165,14 @@ class MainWindow(QMainWindow):
     def show_update_banner(self,version):
         self.update_text.setText(f'Une mise à jour est disponible : FortyTchat {version} a été détecté sur le cluster.')
         self.update_banner.show()
+
+    def open_update(self):
+        from .update import UpdateDialog
+        if self.update_dialog is None:
+            self.update_dialog=UpdateDialog(self)
+        self.update_dialog.show()
+        self.update_dialog.raise_()
+        self.update_dialog.activateWindow()
 
     def update_actions(self):
         self.composer.update_actions()
