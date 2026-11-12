@@ -187,6 +187,8 @@ def test_reinstall_preserves_profile_in_isolated_xdg_paths(qt, tmp_path):
     target = data / 'fortytchat/app/main.py'
     assert target.is_file()
     assert (target.parent / 'uninstall.sh').is_file()
+    assert (target.parent / 'diagnostic-session.sh').read_text() == (ROOT / 'diagnostic-session.sh').read_text()
+    assert (target.parent / 'tools/diagnose_session.py').is_file()
     assert not (target.parent / 'update.sh').exists()
     network_path = target.parent / 'network.json'
     deployment = json.loads(network_path.read_text())

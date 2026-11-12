@@ -63,7 +63,7 @@ def install(args):
                 if source_dir.is_dir():
                     shutil.copytree(source_dir, stage / name,
                                     ignore=shutil.ignore_patterns('__pycache__', '.pytest_cache'), symlinks=False)
-            for name in ('main.py', 'install.sh', 'uninstall.sh', 'requirements.txt', 'requirements-dev.txt', 'README.md', 'network.example.json'):
+            for name in ('main.py', 'install.sh', 'uninstall.sh', 'diagnostic-session.sh', 'requirements.txt', 'requirements-dev.txt', 'README.md', 'network.example.json'):
                 source_file = SOURCE / name
                 if source_file.is_file():
                     shutil.copy2(source_file, stage / name)

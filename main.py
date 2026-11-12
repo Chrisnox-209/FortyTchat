@@ -15,14 +15,22 @@ def main():
     parser.add_argument('--background', action='store_true', help='Démarrer dans la barre si elle est disponible')
     parser.add_argument('--dev', metavar='PROFIL', help='Profil isolé, port TCP dynamique, aucun autostart modifié')
     parser.add_argument('--insecure-local-relay', type=int, metavar='PORT', help='Relais de test sur 127.0.0.1, exige --dev')
-    parser.add_argument('--diagnose', action='store_true', help='Inspecter les interfaces et tester les ports localement, sans GUI')
+    diagnostics = parser.add_mutually_exclusive_group()
+    diagnostics.add_argument('--diagnose', action='store_true', help='Inspecter les interfaces et tester les ports localement, sans GUI')
+    diagnostics.add_argument('--diagnose-lock', type=int, nargs='?', const=60, metavar='SECONDES',
+                             help='Observer le verrouillage en lecture seule, sans tchat (5 à 120 s ; défaut 60)')
     parser.add_argument('--version', action='version', version=f'FortyTchat {__version__}')
     args = parser.parse_args()
+    if args.diagnose_lock is not None and not 5 <= args.diagnose_lock <= 120:
+        parser.error('--diagnose-lock : durée comprise entre 5 et 120 secondes')
     if args.dev and not re.fullmatch(r'[A-Za-z0-9_-]{1,32}', args.dev):
         parser.error('Profil : 1 à 32 lettres, chiffres, tirets ou underscores')
     if args.insecure_local_relay and (not args.dev or not 1024 <= args.insecure_local_relay <= 65535):
         parser.error('--insecure-local-relay exige --dev et un port entre 1024 et 65535')
     root = Path(__file__).resolve().parent
+    if args.diagnose_lock is not None:
+        from src.features.lock_diagnostics import run_lock_diagnostic
+        return run_lock_diagnostic(args.diagnose_lock)
     if args.diagnose:
         from src.networking.settings import NetworkConfig
         from src.networking.diagnostics import probe_ports
