@@ -27,7 +27,7 @@ from .diagnostics import socket_error
 from .presence import Peer, HEARTBEAT, PEER_TIMEOUT
 from .protocol import MAX_FRAME, MAX_PEERS, EVENTS, ProtocolError, ack, encode, event, read_frame
 from ..features.screen_share import SCREEN_EVENTS, FEATURE as SCREEN_FEATURE
-from ..features.screen_annotations import FEATURE as ANNOTATION_FEATURE
+from ..features.screen_annotations import FEATURE as ANNOTATION_FEATURE, WIDTH_FEATURE
 from .screen_share import ScreenSharing
 
 
@@ -253,7 +253,7 @@ class ChatClient(CollaborationNetwork):
         locked=self.screen_locked
         async def publish():
             try:
-                await self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock','close_label',SCREEN_FEATURE,ANNOTATION_FEATURE],locked=locked))
+                await self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock','close_label',SCREEN_FEATURE,ANNOTATION_FEATURE,WIDTH_FEATURE],locked=locked))
             finally:
                 self.info_tasks.pop(peer.sid,None)
                 if not self._closing and self.peers.get(peer.sid) is peer and self.screen_locked!=locked:

@@ -90,6 +90,12 @@ QToolTip { background: $surface; color: $text; border: 1px solid $border; paddin
 QToolButton#animatedChoice { background: $surface; border: 1px solid $border; border-radius: 12px; }
 QToolButton#animatedChoice:hover { background: $hover; }
 QToolButton#animatedChoice:checked { background: $accentSoft; border: 2px solid $accent; }
+QFrame#annotationToolbar { background: $surface; border: 1px solid $border; border-radius: 12px; }
+QToolButton#annotationChoice { background: transparent; border: 2px solid transparent; border-radius: 8px; padding: 0; }
+QToolButton#annotationChoice:hover { background: $hover; }
+QToolButton#annotationChoice:checked { background: $accentSoft; border-color: $accent; }
+QToolButton#annotationChoice:focus { border-color: $accentText; }
+QToolButton#annotationChoice:disabled { background: transparent; }
 QMenu { background: $surface; border: 1px solid $border; border-radius: 10px; padding: 6px; }
 QMenu::item { padding: 8px 19px; border-radius: 6px; }
 QMenu::item:selected { background: $hover; }

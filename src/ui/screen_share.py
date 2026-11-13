@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QApplication, QWidget, QDialog, QMainWindow, QVBo
                                QHBoxLayout, QComboBox, QSizePolicy)
 from .widgets import label, button
 from ..features.screen_share import MAX_IMAGE, MAX_WIDTH, MAX_HEIGHT, FPS
-from ..features.screen_annotations import COLORS
+from .annotation_toolbar import AnnotationToolbar
 from .screen_annotations import AnnotationCanvas, AnnotationLayer, AnnotationOverlay
 
 
@@ -192,19 +192,10 @@ class ScreenWindow(QMainWindow):
             for index,screen in enumerate(QGuiApplication.screens(),1):
                 self.sources.addItem(f'Écran {index} · {screen.size().width()} × {screen.size().height()}',screen)
         self.sources.setVisible(outgoing);box.addWidget(self.sources)
-        self.annotation_tools=QWidget();tools=QHBoxLayout(self.annotation_tools);tools.setContentsMargins(0,0,0,0)
-        self.annotation_tool=QComboBox();self.annotation_tool.setAccessibleName('Outil d’annotation')
-        for text,key in [('Pointeur','pointer'),('Crayon','pen'),('Cercle','ellipse'),('Rectangle','rectangle')]:self.annotation_tool.addItem(text,key)
-        self.annotation_tool.setToolTip('Déplace le pointeur ou clique et glisse pour dessiner sur l’image.')
-        tools.addWidget(self.annotation_tool,1)
-        self.annotation_color=QComboBox();self.annotation_color.setAccessibleName('Couleur des annotations')
-        for text,color in zip(('Rose','Jaune','Bleu','Vert'),COLORS):
-            self.annotation_color.addItem(text)
-            self.annotation_color.setItemData(self.annotation_color.count()-1,QColor(color),Qt.ItemDataRole.DecorationRole)
-        tools.addWidget(self.annotation_color,1)
-        self.annotation_clear=button('Effacer','soft','Effacer les dessins des deux côtés')
-        self.annotation_clear.clicked.connect(self.clear_annotations);tools.addWidget(self.annotation_clear)
-        self.annotation_tool.setVisible(not outgoing);self.annotation_color.setVisible(not outgoing)
+        self.annotation_tools=AnnotationToolbar(outgoing=outgoing)
+        self.annotation_clear=self.annotation_tools.clear_button
+        self.annotation_tools.clear_requested.connect(self.clear_annotations)
+        self.annotation_tools.options_changed.connect(self.annotation_options)
         self.annotation_tools.hide();box.addWidget(self.annotation_tools)
         self.annotation_hint=label('Les outils d’annotation nécessitent deux clients en 2.5.0 ou plus récent.','caption',True)
         self.annotation_hint.hide();box.addWidget(self.annotation_hint)
@@ -213,8 +204,6 @@ class ScreenWindow(QMainWindow):
         self.annotation_layer.changed.connect(self.canvas.update)
         self.canvas.annotation_submitted.connect(self.queue_annotation)
         self.canvas.pointer_changed.connect(self.pointer_annotation)
-        self.annotation_tool.currentIndexChanged.connect(self.annotation_options)
-        self.annotation_color.currentIndexChanged.connect(self.annotation_options)
         row=QHBoxLayout()
         self.fullscreen=button('Plein écran','soft');self.fullscreen.clicked.connect(self.toggle_fullscreen);row.addWidget(self.fullscreen)
         self.fullscreen.setVisible(not outgoing)
@@ -233,7 +222,7 @@ class ScreenWindow(QMainWindow):
     def toggle_fullscreen(self):
         self.showNormal() if self.isFullScreen() else self.showFullScreen()
 
-    def set_state(self,share,phase,annotations=False):
+    def set_state(self,share,phase,annotations=False,annotation_widths=False):
         self.share=share;self.phase=phase;self.sources.setEnabled(phase=='ready')
         self.start_button.setVisible(self.outgoing and phase=='ready')
         self.start_button.setEnabled(phase=='ready' and self.source is not None and self.source.availability()[0])
@@ -244,7 +233,7 @@ class ScreenWindow(QMainWindow):
         elif phase=='active':
             self.status.setText('Choisis ton écran dans la fenêtre du bureau…' if self.outgoing and self.portal else 'Connexion établie · en attente des premières images…')
             if self.source and not self.source.running:self.source.start(self.sources.currentData())
-            if self.phase=='active':self.configure_annotations(annotations)
+            if self.phase=='active':self.configure_annotations(annotations,annotation_widths)
 
     def frame_ready(self,data,width,height):
         if self.phase!='active':return
@@ -262,9 +251,16 @@ class ScreenWindow(QMainWindow):
         self.status.setText(f'Écran de {self.nickname} · en direct');return True
 
     def annotation_options(self):
-        self.canvas.tool=self.annotation_tool.currentData();self.canvas.color=self.annotation_color.currentIndex()
+        tools=self.annotation_tools
+        self.canvas.tool=tools.tool;self.canvas.color=tools.color;self.canvas.stroke_width=tools.stroke_width
 
-    def configure_annotations(self,enabled):
+    def configure_annotations(self,enabled,widths=False):
+        self.annotation_tools.set_width_support(enabled and widths)
+        self.canvas.widths_enabled=enabled and widths;self.annotation_options()
+        if not enabled:
+            self.annotation_hint.setText('Les outils d’annotation nécessitent deux clients en 2.5.0 ou plus récent.')
+        elif not self.outgoing:
+            self.annotation_hint.setText('Clique sur un outil puis glisse sur l’image. Épaisseur fixe de 3 px avec cet ancien client.' if enabled and not widths else 'Clique sur un outil, choisis sa couleur et son épaisseur, puis glisse sur l’image.')
         if enabled==self.annotations_enabled:
             if not enabled:self.annotation_hint.show()
             return
@@ -273,7 +269,7 @@ class ScreenWindow(QMainWindow):
             self.annotation_hint.show();return
         self.annotations_enabled=enabled
         self.annotation_layer.clear();self.annotation_tools.setVisible(enabled)
-        self.annotation_hint.setVisible(not enabled or self.outgoing)
+        self.annotation_hint.show()
         self.canvas.configure(self.annotation_layer,enabled and not self.outgoing and not self.canvas.image.isNull())
         self.annotation_layer.timer.start();self.annotation_timer.start()
         if self.outgoing:
@@ -327,6 +323,7 @@ class ScreenWindow(QMainWindow):
 
     def reset_annotations(self):
         self.annotations_enabled=False;self.annotation_timer.stop();self.annotation_layer.timer.stop()
+        self.canvas.widths_enabled=False
         self.annotation_queue.clear();self.annotation_busy=False;self.annotation_cursor=None
         self.annotation_clear_pending=False
         self.annotation_pointer_pending=False;self.canvas.configure(self.annotation_layer,False)

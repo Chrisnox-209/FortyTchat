@@ -128,7 +128,7 @@ class ScreenShareController:
                 self.worker.stop_screen(share);return
             if not self.screen_window:
                 self.create_screen_window(sid,peer['nick'],False)
-            self.screen_peer=sid;self.screen_window.set_state(share,phase,data.get('annotations',False))
+            self.screen_peer=sid;self.screen_window.set_state(share,phase,data.get('annotations',False),data.get('annotation_widths',False))
             self.tray.screen_stop_action.setVisible(phase=='active')
         elif phase=='closed':
             if self.screen_prompt and self.screen_prompt_share==share:self.screen_prompt.finish()

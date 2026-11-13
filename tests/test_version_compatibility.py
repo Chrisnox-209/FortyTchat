@@ -13,7 +13,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3'),('2.5.3','90ba8b7')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -66,6 +66,10 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
                 share=await new.screens.offer(old.sid);assert share
                 assert await old.screens.answer(share,True)
                 assert bool(await new.screens.annotate(share,dict(action='clear',points=[],color=0))) == (release>=(2,5,0))
+                if release>=(2,5,0):
+                    legacy_mark=dict(action='ellipse',points=[[100,200],[9000,8000]],color=1)
+                    assert await old.screens.annotate(share,legacy_mark)
+                    assert [d for k,d in logs[0] if k=='screen_annotation'][-1]['payload']==legacy_mark
                 assert await new.screens.send_frame(share,b'SCREEN_241_TO_240',800,450)
                 await until(lambda:any(k=='screen_frame' for k,d in logs[1]))
                 assert [d['data'] for k,d in logs[1] if k=='screen_frame'][-1]==b'SCREEN_241_TO_240'
@@ -73,6 +77,12 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
                 await until(lambda:new.screens.state is None)
                 reverse=await old.screens.offer(new.sid);assert reverse
                 assert await new.screens.answer(reverse,True)
+                if release>=(2,5,0):
+                    # The new Trait tool uses an old pen; never leak width to a strict old validator.
+                    mark=dict(action='pen',points=[[1200,2300],[8200,7300]],color=2,width=10)
+                    assert await new.screens.annotate(reverse,mark)
+                    assert [d for k,d in logs[1] if k=='screen_annotation'][-1]['payload']=={k:v for k,v in mark.items() if k!='width'}
+                    assert mark['width']==10  # Projection does not mutate the caller's payload.
                 assert await old.screens.send_frame(reverse,b'SCREEN_240_TO_241',800,450)
                 await until(lambda:any(k=='screen_frame' for k,d in logs[0]))
                 assert [d['data'] for k,d in logs[0] if k=='screen_frame'][-1]==b'SCREEN_240_TO_241'
@@ -180,8 +190,9 @@ def test_new_screen_share_through_each_older_opaque_relay(legacy):
             await until(lambda:b.sid in a.peers and FEATURE in a.peers[b.sid].features)
             share=await a.screens.offer(b.sid);assert share
             assert await b.screens.answer(share,True)
-            assert await b.screens.annotate(share,dict(action='rectangle',points=[[1000,2000],[5000,6000]],color=0))
+            assert await b.screens.annotate(share,dict(action='rectangle',points=[[1000,2000],[5000,6000]],color=0,width=10))
             await until(lambda:any(k=='screen_annotation' for k,d in alogs))
+            assert [d for k,d in alogs if k=='screen_annotation'][-1]['payload']['width']==10
             data=b'SCREEN_TEST_ONLY_'+bytes(range(256))*100
             assert await a.screens.send_frame(share,data,800,450)
             frames=[d for k,d in logs if k=='screen_frame']

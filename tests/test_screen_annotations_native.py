@@ -39,12 +39,14 @@ try:
     assert overlay.windowFlags() & Qt.WindowType.WindowDoesNotAcceptFocus
     layer.apply(dict(action='rectangle',points=[[1000,1000],[9000,9000]],color=0))
     layer.apply(dict(action='ellipse',points=[[1500,2000],[4500,7000]],color=1))
+    layer.apply(dict(action='pen',points=[[2000,8000],[7000,8000]],color=3,width=12))
     layer.apply(dict(action='pointer',points=[[5000,5000]],color=0))
     for _ in range(20):app.processEvents();time.sleep(.01)
     assert overlay.isVisible() and overlay.geometry()==screen.geometry()
     captured=screen.grabWindow(0).toImage()
     assert captured.pixelColor(10,10).blue()>100  # The rest of the desktop is visible even without a compositor.
     assert any(captured.pixelColor(x,y).red()>200 for x in range(510,540) for y in range(380,415))
+    assert captured.pixelColor(500,618).name()=='#a5e46b'  # Thick strokes must not be clipped by the X11 mask.
     assert captured.save(sys.argv[1])
     # Only this isolated X server receives the following synthetic local click.
     xlib=ctypes.CDLL(find_library('X11'));xtst=ctypes.CDLL(find_library('Xtst'))

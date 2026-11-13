@@ -3,7 +3,7 @@ import os
 from PySide6.QtCore import QObject, QPoint, QPointF, QRectF, Qt, Signal, QTimer
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPainterPath, QPainterPathStroker, QPen, QRegion
 from PySide6.QtWidgets import QWidget
-from ..features.screen_annotations import AnnotationBoard, COLORS, MAX_POINTS, SCALE
+from ..features.screen_annotations import AnnotationBoard, COLORS, DEFAULT_WIDTH, MAX_POINTS, SCALE
 
 
 def mapped(point, rect):
@@ -13,7 +13,7 @@ def mapped(point, rect):
 
 def shape_path(action, points, rect):
     path = QPainterPath(); first = mapped(points[0], rect)
-    if action == 'pen':
+    if action in ('pen', 'line'):
         path.moveTo(first)
         for point in points[1:]: path.lineTo(mapped(point, rect))
     else:
@@ -33,10 +33,10 @@ def pointer_path(point, rect):
 
 def paint_marks(painter, board, rect, draft=None):
     painter.save(); painter.setClipRect(rect); painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    for action, points, color in board.shapes + ([draft] if draft else []):
+    for action, points, color, stroke_width in board.shapes + ([draft] if draft else []):
         path = shape_path(action, points, rect)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        for shade, width in (('#151922', 6), (COLORS[color], 3)):
+        for shade, width in (('#151922', stroke_width + 3), (COLORS[color], stroke_width)):
             painter.setPen(QPen(QColor(shade), width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
             painter.drawPath(path)
     if board.pointer:
@@ -70,7 +70,8 @@ class AnnotationCanvas(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layer = None; self.annotating = False; self.tool = 'pointer'; self.color = 0
-        self.drag = []; self.drag_tool = ''; self.drag_color = 0
+        self.stroke_width = DEFAULT_WIDTH; self.widths_enabled = False
+        self.drag = []; self.drag_tool = ''; self.drag_color = 0; self.drag_width = DEFAULT_WIDTH
         self.setMouseTracking(True)
 
     def image_rect(self): return self.rect()
@@ -86,9 +87,11 @@ class AnnotationCanvas(QWidget):
         self.setCursor(Qt.CursorShape.CrossCursor if active else Qt.CursorShape.ArrowCursor)
         self.update()
 
-    def submit(self, action, points, color=None):
+    def submit(self, action, points, color=None, width=None):
         if not self.annotating: return
-        payload = dict(action=action, points=[list(p) for p in points], color=self.color if color is None else color)
+        # A straight segment is a two-point legacy pen, not a new wire action.
+        payload = dict(action='pen' if action == 'line' else action, points=[list(p) for p in points], color=self.color if color is None else color)
+        if self.widths_enabled:payload['width'] = self.stroke_width if width is None else width
         self.layer.apply(payload); self.annotation_submitted.emit(payload)
 
     def mousePressEvent(self, event):
@@ -96,6 +99,7 @@ class AnnotationCanvas(QWidget):
         if self.annotating and point is not None and event.button() == Qt.MouseButton.LeftButton:
             if self.tool != 'pointer':
                 self.drag = [point]; self.drag_tool = self.tool; self.drag_color = self.color
+                self.drag_width = self.stroke_width if self.widths_enabled else DEFAULT_WIDTH
                 self.update()
             event.accept(); return
         super().mousePressEvent(event)
@@ -111,7 +115,7 @@ class AnnotationCanvas(QWidget):
                 if self.drag_tool == 'pen':
                     self.drag.append(point)
                     if len(self.drag) == MAX_POINTS:
-                        self.submit('pen', self.drag, self.drag_color); self.drag = [point]
+                        self.submit('pen', self.drag, self.drag_color, self.drag_width); self.drag = [point]
                 else: self.drag = [self.drag[0], point]
                 self.update()
         event.accept()
@@ -123,7 +127,7 @@ class AnnotationCanvas(QWidget):
                 if point != self.drag[-1]: self.drag.append(point)
             else: self.drag = [self.drag[0], point]
             if len(self.drag) >= 2 and any(point != self.drag[0] for point in self.drag[1:]):
-                self.submit(self.drag_tool, self.drag, self.drag_color)
+                self.submit(self.drag_tool, self.drag, self.drag_color, self.drag_width)
             self.drag = []; self.update(); event.accept(); return
         super().mouseReleaseEvent(event)
 
@@ -133,7 +137,7 @@ class AnnotationCanvas(QWidget):
 
     def paint_annotations(self, painter, rect):
         if self.layer:
-            draft = (self.drag_tool, self.drag, self.drag_color) if len(self.drag) > 1 else None
+            draft = (self.drag_tool, self.drag, self.drag_color, self.drag_width) if len(self.drag) > 1 else None
             paint_marks(painter, self.layer.board, QRectF(rect), draft)
 
 
@@ -177,10 +181,13 @@ class AnnotationOverlay(QWidget):
 
     def refresh_region(self):
         # A shaped window also leaves the desktop visible without a compositor.
-        rect = self.annotation_rect(); region = QRegion(); stroker = QPainterPathStroker(); stroker.setWidth(9)
-        for action, points, color in self.layer.board.shapes:
+        rect = self.annotation_rect(); region = QRegion(); stroker = QPainterPathStroker()
+        stroker.setCapStyle(Qt.PenCapStyle.RoundCap);stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        for action, points, color, width in self.layer.board.shapes:
+            stroker.setWidth(width + 6)
             region |= QRegion(stroker.createStroke(shape_path(action, points, rect)).toFillPolygon().toPolygon())
         if self.layer.board.pointer:
+            stroker.setWidth(9)
             path = pointer_path(self.layer.board.pointer[0], rect)
             region |= QRegion(path.united(stroker.createStroke(path)).toFillPolygon().toPolygon())
         if region.isEmpty(): self.hide()

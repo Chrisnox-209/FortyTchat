@@ -18,14 +18,16 @@ def valid_screen_frame(frame):
     fields={'share'}
     if kind=='screen_answer':fields.add('accepted')
     elif kind=='screen_chunk':fields |= {'seq','part','total','data','width','height'}
-    elif kind==ANNOTATION_EVENT:fields |= {'seq','action','points','color'}
+    elif kind==ANNOTATION_EVENT:
+        fields |= {'seq','action','points','color'}
+        if 'width' in frame:fields.add('width')
     elif kind not in ('screen_offer','screen_stop'):return False
     if set(frame)!={'v','type','id','from','to'}|fields:return False
     if not all(valid_contact_id(frame.get(key)) for key in ('id','from','to','share')):return False
     if frame['from']==frame['to']:return False
     if kind==ANNOTATION_EVENT:
         return (type(frame['seq']) is int and 0<frame['seq']<2**31
-                and valid_annotation({key:frame[key] for key in ('action','points','color')}))
+                and valid_annotation({key:frame[key] for key in ('action','points','color','width') if key in frame}))
     if kind=='screen_answer':return type(frame['accepted']) is bool
     if kind!='screen_chunk':return True
     for key,minimum,maximum in [('seq',1,2**31-1),('total',1,MAX_PARTS),('part',0,MAX_PARTS-1),

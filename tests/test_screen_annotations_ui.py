@@ -152,10 +152,13 @@ def test_real_controller_viewer_sends_shapes_and_receives_streamer_clear(qt,tmp_
         until(qt,lambda:app.screen_window is not None and app.screen_window.annotations_enabled)
         assert app.worker.submit(peer.screens.send_frame(share,*image())).result(4)
         until(qt,lambda:not app.screen_window.canvas.image.isNull())
-        view=app.screen_window;qt.processEvents();canvas=view.canvas;canvas.tool='rectangle'
+        view=app.screen_window;qt.processEvents();canvas=view.canvas
+        assert canvas.widths_enabled and view.annotation_tools.width_controls.isEnabled()
+        view.annotation_tools.tool_buttons['rectangle'].click();view.annotation_tools.width_buttons[10].click()
         rect=canvas.image_rect();draw(canvas,QPointF(rect.topLeft())+QPointF(20,20),QPointF(rect.center()))
         until(qt,lambda:any(k=='screen_annotation' for k,d in logs))
         assert [d for k,d in logs if k=='screen_annotation'][-1]['payload']['action']=='rectangle'
+        assert [d for k,d in logs if k=='screen_annotation'][-1]['payload']['width']==10
         assert app.worker.submit(peer.screens.annotate(share,dict(action='clear',points=[],color=0))).result(4)
         until(qt,lambda:not view.annotation_layer.board.shapes)
         assert app.worker.submit(peer.screens.stop(share)).result(4)
@@ -165,7 +168,7 @@ def test_real_controller_viewer_sends_shapes_and_receives_streamer_clear(qt,tmp_
         app.worker.submit(peer.stop()).result(4);app.cleanup();app.window.close();app.deleteLater();qt.processEvents()
 
 
-@pytest.mark.parametrize('scale',['1','1.5','2'])
+@pytest.mark.parametrize('scale',['1','1.25','1.5','2'])
 def test_annotation_tools_fit_scaled_windows(scale):
     code='''
 from PySide6.QtWidgets import QApplication,QLabel
@@ -176,9 +179,11 @@ for theme in ('dark','light'):
     apply_theme(app,theme)
     app.setStyleSheet(app.styleSheet()+' QWidget {font-size:20px;}')
     view=ScreenWindow('Alice42','assets/icons/fortytchat.svg')
-    view.resize(480,580);view.show();view.set_state('a'*32,'active',True)
+    view.resize(420,580);view.show();view.set_state('a'*32,'active',True,True)
     for _ in range(5):app.processEvents()
-    for item in (view.annotation_tool,view.annotation_color,view.annotation_clear,view.stop_button):
+    tools=view.annotation_tools
+    assert view.width()==420,view.size()
+    for item in (*tools.tool_buttons.values(),*tools.width_buttons.values(),*tools.color_buttons.values(),view.annotation_clear,view.stop_button):
         assert item.height()>=item.fontMetrics().height()
         assert item.mapTo(view.centralWidget(),item.rect().bottomRight()).x()<view.centralWidget().width()
         assert item.mapTo(view.centralWidget(),item.rect().bottomRight()).y()<view.centralWidget().height()

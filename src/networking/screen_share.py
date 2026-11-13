@@ -9,7 +9,7 @@ import time
 from ..features.screen_share import (FEATURE, SCREEN_EVENTS, MAX_IMAGE, MAX_WIDTH, MAX_HEIGHT,
                                     CHUNK_SIZE, INVITE_TTL, FIRST_FRAME_TTL, FRAME_TTL)
 from ..features.wizz import TokenBucket
-from ..features.screen_annotations import FEATURE as ANNOTATION_FEATURE, EVENT as ANNOTATION_EVENT, valid_annotation
+from ..features.screen_annotations import FEATURE as ANNOTATION_FEATURE, WIDTH_FEATURE, EVENT as ANNOTATION_EVENT, valid_annotation
 from ..identity import session_id, valid_contact_id
 from ..security import SecurityError
 from .protocol import event, encode, read_frame, MAX_FRAME, ProtocolError
@@ -65,7 +65,8 @@ class ScreenSharing:
         ctx=ctx or self.state
         peer=self.client.peers.get(ctx.peer) if ctx else None
         if ctx:self.client.emit('screen_state',share=ctx.share,peer=ctx.peer,direction=ctx.direction,phase=phase,reason=reason,
-                                annotations=bool(peer and ANNOTATION_FEATURE in peer.features and phase=='active'))
+                                annotations=bool(peer and ANNOTATION_FEATURE in peer.features and phase=='active'),
+                                annotation_widths=bool(peer and ANNOTATION_FEATURE in peer.features and WIDTH_FEATURE in peer.features and phase=='active'))
 
     def notice(self,text):self.client.emit('screen_notice',text=text)
 
@@ -163,7 +164,8 @@ class ScreenSharing:
         if kind=='screen_stop':self.close('Le contact a arrêté le partage.');return True,''
         if kind==ANNOTATION_EVENT:
             if ctx.phase!='active' or ANNOTATION_FEATURE not in peer.features:return False,'Annotations indisponibles'
-            payload={key:frame[key] for key in ('action','points','color')}
+            if 'width' in frame and WIDTH_FEATURE not in peer.features:return False,'Épaisseur non négociée'
+            payload={key:frame[key] for key in ('action','points','color','width') if key in frame}
             if not valid_annotation(payload) or ctx.direction=='in' and payload['action']!='clear':return False,'Annotation non autorisée'
             if frame['seq']<=ctx.annotation_received:return True,''
             if not self.annotation_receiving.allow():return False,'Annotations trop rapides'
@@ -192,6 +194,8 @@ class ScreenSharing:
                     or ctx.direction=='out' and payload['action']!='clear'
                     or not self.annotation_sending.allow() or ctx.annotation_sent>=2**31-1):return False
             ctx.annotation_sent+=1
+            # Old validators reject additional fields, even for the default width.
+            if WIDTH_FEATURE not in peer.features:payload={key:value for key,value in payload.items() if key!='width'}
             return await self.control(peer,ANNOTATION_EVENT,share,seq=ctx.annotation_sent,**payload)
 
     def accepts(self,sid,share):

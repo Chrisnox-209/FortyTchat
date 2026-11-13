@@ -78,6 +78,7 @@ from PySide6.QtGui import QImage,QColor,QPainter,QMouseEvent
 from PySide6.QtWidgets import QApplication,QWidget
 sys.path.insert(0,sys.argv[1])
 from legacy_alignment.ui.screen_annotations import AnnotationOverlay as OldOverlay
+from legacy_alignment.ui.screen_annotations import AnnotationLayer as OldLayer
 from legacy_alignment.ui.screen_share import ScreenCanvas as OldCanvas
 from src.ui.screen_annotations import AnnotationLayer,AnnotationOverlay,mapped
 from src.ui.screen_share import ScreenCanvas,encode_screen_image
@@ -95,14 +96,15 @@ until(lambda:control.x()>0 and control.width()<screen.geometry().width())
 control.hide()
 backdrop=QWidget(None,Qt.WindowType.FramelessWindowHint|Qt.WindowType.X11BypassWindowManagerHint)
 backdrop.setStyleSheet('background:#254b84;');backdrop.setGeometry(screen.geometry());backdrop.show()
-layer=AnnotationLayer();viewer_layer=AnnotationLayer()
+layer=AnnotationLayer();old_layer=OldLayer()
+viewer_layer=OldLayer() if sys.argv[2]=='1' else AnnotationLayer()
 canvas=OldCanvas() if sys.argv[2]=='1' else ScreenCanvas()
 canvas.resize(1000,850)
 image=QImage(1280,720,QImage.Format.Format_RGB32);image.fill(QColor('#254b84'))
 assert canvas.set_frame(*encode_screen_image(image))
 canvas.configure(viewer_layer,True);canvas.tool='rectangle'
 packets=[]
-def submit(payload):packets.append(payload);layer.apply(payload)
+def submit(payload):packets.append(payload);layer.apply(payload);old_layer.apply(payload)
 canvas.annotation_submitted.connect(submit)
 area=canvas.image_rect()
 assert area.top()>0
@@ -117,7 +119,7 @@ mouse(QEvent.Type.MouseButtonRelease,end,Qt.MouseButton.LeftButton,Qt.MouseButto
 assert len(packets)==1
 point=packets[0]['points'][0]
 expected=mapped(point,QRectF(screen.geometry()))
-old=OldOverlay(layer,screen)
+old=OldOverlay(old_layer,screen)
 until(lambda:old.x()>0 and old.width()<screen.geometry().width())
 wrong=mapped(point,QRectF(old.rect()))+QPointF(old.mapToGlobal(QPoint(0,0)))
 assert (wrong-expected).manhattanLength()>15,(wrong,expected)

@@ -1,7 +1,7 @@
 """Annotations are bounded, encrypted, consented, and never input commands."""
 import asyncio
 import pytest
-from src.features.screen_annotations import FEATURE, EVENT, MAX_POINTS, MAX_SHAPES, AnnotationBoard
+from src.features.screen_annotations import FEATURE, WIDTH_FEATURE, EVENT, MAX_POINTS, MAX_SHAPES, AnnotationBoard
 from src.identity import session_id
 from src.networking.client import ChatClient
 from src.networking.protocol import ProtocolError, encode, event
@@ -29,12 +29,25 @@ def test_annotation_protocol_rejects_input_commands_unbounded_or_invalid_geometr
     with pytest.raises(ProtocolError):encode(dict(frame,action='pen',points=[[0,0]]*(MAX_POINTS+1)))
 
 
+def test_stroke_width_is_bounded_and_only_applies_to_shapes():
+    frame=event(EVENT,session_id(),session_id(),share=session_id(),seq=1,action='pen',points=[[1,2],[3,4]],color=0)
+    for width in (1,2,3,6,10,12):
+        encode(dict(frame,width=width))
+        board=AnnotationBoard();assert board.apply(dict(action='pen',points=[[1,2],[3,4]],color=0,width=width))
+        assert board.shapes[-1][-1]==width
+    for width in (True,False,None,'6',3.0,0,-1,13,[],{}):
+        with pytest.raises(ProtocolError):encode(dict(frame,width=width))
+    for action,points in (('pointer',[[1,2]]),('hide',[]),('clear',[])):
+        with pytest.raises(ProtocolError):encode(dict(frame,action=action,points=points,width=6))
+
+
 def test_annotation_board_is_ephemeral_bounded_and_copies_mutable_payloads():
     clock=[0.];board=AnnotationBoard(lambda:clock[0])
     payload=dict(action='pen',points=[[1,2],[3,4]],color=0)
     for _ in range(MAX_SHAPES+10):assert board.apply(payload)
     payload['points'][0][0]=5000
     assert len(board.shapes)==MAX_SHAPES and board.shapes[0][1][0]==(1,2)
+    assert board.shapes[0][-1]==3  # Legacy payloads keep their original stroke width.
     assert board.apply(dict(action='pointer',points=[[2000,3000]],color=2))
     clock[0]=4.;assert board.expire_pointer() and board.pointer is None
     assert not board.apply(dict(action='click',points=[],color=0))
@@ -56,7 +69,7 @@ def test_annotations_require_active_share_correct_roles_and_are_private_and_orde
         a,b,c=clients
         marks=lambda i:[d['payload'] for k,d in logs[i] if k=='screen_annotation']
         pointer=dict(action='pointer',points=[[2500,5000]],color=0)
-        rectangle=dict(action='rectangle',points=[[100,200],[9000,8000]],color=2)
+        rectangle=dict(action='rectangle',points=[[100,200],[9000,8000]],color=2,width=10)
         clear=dict(action='clear',points=[],color=0)
         try:
             await asyncio.gather(*(client.start() for client in clients))
@@ -82,6 +95,11 @@ def test_annotations_require_active_share_correct_roles_and_are_private_and_orde
             assert await b._send_to(b.peers[a.sid],stale)
             assert marks(0)==[pointer,rectangle]
             assert await a.screens.annotate(share,clear) and marks(1)==[clear]
+            # A width field is accepted only from a peer that advertised support.
+            features=a.peers[b.sid].features
+            a.peers[b.sid].features=tuple(f for f in features if f!=WIDTH_FEATURE)
+            assert not await b._send_to(b.peers[a.sid],event(EVENT,b.sid,a.sid,share=share,seq=100,**rectangle))
+            a.peers[b.sid].features=features
             batch=[dict(action='ellipse',points=[[i,20],[200+i,800]],color=i%4) for i in range(10)]
             assert all(await asyncio.gather(*(b.screens.annotate(share,item) for item in batch)))
             assert marks(0)[-10:]==batch
