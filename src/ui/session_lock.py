@@ -9,7 +9,10 @@ from PySide6.QtWidgets import QApplication
 class SessionLockMonitor(QObject):
     changed = Signal(bool)
     diagnostic = Signal(object)
-    SOURCES = [('org.gnome.ScreenSaver', '/org/gnome/ScreenSaver', 'org.gnome.ScreenSaver'),
+    # GNOME Shell owns ScreenShield directly. org.gnome.ScreenSaver can be an
+    # unstarted proxy, notably on the Ubuntu 22.04 cluster session in the report.
+    SOURCES = [('org.gnome.Shell.ScreenShield', '/org/gnome/ScreenSaver', 'org.gnome.ScreenSaver'),
+               ('org.gnome.ScreenSaver', '/org/gnome/ScreenSaver', 'org.gnome.ScreenSaver'),
                ('org.freedesktop.ScreenSaver', '/ScreenSaver', 'org.freedesktop.ScreenSaver'),
                ('org.freedesktop.ScreenSaver', '/org/freedesktop/ScreenSaver', 'org.freedesktop.ScreenSaver'),
                ('org.cinnamon.ScreenSaver', '/org/cinnamon/ScreenSaver', 'org.cinnamon.ScreenSaver'),

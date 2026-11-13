@@ -61,12 +61,13 @@ def run_on_bus(address,code,tmp_path):
     assert result.returncode==0,result.stdout+result.stderr
 
 
-def test_real_dbus_without_session_id_drives_remote_gui_cadenas_and_unlock(private_bus,tmp_path):
-    run_on_bus(private_bus, r'''
+@pytest.mark.parametrize('source',['logind','screenshield'])
+def test_real_dbus_without_session_id_drives_remote_gui_cadenas_and_unlock(private_bus,tmp_path,source):
+    run_on_bus(private_bus, 'SOURCE='+repr(source)+'\n'+r'''
 import time,uuid
 from pathlib import Path
 from types import SimpleNamespace
-from PySide6.QtCore import QObject,Slot,Property,ClassInfo,QMetaType
+from PySide6.QtCore import QObject,Slot,Signal,Property,ClassInfo,QMetaType
 from PySide6.QtDBus import QDBusConnection,QDBusObjectPath,QDBusMessage,QDBusVariant,QDBusArgument
 from PySide6.QtWidgets import QApplication
 from src.app import Application
@@ -84,11 +85,21 @@ class Session(QObject):
     locked=False
     @Property(bool)
     def LockedHint(self):return self.locked
+@ClassInfo({'D-Bus Interface':'org.gnome.ScreenSaver'})
+class ScreenShield(QObject):
+    ActiveChanged=Signal(bool)
+    active=False
+    @Slot(result=bool)
+    def GetActive(self):return self.active
 bus=QDBusConnection.sessionBus();manager=Manager();session=Session()
 assert bus.registerService('org.freedesktop.login1')
 flags=QDBusConnection.RegisterOption.ExportAllSlots|QDBusConnection.RegisterOption.ExportAllProperties
 assert bus.registerObject('/org/freedesktop/login1',manager,flags)
 assert bus.registerObject('/org/freedesktop/login1/session/_35',session,flags)
+shield=ScreenShield()
+if SOURCE=='screenshield':
+    assert bus.registerService('org.gnome.Shell.ScreenShield')
+    assert bus.registerObject('/org/gnome/ScreenSaver',shield,QDBusConnection.RegisterOption.ExportAllSlots|QDBusConnection.RegisterOption.ExportAllSignals)
 NetworkConfig.load=classmethod(lambda cls,path:NetworkConfig(mode='relay',relay_host=''))
 root=Path.cwd()
 apps=[Application(root,SimpleNamespace(dev='lock-'+uuid.uuid4().hex[:10],background=True,insecure_local_relay=None)) for _ in range(2)]
@@ -110,16 +121,26 @@ try:
     monitor.start(test_bus=True);monitor.timer.stop()
     until(lambda:monitor.value is False and not monitor.busy)
     assert monitor.session_path.endswith('/_35') and monitor.logind_subscription==monitor.session_path
-    session.locked=True
+    session.locked=SOURCE=='logind'
     change=QDBusMessage.createSignal(monitor.session_path,'org.freedesktop.DBus.Properties','PropertiesChanged')
     invalidated=QDBusArgument();invalidated.beginArray(QMetaType.Type.QString);invalidated.endArray()
     change.setArguments(['org.freedesktop.login1.Session',{'LockedHint':QDBusVariant(True)},invalidated])
-    assert bus.send(change)
+    if SOURCE=='logind':assert bus.send(change)
+    else:
+        shield.active=True;shield.ActiveChanged.emit(True)
     until(lambda:direct.avatar.locked and b.window.peers[sid]['locked'])
     assert a.screen_locked and 'verrouillée' in direct.status_label.text()
+    if SOURCE=='screenshield':
+        # Same failure shape as the school report: proxy absent and logind false.
+        assert session.locked is False
+        assert reports[-1]['sources']['org.gnome.Shell.ScreenShield /org/gnome/ScreenSaver GetActive']['value'] is True
+        assert reports[-1]['sources']['org.gnome.ScreenSaver /org/gnome/ScreenSaver GetActive']['value'] is None
+        assert reports[-1]['sources']['org.freedesktop.login1 /org/freedesktop/login1/session/_35 Get']['value'] is False
     session.locked=False
     change.setArguments(['org.freedesktop.login1.Session',{'LockedHint':QDBusVariant(False)},invalidated])
-    assert bus.send(change)
+    if SOURCE=='logind':assert bus.send(change)
+    else:
+        shield.active=False;shield.ActiveChanged.emit(False)
     until(lambda:not direct.avatar.locked and not b.window.peers[sid]['locked'])
     assert not a.screen_locked and direct.avatar.online
     assert reports[-1]['locked'] is False
@@ -131,8 +152,9 @@ finally:
 
 
 @pytest.mark.parametrize('report',[False,True])
-def test_diagnostic_cli_and_shell_report_observe_bus_without_chat_or_profile_changes(private_bus,tmp_path,report):
-    run_on_bus(private_bus, 'REPORT_MODE='+repr(report)+'\n'+r'''
+@pytest.mark.parametrize('direct',[False,True])
+def test_diagnostic_cli_and_shell_report_observe_bus_without_chat_or_profile_changes(private_bus,tmp_path,report,direct):
+    run_on_bus(private_bus, 'REPORT_MODE='+repr(report)+'\nDIRECT='+repr(direct)+'\n'+r'''
 import os,subprocess,sys,time
 from pathlib import Path
 from PySide6.QtCore import QCoreApplication,QObject,Slot,ClassInfo
@@ -144,7 +166,7 @@ class Saver(QObject):
     @Slot(result=bool)
     def GetActive(self):return self.active
 saver=Saver();bus=QDBusConnection.sessionBus()
-assert bus.registerService('org.gnome.ScreenSaver')
+assert bus.registerService('org.gnome.Shell.ScreenShield' if DIRECT else 'org.gnome.ScreenSaver')
 assert bus.registerObject('/org/gnome/ScreenSaver',saver,QDBusConnection.RegisterOption.ExportAllSlots)
 path=Path(os.environ['XDG_DATA_HOME']).parent/'rapport avec espaces.txt'
 command=['sh','diagnostic-session.sh','--duration','5','--output',str(path)] if REPORT_MODE else [sys.executable,'main.py','--diagnose-lock','5']
@@ -165,6 +187,7 @@ if REPORT_MODE:
     assert 'fortytchat_script' in out and 'systeme' in out and 'pyside6' in out
 assert '"locked": false' in out and '"locked": true' in out,out
 assert 'org.gnome.ScreenSaver' in out and 'org.freedesktop' in out
+if DIRECT:assert 'org.gnome.Shell.ScreenShield' in out
 assert 'Diagnostic terminé.' in out
 assert not Path(os.environ['XDG_CONFIG_HOME']).exists()
 assert not Path(os.environ['XDG_DATA_HOME']).exists()
