@@ -287,7 +287,7 @@ class CollaborationController:
         elif kind == 'group_invitation':
             if not self.preferences.dnd:
                 self.notifications.show(data['nickname'] + ' t’invite dans un groupe',
-                    'Clique sur le groupe dans FortyTchat pour accepter ou refuser.', urgency='normal')
+                    'Clique sur le groupe dans FortyTchat pour accepter ou refuser.', urgency='normal', kind='group')
         elif kind == 'message_changed':
             frame, target = data['frame'], data['target']
             message = self.history.change(target, frame['message'], frame.get('text'), frame['type'] == 'message_delete')
@@ -306,8 +306,8 @@ class CollaborationController:
             poll, target = data['poll'], data['target']
             self.add_message(target, Message(poll['author'], data['nickname'], poll['question'], id=poll['id'],
                 outgoing=data['outgoing'], poll=poll, avatar=data.get('avatar', -1), avatar_image=data.get('avatar_image', '')))
-            if not data['outgoing'] and not self.preferences.dnd and not self.is_viewed(target):
-                self.notifications.show(data['nickname'] + ' · nouveau sondage')
+            if not data['outgoing']:
+                self.notify_chat(target, data['nickname'], poll=True)
         elif kind == 'poll_vote_result':
             view = self.view_for(data['target'])
             if view and data['poll'] in view.chat.poll_cards:

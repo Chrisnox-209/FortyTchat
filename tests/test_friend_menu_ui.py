@@ -160,7 +160,7 @@ def test_simultaneous_friends_create_one_bounded_native_banner():
         friend_presence=FriendPresence(cids, clock=lambda:clock[0]))
     clock[0] = 10
     Application.refresh_friend_surfaces(state)
-    assert banners == [(('5 amis sont en ligne', 'Ami142, Ami242, Ami342 et 2 autre(s) viennent de se connecter au cluster.'), {'urgency':'normal'})]
+    assert banners == [(('5 amis sont en ligne', 'Ami142, Ami242, Ami342 et 2 autre(s) viennent de se connecter au cluster.'), {'urgency':'normal', 'kind':'friend'})]
     assert len(menus[0]) == 5
     Application.refresh_friend_surfaces(state)
     assert len(banners) == 1
@@ -213,7 +213,7 @@ def test_real_controller_friend_reconnect_banner_editor_current_session_and_dnd(
         controller.worker.submit(new.start()).result(4)
         controller.worker.loop.call_soon_threadsafe(announce, new)
         until(qt, lambda:new.sid in controller.window.peers)
-        assert banners == [(('Renamed42 est en ligne', 'Ton ami vient de se connecter au cluster. Retrouve-le depuis l’icône FortyTchat.'), {'urgency':'normal'})]
+        assert banners == [(('Renamed42 est en ligne', 'Ton ami vient de se connecter au cluster. Retrouve-le depuis l’icône FortyTchat.'), {'urgency':'normal', 'kind':'friend'})]
         assert controller.preferences.friends[CID] == 'Renamed42'
         controller.tray.popup_actions[CID].trigger()
         editor = controller.card_editors[(new.sid, '')]

@@ -1,8 +1,11 @@
 """Silent native notifications, including desktops without libnotify-bin."""
 import html
+from pathlib import Path
 import shutil
 from PySide6.QtCore import QObject, QProcess, QTimer
 from PySide6.QtWidgets import QApplication
+
+NOTIFICATION_ICONS = {'friend': 'friend.png', 'message': 'message.png', 'group': 'group.png', 'poll': 'poll.png'}
 
 
 def variant_string(value):
@@ -17,23 +20,37 @@ class Notifications(QObject):
         self.icon, self.processes, self.stopped = icon, set(), False
         self.headless = QApplication.platformName() in ('offscreen', 'minimal')
 
-    def show(self, title, body='Ouvre FortyTchat pour consulter la conversation.', *, urgency='low'):
+    def show(self, title, body='Ouvre FortyTchat pour consulter la conversation.', *, urgency='low', kind='default'):
         if urgency not in ('low', 'normal'):
             raise ValueError('Priorité de notification invalide')
+        if kind != 'default' and kind not in NOTIFICATION_ICONS:
+            raise ValueError('Type de notification invalide')
         if self.stopped or self.headless or len(self.processes) >= 3:
             return False
+        icon = self.icon
+        image_uri = ''
+        if kind in NOTIFICATION_ICONS:
+            path = Path(self.icon).parent / 'notifications' / NOTIFICATION_ICONS[kind]
+            if path.is_file():
+                icon = str(path.resolve());image_uri = path.resolve().as_uri()
         body = html.escape(body, quote=False)
         backends = []
         if self.gdbus:
-            hints = "{'urgency': <byte " + ('1' if urgency == 'normal' else '0') + ">, 'suppress-sound': <true>, 'desktop-entry': <'fr.fortytchat.FortyTchat'>}"
+            hints = "{'urgency': <byte " + ('1' if urgency == 'normal' else '0') + ">, 'suppress-sound': <true>, 'desktop-entry': <'fr.fortytchat.FortyTchat'>"
+            # GNOME can use the desktop entry for the app icon. image-path keeps
+            # the event's distinct image visible in the banner itself as well.
+            if image_uri:hints += ", 'image-path': <" + variant_string(image_uri) + ">"
+            hints += '}'
             backends.append((self.gdbus, ['call', '--session', '--timeout', '2',
                 '--dest', 'org.freedesktop.Notifications', '--object-path', '/org/freedesktop/Notifications',
                 '--method', 'org.freedesktop.Notifications.Notify', variant_string('FortyTchat'), '0',
-                variant_string(self.icon), variant_string(title), variant_string(body), '[]', hints, '5000']))
+                variant_string(icon), variant_string(title), variant_string(body), '[]', hints, '5000']))
         if self.executable:
-            backends.append((self.executable, ['--app-name=FortyTchat', '--hint=boolean:suppress-sound:true',
+            arguments = ['--app-name=FortyTchat', '--hint=boolean:suppress-sound:true',
                 '--hint=string:desktop-entry:fr.fortytchat.FortyTchat', '--urgency=' + urgency,
-                '--expire-time=5000', '--icon', self.icon, '--', title, body]))
+                '--expire-time=5000', '--icon', icon]
+            if image_uri:arguments.append('--hint=string:image-path:' + image_uri)
+            backends.append((self.executable, arguments + ['--', title, body]))
         if not backends:
             return False
         self.start_backend(backends)

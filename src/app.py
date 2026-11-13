@@ -194,7 +194,25 @@ class Application(QObject, CollaborationController, ScreenShareController):
 
     def is_viewed(self, target):
         view = self.view_for(target)
-        return bool(view and view.isVisible() and view.isActiveWindow())
+        return bool(view and view.isVisible() and not view.isMinimized() and view.isActiveWindow())
+
+    def notify_chat(self, target, nickname, *, poll=False, mentioned=False):
+        if self.preferences.dnd or self.is_viewed(target):
+            return False
+        kind = 'message'
+        if group_id(target):
+            name = self.groups.get(target, {}).get('name', 'Groupe privé')
+            context = f'le groupe « {name} »';kind = 'group'
+        else:
+            context = '#général' if target == 'general' else 'la conversation privée'
+        if poll:
+            title = f'{nickname} · nouveau sondage'
+            body = f'Un sondage t’attend dans {context}. Ouvre FortyTchat pour voter.'
+            kind = 'poll'
+        else:
+            title = f'{nickname} · te mentionne' if mentioned else f'{nickname} · nouveau message'
+            body = f'Un message t’attend dans {context}. Ouvre FortyTchat pour le lire.'
+        return self.notifications.show(title, body, kind=kind, urgency='normal')
 
     def open_private(self, sid):
         if group_id(sid):
@@ -497,12 +515,12 @@ class Application(QObject, CollaborationController, ScreenShareController):
                     enabled=notify and self.preferences.friend_notifications and not self.preferences.dnd)
         if len(arrivals) == 1:
             self.notifications.show(f'{arrivals[0]["nick"]} est en ligne',
-                'Ton ami vient de se connecter au cluster. Retrouve-le depuis l’icône FortyTchat.', urgency='normal')
+                'Ton ami vient de se connecter au cluster. Retrouve-le depuis l’icône FortyTchat.', urgency='normal', kind='friend')
         elif arrivals:
             names = ', '.join(peer['nick'] for peer in arrivals[:3])
             extra = f' et {len(arrivals) - 3} autre(s)' if len(arrivals) > 3 else ''
             self.notifications.show(f'{len(arrivals)} amis sont en ligne',
-                names + extra + ' viennent de se connecter au cluster.', urgency='normal')
+                names + extra + ' viennent de se connecter au cluster.', urgency='normal', kind='friend')
 
     def move_private(self, old_sid, new_sid):
         dialog = self.security_dialogs.get(old_sid)
@@ -706,8 +724,7 @@ class Application(QObject, CollaborationController, ScreenShareController):
                                              avatar=avatar, avatar_image=avatar_image, reply_to=frame.get('reply_to', ''), mentions=frame.get('mentions', [])))
             self.typing_state.update(target, frame['from'], nickname, False)
             self.refresh_typing()
-            if not self.preferences.dnd and not self.is_viewed(target):
-                self.notifications.show(f'{nickname} · te mentionne' if self.preferences.contact_id in frame.get('mentions', []) else f'{nickname} · nouveau message')
+            self.notify_chat(target, nickname, mentioned=self.preferences.contact_id in frame.get('mentions', []))
         elif kind == 'reaction':
             self.apply_reaction(target, frame['message'], contact_id or frame['from'], frame['emoji'], nickname)
         elif kind == 'typing':

@@ -7,13 +7,16 @@ from pathlib import Path
 import subprocess
 import sys
 import tarfile
+import time
+import uuid
+from types import SimpleNamespace
 import pytest
 from src.networking.client import ChatClient
 from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3'),('2.5.3','90ba8b7')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3'),('2.5.3','90ba8b7'),('2.6.0','1e6b2f2')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -81,7 +84,7 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
                     # The new Trait tool uses an old pen; never leak width to a strict old validator.
                     mark=dict(action='pen',points=[[1200,2300],[8200,7300]],color=2,width=10)
                     assert await new.screens.annotate(reverse,mark)
-                    assert [d for k,d in logs[1] if k=='screen_annotation'][-1]['payload']=={k:v for k,v in mark.items() if k!='width'}
+                    assert [d for k,d in logs[1] if k=='screen_annotation'][-1]['payload']==(mark if release>=(2,6,0) else {k:v for k,v in mark.items() if k!='width'})
                     assert mark['width']==10  # Projection does not mutate the caller's payload.
                 assert await old.screens.send_frame(reverse,b'SCREEN_240_TO_241',800,450)
                 await until(lambda:any(k=='screen_frame' for k,d in logs[0]))
@@ -204,3 +207,65 @@ def test_new_screen_share_through_each_older_opaque_relay(legacy):
         finally:
             await a.stop();await b.stop();await server.stop()
     asyncio.run(run())
+
+
+@pytest.fixture(scope='module')
+def compat_qt():
+    from PySide6.QtWidgets import QApplication
+    app=QApplication.instance() or QApplication([]);app.setQuitOnLastWindowClosed(False)
+    return app
+
+
+def test_native_notification_selection_from_real_legacy_messages_and_polls(legacy,compat_qt,tmp_path,monkeypatch):
+    from src.app import Application
+    from src.networking.settings import NetworkConfig
+    root=Path(__file__).resolve().parents[1]
+    monkeypatch.setenv('XDG_CONFIG_HOME',str(tmp_path/'config'))
+    monkeypatch.setattr(NetworkConfig,'load',classmethod(lambda cls,path:NetworkConfig(mode='relay',relay_host='')))
+    version,LegacyClient,LegacyRelay,LegacyStore=legacy
+    receiver=Application(root,SimpleNamespace(dev='notify-compat-'+uuid.uuid4().hex[:10],background=True,insecure_local_relay=None))
+    peer=LegacyClient('Old42',lambda *a:None,discovery=False,tcp_port=0)
+    banners=[];monkeypatch.setattr(receiver.notifications,'show',lambda *a,**kw:banners.append((a,kw)) or True)
+    def wait(check):
+        end=time.monotonic()+5
+        while not check():
+            compat_qt.processEvents();time.sleep(.005)
+            assert time.monotonic()<end
+        compat_qt.processEvents()
+    def send(target,text):
+        reference=receiver.worker.submit(peer.send('message',target,text=text)).result(4)
+        assert reference,'Le client archivé doit disposer d’une route active avant l’envoi'
+        return reference
+    try:
+        receiver.worker.submit(peer.start()).result(4);client=receiver.worker.client
+        wait(lambda:client.port>0 and peer.port>0)
+        def announce():client.observe(peer.hello(),'127.0.0.1');peer.observe(client.hello(),'127.0.0.1')
+        receiver.worker.loop.call_soon_threadsafe(announce)
+        wait(lambda:peer.sid in receiver.window.peers and client.sid in peer.peers)
+        send(client.sid,'PRIVATE_BODY_REMAINS_IN_CHAT')
+        wait(lambda:len(banners)==1)
+        assert banners[-1][1]==dict(kind='message',urgency='normal')
+        assert 'PRIVATE_BODY_REMAINS_IN_CHAT' not in str(banners)
+        send('general','GENERAL_COMPAT')
+        wait(lambda:len(banners)==2);assert '#général' in banners[-1][0][1]
+        receiver.set_status('dnd');send(client.sid,'SILENT_DND')
+        wait(lambda:any(m.text=='SILENT_DND' for m in receiver.history.get(peer.sid)))
+        assert len(banners)==2
+        receiver.set_status('online');compat_qt.processEvents();assert len(banners)==2
+        if LegacyStore is None:return  # Releases before group/poll support still notify for messages.
+        gid=receiver.worker.submit(peer.create_group('Ancien groupe',[client.contact_id])).result(4)
+        key=group_key(gid);wait(lambda:key in receiver.groups)
+        assert receiver.worker.submit(client.answer_group(gid,True)).result(4)
+        wait(lambda:receiver.groups[key]['state']=='joined');banners.clear()
+        send(key,'GROUP_COMPAT')
+        wait(lambda:len(banners)==1)
+        assert banners[-1][1]==dict(kind='group',urgency='normal') and 'Ancien groupe' in banners[-1][0][1]
+        for target in ('general',key):
+            count=len(banners)
+            poll=receiver.worker.submit(peer.send('poll_create',target,question='Compatible ?',options=['Oui','Non'])).result(4)
+            assert poll;wait(lambda:len(banners)>count)
+            assert banners[-1][1]==dict(kind='poll',urgency='normal')
+            assert ('#général' if target=='general' else 'Ancien groupe') in banners[-1][0][1]
+    finally:
+        receiver.worker.submit(peer.stop()).result(4)
+        receiver.cleanup();receiver.window.close();receiver.deleteLater();compat_qt.processEvents()

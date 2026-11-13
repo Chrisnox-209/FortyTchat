@@ -90,15 +90,17 @@ monitor.stop()
 ''')
 
 
-def test_native_friend_notification_without_notify_send(private_bus):
+@pytest.mark.parametrize('kind',['default','friend','message','group','poll'])
+def test_native_event_notification_without_notify_send(private_bus,kind):
     if not shutil.which('gdbus'):
         pytest.skip('gdbus absent')
     run_on_bus(private_bus, r'''
 import html,time
+from pathlib import Path
 from PySide6.QtCore import QObject, Slot, ClassInfo
 from PySide6.QtWidgets import QApplication
 from PySide6.QtDBus import QDBusConnection
-from src.ui.notifications import Notifications
+from src.ui.notifications import Notifications,NOTIFICATION_ICONS
 app=QApplication([])
 @ClassInfo({'D-Bus Interface':'org.freedesktop.Notifications'})
 class Daemon(QObject):
@@ -111,21 +113,26 @@ bus=QDBusConnection.sessionBus();daemon=Daemon()
 assert bus.registerService('org.freedesktop.Notifications')
 assert bus.registerObject('/org/freedesktop/Notifications',daemon,QDBusConnection.RegisterOption.ExportAllSlots)
 icon="/tmp/FT ' test.svg"
+kind=NOTIFICATION_KIND
+if kind!='default':icon=str(Path.cwd()/'assets/icons/fortytchat.svg')
 notifications=Notifications(icon);notifications.executable=None;notifications.headless=False
 title="Ami42 est en ligne ' \\ 🙂"
 body="Texte ' <b>test</b>\nDeuxième ligne \\"
-assert notifications.show(title,body,urgency='normal')
+assert notifications.show(title,body,urgency='normal',kind=kind)
 end=time.monotonic()+4
 while not daemon.calls or notifications.processes:
     app.processEvents();time.sleep(.005)
     assert time.monotonic()<end,daemon.calls
 name,replaces,shown_icon,shown_title,shown_body,actions,hints,timeout=daemon.calls[0]
+if kind!='default':
+    path=Path(icon).parent/'notifications'/NOTIFICATION_ICONS[kind]
+    icon=str(path);assert hints['image-path']==path.as_uri()
 assert (name,replaces,shown_icon,shown_title,shown_body,actions,timeout)==('FortyTchat',0,icon,title,html.escape(body,quote=False),[],5000)
 assert hints['urgency']==1 and hints['suppress-sound'] is True
 assert hints['desktop-entry']=='fr.fortytchat.FortyTchat'
 assert len(daemon.calls)==1
 notifications.stop()
-''')
+'''.replace('NOTIFICATION_KIND',repr(kind)))
 
 
 def test_notification_failed_backend_falls_back_without_shell(tmp_path):
@@ -140,15 +147,17 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 from src.ui.notifications import Notifications
 app=QApplication([])
-n=Notifications('/tmp/icon.svg');n.headless=False
+n=Notifications(str(Path.cwd()/'assets/icons/fortytchat.svg'));n.headless=False
 n.gdbus='/missing-fortytchat-test-gdbus';n.executable=sys.argv[1]
-assert n.show("Ami42 est en ligne",urgency='normal')
+assert n.show("Ami42 est en ligne",urgency='normal',kind='friend')
 end=time.monotonic()+4
 while n.processes:
     app.processEvents();time.sleep(.005)
     assert time.monotonic()<end
 args=json.loads(Path(sys.argv[2]).read_text())
 assert '--urgency=normal' in args and '--hint=boolean:suppress-sound:true' in args
+assert args[args.index('--icon')+1].endswith('/notifications/friend.png')
+assert any(arg.startswith('--hint=string:image-path:file://') and arg.endswith('/friend.png') for arg in args)
 assert args[-2]=='Ami42 est en ligne'
 n.stop();assert not n.show('Arrêté')
 ''',str(executable),str(log)], cwd=ROOT, env={**os.environ,'QT_QPA_PLATFORM':'offscreen'},
