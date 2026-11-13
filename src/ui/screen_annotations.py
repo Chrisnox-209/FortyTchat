@@ -1,6 +1,6 @@
 """Visual-only annotation input and an input-transparent X11 overlay."""
 import os
-from PySide6.QtCore import QObject, QPointF, QRectF, Qt, Signal, QTimer
+from PySide6.QtCore import QObject, QPoint, QPointF, QRectF, Qt, Signal, QTimer
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPainterPath, QPainterPathStroker, QPen, QRegion
 from PySide6.QtWidgets import QWidget
 from ..features.screen_annotations import AnnotationBoard, COLORS, MAX_POINTS, SCALE
@@ -146,8 +146,9 @@ class AnnotationOverlay(QWidget):
     def __init__(self, layer, screen):
         super().__init__(None, Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint
                          | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.WindowTransparentForInput
-                         | Qt.WindowType.WindowDoesNotAcceptFocus)
+                         | Qt.WindowType.WindowDoesNotAcceptFocus | Qt.WindowType.X11BypassWindowManagerHint)
         self.layer = layer; self.target_screen = screen
+        self._refreshing = self._closed = False
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
@@ -162,9 +163,21 @@ class AnnotationOverlay(QWidget):
     def geometry_changed(self,geometry):
         self.setGeometry(geometry);self.refresh()
 
+    def annotation_rect(self):
+        # Network points refer to the captured monitor, including dock/panels.
+        # Window-local geometry may differ after a move or a DPI change.
+        origin = self.mapToGlobal(QPoint(0, 0))
+        return QRectF(self.target_screen.geometry()).translated(-origin.x(), -origin.y())
+
     def refresh(self):
+        if self._refreshing or self._closed:return
+        self._refreshing = True
+        try:self.refresh_region()
+        finally:self._refreshing = False
+
+    def refresh_region(self):
         # A shaped window also leaves the desktop visible without a compositor.
-        rect = QRectF(self.rect()); region = QRegion(); stroker = QPainterPathStroker(); stroker.setWidth(9)
+        rect = self.annotation_rect(); region = QRegion(); stroker = QPainterPathStroker(); stroker.setWidth(9)
         for action, points, color in self.layer.board.shapes:
             region |= QRegion(stroker.createStroke(shape_path(action, points, rect)).toFillPolygon().toPolygon())
         if self.layer.board.pointer:
@@ -177,9 +190,18 @@ class AnnotationOverlay(QWidget):
             self.update()
 
     def paintEvent(self, event):
-        painter = QPainter(self); paint_marks(painter, self.layer.board, QRectF(self.rect()))
+        painter = QPainter(self); paint_marks(painter, self.layer.board, self.annotation_rect())
+
+    def moveEvent(self, event):
+        super().moveEvent(event)
+        if hasattr(self, 'target_screen'):self.refresh()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, 'target_screen'):self.refresh()
 
     def closeEvent(self, event):
+        self._closed = True
         self.layer.changed.disconnect(self.refresh)
         try:self.target_screen.geometryChanged.disconnect(self.geometry_changed)
         except RuntimeError:pass  # A removed screen may already have been destroyed by Qt.

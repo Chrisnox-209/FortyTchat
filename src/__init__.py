@@ -1,3 +1,3 @@
 """FortyTchat, native ephemeral messaging for the cluster."""
 
-__version__ = '2.5.2'
+__version__ = '2.5.3'
