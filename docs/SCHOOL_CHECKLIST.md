@@ -2,6 +2,13 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Bannières de messages et sondages (2.6.1)
+
+- Avec la copie 2.6.1 réduite, recevoir un message privé, un message du général, un message de groupe et un nouveau sondage dans le général puis dans le groupe. Vérifier la bannière Ubuntu : enveloppe jaune, enveloppe/utilisateur pour le groupe et ? pour le sondage. Les questions/messages restent dans le tchat ; le groupe est nommé dans la bannière.
+- Reconnecter un ami : sa bannière doit utiliser les deux utilisateurs vert/bleu. Les règles anti-doublon existantes doivent rester actives.
+- Garder la conversation concernée au premier plan, puis activer Ne pas déranger : les messages et sondages concernés restent silencieux. Désactiver Ne pas déranger ne doit pas rejouer les alertes masquées. Aucun son n’est demandé.
+- Refaire avec un expéditeur en ancienne version, puis essayer les bannières avec notify-send absent : gdbus doit suffire. Les tests automatisés couvrent quatorze versions et un bus privé ; la présentation finale et les réglages Ubuntu doivent être vérifiés sur le poste réel.
+
 ## Barre de dessin et compatibilité (2.6.0)
 
 - Avec deux clients 2.6.0, sélectionner Pointeur, Crayon, Trait, Cercle et Rectangle, la palette et chaque épaisseur. Tracer puis vérifier la forme, la couleur et la largeur chez le streamer. Le trait relie ses deux extrémités, le crayon suit la souris.

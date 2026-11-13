@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.6.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.6.1</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -21,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.6.0** remplace les listes d’annotations par des **outils à sélectionner comme dans Paint** : pointeur, crayon, trait, cercle et rectangle, avec une palette et quatre épaisseurs. L’alignement sur l’écran entier et le correctif de verrouillage GNOME sont conservés. Les anciennes versions gardent leurs fonctions : avec un client 2.5.x, les dessins restent à 3 px ; l’épaisseur réglable nécessite 2.6.0 des deux côtés.
+La version **2.6.1** ajoute des **bannières Ubuntu pour les messages reçus, les groupes et les nouveaux sondages**, avec une image distincte pour chaque type. Les connexions d’amis utilisent un petit utilisateur façon MSN. Ces alertes restent silencieuses et respectent Ne pas déranger. Elles sont locales : les anciennes versions compatibles peuvent continuer à envoyer leurs messages et sondages sans mise à jour du protocole.
 
 ## Installer et démarrer
 
@@ -206,6 +206,22 @@ Une bannière native **« Pseudo est en ligne »** avertit de sa connexion, sans
 La découverte des cinq premières secondes, les changements de pseudo/statut, une deuxième session et l’ajout d’un ami déjà connecté restent silencieux. Les coupures de moins de cinq secondes sont ignorées ; un même ami ne déclenche pas plus d’une alerte par minute. Les sessions masquées et les clés modifiées ne déclenchent pas d’alerte.
 
 Les bannières utilisent le service natif de notifications via `gdbus`, avec `notify-send` en secours. L’absence de `notify-send` ne suffit donc plus à désactiver les alertes. `gdbus` est fourni par [GLib sous Ubuntu 22.04](https://manpages.ubuntu.com/manpages/jammy/man1/gdbus.1.html). Leur position et leur apparence restent gérées par Ubuntu/GNOME et son propre mode Ne pas déranger : [aide GNOME](https://help.gnome.org/gnome-help/shell-notifications.html.en), [service freedesktop](https://specifications.freedesktop.org/notification/latest-single/).
+
+### Messages et sondages en notification
+
+Quand la conversation concernée est fermée, réduite ou en arrière-plan, une **bannière Ubuntu silencieuse** t’avertit :
+
+| Connexion d’un ami | Message reçu | Message de groupe | Nouveau sondage |
+| :---: | :---: | :---: | :---: |
+| <img src="assets/icons/notifications/friend.png" width="64" alt="Utilisateurs vert et bleu façon MSN"> | <img src="assets/icons/notifications/message.png" width="64" alt="Enveloppe jaune"> | <img src="assets/icons/notifications/group.png" width="64" alt="Enveloppe bleue et utilisateur vert"> | <img src="assets/icons/notifications/poll.png" width="64" alt="Point d’interrogation blanc sur fond violet"> |
+
+L’enveloppe concerne les messages privés et le **#général**. Pour les groupes, la bannière indique aussi le nom du groupe. Le **?** signale la création d’un sondage dans le général ou dans un groupe ; les votes successifs ne déclenchent pas d’alerte. Les mentions gardent leur indication dans le titre, avec l’image de la conversation concernée.
+
+**Ne pas déranger** masque les alertes de messages et sondages. Une conversation déjà affichée au premier plan reste silencieuse. Tes propres envois n’affichent pas de bannière ; les alertes masquées ne sont pas rejouées ensuite. Le texte des messages et des questions reste dans le tchat : la bannière indique l’expéditeur et la conversation, sans aperçu du contenu.
+
+Les images sont fournies avec l’application, sans téléchargement. `gdbus` transmet l’image du type d’événement et `notify-send` sert de secours. Les alertes utilisent la priorité normale pour demander une bannière, sans son ; Ubuntu garde la main sur leur emplacement et sur ses réglages de notifications. GNOME 42 [n’affiche pas de bannière pour la priorité basse](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/messageTray.js#L714-L721). La miniature est transmise dans `image-path`, conformément au [service de notifications](https://specifications.freedesktop.org/notification/latest/icons-and-images.html), pour la distinguer de l’icône de l’application.
+
+**Compatibilité :** mettre à jour seulement le poste qui veut ces nouvelles bannières suffit. Les messages et sondages déjà pris en charge des versions précédentes déclenchent les mêmes alertes ; aucun nouveau champ, événement réseau ou réglage de profil n’est requis.
 
 ### Bloquer un utilisateur
 
@@ -421,7 +437,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.6.0 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.6.1 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -434,6 +450,7 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.5.1** | Rapport de diagnostic conservé ; réception du cadenas de 2.5.2 sans changement de protocole |
 | **2.5.2** | Verrouillage GNOME et annotations conservés ; un ancien spectateur dessine sur le streamer corrigé sans adaptation du protocole |
 | **2.5.3** | Outils, couleurs et effacement conservés ; le nouveau Trait est reçu comme un tracé, sans champ d’épaisseur inconnu |
+| **2.6.0** | Épaisseurs d’annotation conservées ; messages et sondages déclenchent les nouvelles bannières sur le poste 2.6.1 |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -553,7 +570,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.6.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.6.1** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Dessins décalés sur l’écran du streamer | Mettre à jour le poste qui partage en 2.5.3 puis relancer le partage. Les coordonnées et l’accès du spectateur restent compatibles avec 2.5.0 et plus récent. |
 | Le cadenas de session n’apparaît pas | Les clients qui l’affichent doivent être en 2.3.0 ou plus récent. Après mise à jour, lancer [le script de rapport](#créer-un-rapport-de-verrouillage-sans-sudo) sur le PC verrouillé pour identifier la source qui manque. |
 | Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |
@@ -628,7 +645,7 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest -q
 python3 tools/stress_test.py --clients 200
 ```
 
-Les **180 tests** couvrent le réseau réel local, le chiffrement, les fichiers, les amis, les cartes, les confirmations de lecture, l’installation et l’interface aux échelles **100 %, 150 % et 200 %**. Les profils sont temporaires et les essais hors écran n’envoient pas de notifications au bureau personnel. Les sockets doivent être autorisées pour les tests d’intégration. Résultats et limites : [docs/VALIDATION.md](docs/VALIDATION.md).
+La suite de tests couvre le réseau réel local, le chiffrement, les fichiers, les amis, les cartes, les confirmations de lecture, l’installation et l’interface aux échelles **100 %, 150 % et 200 %**. Les profils sont temporaires et les essais hors écran n’envoient pas de notifications au bureau personnel. Les sockets doivent être autorisées pour les tests d’intégration. Résultats et limites : [docs/VALIDATION.md](docs/VALIDATION.md).
 
 ## Crédits des ressources
 

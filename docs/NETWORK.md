@@ -1,4 +1,4 @@
-# Réseau et chiffrement de FortyTchat 2.6.0
+# Réseau et chiffrement de FortyTchat 2.6.1
 
 ## Groupes durables, rôles et popups (2.1.0)
 
@@ -242,3 +242,14 @@ La nouvelle barre sélectionne Pointeur, Crayon, Trait, Cercle et Rectangle par 
 Vers **2.5.0–2.5.3**, l’interface fixe l’épaisseur à **3 px** et explique le réglage grisé. Le transport retire défensivement `width` avant l’envoi vers un pair sans capacité : les anciens validateurs stricts reçoivent exactement leurs champs historiques. Une annotation sans épaisseur est toujours dessinée à 3 px par le nouveau récepteur. Aucun événement d’annotation n’est envoyé aux clients 2.4.x ; leurs images restent compatibles. Les relais historiques continuent à router les enveloppes opaques.
 
 La largeur reçue est utilisée pour peindre l’image et la couche X11 ; le masque s’agrandit avec le trait pour éviter de couper les bords épais. L’épaisseur utilise des pixels logiques Qt sur chaque affichage, sans modifier les points normalisés ni l’ancrage au moniteur entier de 2.5.3. Aucun changement de profil, de clé, de configuration ou de port ; les choix restent en mémoire dans la fenêtre du partage.
+
+
+## Bannières locales et images distinctes (2.6.1)
+
+Les événements existants `message`, `poll_created` et les transitions locales d’amis déclenchent les bannières Ubuntu. Aucun événement ou champ réseau supplémentaire, capacité, port, format de profil ou de clé. L’annonce de version réutilise le mécanisme existant. Un client historique peut donc déclencher la nouvelle présentation chez un destinataire mis à jour, pour les fonctions qu’il connaît déjà.
+
+Les messages privés et du général utilisent une enveloppe jaune ; les messages de groupe et invitations une enveloppe avec utilisateur ; les nouveaux sondages un point d’interrogation ; les connexions d’amis deux utilisateurs vert/bleu. Les quatre PNG et leurs sources SVG sont fournis dans `assets/icons/notifications`. Le choix vient d’une table locale de types autorisés ; aucun chemin ou contenu d’image n’est reçu du réseau pour ces bannières. Une image manquante laisse l’icône FT habituelle.
+
+Les messages et sondages demandent maintenant la priorité **normale** et `suppress-sound=true`. La priorité basse ne produit pas de bannière dans [GNOME 42, `Source.showNotification`](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/messageTray.js#L714-L721). Le chemin du PNG est fourni comme `app_icon` et son URI locale comme `image-path` : ce second indice conserve l’image de l’événement même si le bureau choisit l’icône du fichier desktop pour identifier l’application. Voir la [priorité des images freedesktop](https://specifications.freedesktop.org/notification/latest/icons-and-images.html) et leur [lecture dans GNOME 42](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/notificationDaemon.js#L40-L51). La même image et les mêmes indices sont fournis à `notify-send` lors du secours.
+
+L’application vérifie Ne pas déranger et l’état visible, actif, non réduit de la conversation ; une fenêtre réduite n’est plus considérée comme consultée. Les propres envois, modifications de messages et votes ne créent pas de bannière de nouveau message/sondage. Les corps indiquent la conversation et le groupe sans inclure le contenu des messages/questions. L’échappement GVariant, l’échappement du texte de corps, les arguments séparés sans shell, l’arrêt des processus et la limite de trois commandes simultanées sont conservés. Le mode hors écran n’envoie aucune alerte au bureau personnel ; les essais natifs utilisent un service D-Bus privé.
