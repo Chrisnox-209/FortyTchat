@@ -1,4 +1,4 @@
-# Réseau et chiffrement de FortyTchat 2.5.2
+# Réseau et chiffrement de FortyTchat 2.5.3
 
 ## Groupes durables, rôles et popups (2.1.0)
 
@@ -221,3 +221,13 @@ Le périphérique et ses références d’image sont libérés à l’arrêt. Le
 - Effacer supprime également les tracés non envoyés. Un effacement demandé par le streamer est renvoyé par le spectateur après son éventuel envoi en cours ; le streamer ignore les anciens tracés jusqu’à ce retour. Un dessin déjà en attente ne peut donc pas réapparaître après cet effacement.
 - Le canevas exclut les marges noires et reconvertit les points selon les proportions de l’image. Sous X11, une fenêtre indépendante du panneau de commande utilise `WindowTransparentForInput`, `WindowDoesNotAcceptFocus` et un masque de dessin ; elle reste affichée quand les commandes sont réduites et ne reçoit aucune entrée. Le masque conserve la visibilité du bureau même sans compositeur. La couche peut être incluse par la capture d’écran, avec un bref écho du pointeur lié au flux à 5 images/s.
 - Sous Wayland, aucun moniteur de superposition n’est deviné : les mêmes annotations sont affichées sur l’aperçu local du streamer. Qt ne permet pas de connaître le moniteur choisi dans le portail ; le placement des fenêtres dépend du compositeur. Voir [QScreenCapture](https://doc.qt.io/qt-6/qscreencapture.html#screen-capture-limitations), [les indicateurs de fenêtre Qt](https://doc.qt.io/qt-6/qt.html#WindowType-enum) et [le placement des fenêtres](https://doc.qt.io/qt-6/qwindow.html#position-prop).
+
+### Alignement du moniteur et de la couche (2.5.3)
+
+Les points normalisés 0–10 000 continuent à désigner l’image complète reçue, hors marges noires. Aucune trame, capacité, borne, couleur ou version du format d’annotation ne change. Les clients 2.5.0–2.5.2 restent donc utilisables comme spectateurs d’un streamer 2.5.3.
+
+La couche X11 porte désormais aussi `X11BypassWindowManagerHint` : elle conserve la géométrie entière du moniteur et n’est plus une fenêtre ordinaire que le bureau peut contraindre à la zone de travail, entre le dock et la barre. Voir [les indicateurs Qt](https://doc.qt.io/qt-6/qt.html#WindowType-enum). Les indicateurs de transparence aux entrées et de refus du focus restent actifs ; aucun clic ou mouvement système n’est injecté.
+
+Le rectangle de dessin et le masque sont calculés depuis `QScreen.geometry()` et l’origine globale réelle du widget, plutôt que depuis la seule taille locale de la fenêtre. Le même calcul est utilisé pour peindre les formes et produire le masque X11. Déplacements, redimensionnements et changements de géométrie rafraîchissent ces deux surfaces ; ils ne modifient jamais les points reçus. Cela conserve l’alignement avec les moniteurs d’origine décalée/négative et les coordonnées logiques Qt en haute résolution. [Géométrie de QScreen](https://doc.qt.io/qt-6/qscreen.html#geometry-prop).
+
+Les essais natifs utilisent exclusivement Xvfb et un gestionnaire de fenêtres de test réservant une bande à gauche et en haut. L’ancienne couche 2.5.2 est réellement déplacée/réduite par ce gestionnaire ; la nouvelle conserve le moniteur entier. Des clics de dessin dans un canevas actuel ou archivé 2.5.2 produisent les points qui sont peints sur le bureau virtuel puis réencodés dans l’image du spectateur. Géométrie et pixels sont contrôlés à 100/125/150/200 %. La capture peut toujours contenir les annotations : le bref écho temporel du pointeur à 5 images/s est distinct du décalage fixe corrigé ici.

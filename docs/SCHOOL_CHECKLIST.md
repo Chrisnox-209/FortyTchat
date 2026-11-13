@@ -2,6 +2,14 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Alignement des annotations (2.5.3)
+
+- Mettre à jour le streamer en 2.5.3 et relancer le partage. Garder un spectateur 2.5.0–2.5.2 pour vérifier la compatibilité, puis refaire avec deux clients récents.
+- Entourer des éléments près du dock, de la barre du haut, du centre et du bas de l’écran. Les formes locales du spectateur et celles renvoyées par la capture du streamer doivent viser les mêmes éléments, sans translation ni réduction dans la zone de travail.
+- Essayer Cercle, Rectangle, Crayon et Pointeur, la fenêtre normale et le plein écran, puis réduire les commandes du streamer. Les clics locaux doivent toujours atteindre ses applications.
+- Vérifier la mise à l’échelle du bureau et, si disponible, un deuxième moniteur placé à gauche ou à droite. Les tests natifs isolés couvrent 100/125/150/200 % et la géométrie de travail simulée ; le bureau GNOME réel reste à retester.
+- Distinguer un décalage spatial persistant d’un pointeur renvoyé avec le léger retard normal du flux à cinq images/s. Aucun réglage manuel ni sudo ne doit être nécessaire.
+
 ## Lecture directe de GNOME Shell (2.5.2)
 
 - Le rapport reçu le 13 novembre, sous Ubuntu 22.04/GNOME/X11, ne montre aucun état verrouillé : `org.gnome.ScreenSaver` est inconnu et logind reste à `false`. La résolution de session fonctionne. Ne pas considérer le seul proxy ou logind comme suffisants sur ce poste.

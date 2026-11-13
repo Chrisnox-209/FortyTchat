@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.5.2</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.5.3</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -21,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.5.2** ajoute la **lecture directe du verrouillage dans GNOME Shell**, lorsque le proxy ScreenSaver est absent et que logind ne signale rien. Le script de diagnostic sans sudo, les annotations du partage d’écran et les commandes de mise à jour copiables restent disponibles. Les fonctions et profils antérieurs restent compatibles ; le partage nécessite au moins 2.4.0 chez les deux personnes et les annotations 2.5.0. Le correctif doit encore être confirmé sur le poste physique de l’école.
+La version **2.5.3** corrige le **décalage des annotations sur l’écran du streamer**, en tenant compte de l’écran entier plutôt que de la zone laissée libre par le dock et la barre du bureau. La lecture directe du verrouillage GNOME et le diagnostic sans sudo restent disponibles. Les fonctions, profils et formats réseau antérieurs restent compatibles ; un spectateur en 2.5.0 ou plus récent peut annoter un streamer mis à jour en 2.5.3.
 
 ## Installer et démarrer
 
@@ -385,6 +385,10 @@ Avec **2.5.0 chez les deux participants**, le spectateur dispose d’une barre d
 
 Sous **X11**, une couche transparente affiche les annotations directement sur le moniteur partagé, même lorsque la fenêtre de commande est réduite. **Les clics traversent cette couche : le streamer continue à utiliser ses applications normalement.** Le spectateur ne déclenche aucun clic, aucune touche ni commande sur son poste. Les positions restent alignées sur l’image après redimensionnement ou passage en plein écran ; les bandes noires ne sont pas une zone de dessin.
 
+Depuis **2.5.3**, la couche utilise les dimensions et l’origine de l’**écran capturé en entier**, y compris le dock et la barre supérieure. Son placement X11 évite que le gestionnaire de fenêtres la réduise ou la décale dans la seule zone de travail. Le masque et les dessins utilisent le même repère, recalculé lors d’un déplacement, d’un redimensionnement ou d’un changement de géométrie du moniteur. L’alignement est vérifié à **100/125/150/200 %**, avec des spectateurs actuels et 2.5.2, et des origines de moniteur décalées ou négatives.
+
+**En cas de décalage, mettre à jour le poste qui partage l’écran en 2.5.3, puis relancer le partage.** Le format des points reste celui de 2.5.0 ; le spectateur peut garder sa version 2.5.x. Aucun réglage de décalage manuel ni droit administrateur n’est nécessaire.
+
 Sous **Wayland**, les annotations sont visibles dans l’aperçu de la fenêtre du streamer. La superposition sur son bureau est réservée à X11, car le portail ne donne pas à Qt l’identité du moniteur capturé. Voir les [limites de QScreenCapture](https://doc.qt.io/qt-6/qscreencapture.html#screen-capture-limitations). La couche X11 peut apparaître dans les images capturées ; le flux à cinq images par seconde peut laisser un bref écho du pointeur pendant ses déplacements.
 
 Les annotations sont **chiffrées de bout en bout**, réservées au partage accepté et effacées à son arrêt. Elles restent en mémoire, avec un maximum de **64 formes** ; les plus anciennes sont retirées lorsque cette limite est atteinte. Les outils ne sont pas proposés avec un client 2.4, qui conserve le partage habituel. Aucun nouveau port, compte ou fichier de configuration n’est requis.
@@ -414,7 +418,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.5.2 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.5.3 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -425,6 +429,7 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.4.1** | Partage d’écran conservé et mise à jour copiable ; aucun événement d’annotation envoyé à ces anciens clients |
 | **2.5.0** | Partage d’écran et annotations entre les deux versions ; indication du verrouillage au format existant |
 | **2.5.1** | Rapport de diagnostic conservé ; réception du cadenas de 2.5.2 sans changement de protocole |
+| **2.5.2** | Verrouillage GNOME et annotations conservés ; un ancien spectateur dessine sur le streamer corrigé sans adaptation du protocole |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -544,7 +549,8 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.5.2** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.5.3** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Dessins décalés sur l’écran du streamer | Mettre à jour le poste qui partage en 2.5.3 puis relancer le partage. Les coordonnées et l’accès du spectateur restent compatibles avec 2.5.0 et plus récent. |
 | Le cadenas de session n’apparaît pas | Les clients qui l’affichent doivent être en 2.3.0 ou plus récent. Après mise à jour, lancer [le script de rapport](#créer-un-rapport-de-verrouillage-sans-sudo) sur le PC verrouillé pour identifier la source qui manque. |
 | Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |
 | Bouton de partage d’écran désactivé | Mettre les deux clients à jour en 2.4.0. Les anciennes conversations restent utilisables. |

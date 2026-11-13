@@ -1,4 +1,16 @@
-# Validation locale de FortyTchat 2.5.2
+# Validation locale de FortyTchat 2.5.3
+
+Tests réalisés le **13 novembre 2026** : **358 tests réussis en 74,25 s** sous Python **3.13.14**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**, sans test ignoré. Les exceptions de destruction sont traitées comme erreurs ; l’avertissement préexistant sur un événement de glisser-déposer synthétique reste présent. Xvfb est téléchargé puis extrait uniquement dans `/tmp`, sans sudo ni installation de paquet système.
+
+- **Décalage reproduit avec l’ancienne version réelle** : un écran X11 virtuel de 1280 × 720 possède un gestionnaire de fenêtres de test qui impose une zone de travail réservant 64 pixels à gauche et 24 en haut. Une fenêtre de contrôle prouve que la contrainte est active. La couche archivée 2.5.2 est effectivement déplacée/réduite et son dessin ne correspond plus au point initial du spectateur ; le test constate l’écart avant de vérifier le correctif.
+- **Nouvelle couche ancrée au moniteur entier** : le placement X11 non géré conserve la géométrie complète, les dessins et le masque partagent le rectangle du moniteur converti dans la fenêtre locale. La géométrie, les coordonnées globales et les pixels de la capture native sont vérifiés. Le bureau reste cliquable et la capture native chiffrée fonctionne toujours sur son affichage virtuel distinct.
+- **Spectateur actuel et archivé 2.5.2**, chacun à **100/125/150/200 %** : des événements de dessin dans un canevas avec bandes noires produisent les points transmis à la couche du streamer. Le point initial se trouve dans la zone du dock simulé, ce qui détecte la régression. La capture annotée est réencodée puis replacée dans l’image du spectateur ; les positions concordent à moins de deux pixels. Les tests de coordonnées couvrent aussi une origine de moniteur décalée ou négative, même si la fenêtre locale est déplacée/réduite.
+- **74 tests ciblés de partage, annotations et compatibilité** passent sous Qt 6.12 en **10,72 s**, puis sous Python **3.12.13**/Qt **6.8.3** en **10,51 s**. Les trois tests de lisibilité des paramètres sont revérifiés sous chaque version de Qt après mise à jour du texte À propos.
+- **Douze versions réelles archivées**, soit **36 essais de compatibilité** : de 1.8.1 à 2.5.2, en direct et via leurs relais. Le format des points, les capacités, les contrôles de chiffrement, le protocole réseau et les fichiers de profil restent inchangés. Un ancien spectateur 2.5.x peut utiliser le streamer corrigé.
+
+La capture utilisateur est cohérente avec une couche contrainte par le dock et la barre ; le correctif élimine cette cause dans la reproduction native. **Le bureau GNOME physique de l’école et ses moniteurs restent à retester après mise à jour du streamer.** Le léger écho temporel du pointeur renvoyé dans une vidéo à cinq images/s n’est pas assimilé à ce décalage spatial fixe. Aucun bureau personnel n’est capturé ou déplacé pendant les essais.
+
+## Historique : validation 2.5.2
 
 Tests réalisés le **13 novembre 2026** : **342 tests réussis, 2 ignorés en 67,95 s** sous Python **3.13.14**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Les deux essais natifs de capture/superposition X11 sont explicitement ignorés car Xvfb n’est pas disponible dans cette campagne ; aucun bureau personnel n’est utilisé à leur place. Un avertissement préexistant concerne l’événement de glisser-déposer synthétique. Les exceptions de destruction sont traitées comme erreurs.
 
