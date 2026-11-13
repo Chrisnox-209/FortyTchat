@@ -2,6 +2,13 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Barre de dessin et compatibilité (2.6.0)
+
+- Avec deux clients 2.6.0, sélectionner Pointeur, Crayon, Trait, Cercle et Rectangle, la palette et chaque épaisseur. Tracer puis vérifier la forme, la couleur et la largeur chez le streamer. Le trait relie ses deux extrémités, le crayon suit la souris.
+- Vérifier l’encadrement de l’outil, la coche de couleur, les noms au survol et la sélection au clavier. Réduire la fenêtre et essayer les deux thèmes ; les commandes doivent rester visibles.
+- Refaire avec un streamer 2.5.0–2.5.3 : les outils restent actifs à 3 px, le réglage d’épaisseur est grisé, le Trait et Effacer fonctionnent. Refaire avec un ancien spectateur et le streamer récent.
+- Vérifier une ligne épaisse près des bords de l’écran et le passage des clics locaux à travers la couche. Les essais automatisés utilisent des écrans virtuels isolés ; aucun contrôle à distance n’est ajouté.
+
 ## Alignement des annotations (2.5.3)
 
 - Mettre à jour le streamer en 2.5.3 et relancer le partage. Garder un spectateur 2.5.0–2.5.2 pour vérifier la compatibilité, puis refaire avec deux clients récents.

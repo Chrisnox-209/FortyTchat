@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.5.3</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.6.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -21,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.5.3** corrige le **décalage des annotations sur l’écran du streamer**, en tenant compte de l’écran entier plutôt que de la zone laissée libre par le dock et la barre du bureau. La lecture directe du verrouillage GNOME et le diagnostic sans sudo restent disponibles. Les fonctions, profils et formats réseau antérieurs restent compatibles ; un spectateur en 2.5.0 ou plus récent peut annoter un streamer mis à jour en 2.5.3.
+La version **2.6.0** remplace les listes d’annotations par des **outils à sélectionner comme dans Paint** : pointeur, crayon, trait, cercle et rectangle, avec une palette et quatre épaisseurs. L’alignement sur l’écran entier et le correctif de verrouillage GNOME sont conservés. Les anciennes versions gardent leurs fonctions : avec un client 2.5.x, les dessins restent à 3 px ; l’épaisseur réglable nécessite 2.6.0 des deux côtés.
 
 ## Installer et démarrer
 
@@ -372,16 +372,19 @@ L’affichage conserve les proportions, jusqu’à **1280 × 720**, à **5 image
 
 ### Pointer et dessiner ensemble
 
-Avec **2.5.0 chez les deux participants**, le spectateur dispose d’une barre d’outils au-dessus de l’image :
+Depuis **2.6.0**, le spectateur sélectionne ses outils directement dans la barre au-dessus de l’image, sans liste déroulante. Le bouton actif est encadré ; les noms des outils apparaissent au survol et restent accessibles au clavier :
 
 - **Pointeur** : déplacer la souris affiche une flèche colorée, distincte de la souris du streamer.
-- **Crayon**, **Cercle**, **Rectangle** : cliquer et glisser dans l’image, puis relâcher. Le tracé libre est partagé par segments ; les formes sont transmises au relâchement.
-- **Rose, jaune, bleu ou vert** : choisir la couleur de ses annotations.
+- **Crayon**, **Trait**, **Cercle**, **Rectangle** : cliquer et glisser dans l’image, puis relâcher. Le trait relie les deux extrémités ; le crayon suit la souris. Les formes sont transmises au relâchement et le tracé libre par segments.
+- **Palette rose, jaune, bleu et vert** : cliquer sur une pastille. La couleur choisie porte une coche.
+- **Épaisseur de 2, 3, 6 ou 10 px** : cliquer sur l’échantillon voulu, valable pour le crayon et les trois formes. Le réglage s’applique au prochain tracé et se voit des deux côtés. Le pointeur garde sa taille.
 - **Effacer** : retirer les dessins des deux côtés. Le streamer possède aussi ce bouton.
 
 <p align="center">
-  <a href="docs/screen-share-annotations-2.5.0.png"><img src="docs/screen-share-annotations-2.5.0.png" width="780" alt="Vue du spectateur avec outils d’annotation, rectangle rose, cercle jaune et pointeur coloré sur un exemple de code"></a>
+  <a href="docs/annotation-tools-2.6.0.png"><img src="docs/annotation-tools-2.6.0.png" width="780" alt="Barre d’annotations 2.6.0 : boutons pointeur, crayon, trait, cercle et rectangle, quatre épaisseurs et palette de couleurs"></a>
 </p>
+
+**Compatibilité :** un poste en **2.5.0–2.5.3** peut toujours pointer, dessiner et effacer avec un poste récent. Le nouvel outil Trait utilise le tracé déjà compris par ces versions. Avec elles, les dessins restent à **3 px** et le réglage d’épaisseur est grisé avec une explication. **Deux postes en 2.6.0 ou plus récent** permettent de partager les épaisseurs choisies. Un poste en 2.4.x garde la vidéo sans annotations ; les versions antérieures gardent leurs conversations.
 
 Sous **X11**, une couche transparente affiche les annotations directement sur le moniteur partagé, même lorsque la fenêtre de commande est réduite. **Les clics traversent cette couche : le streamer continue à utiliser ses applications normalement.** Le spectateur ne déclenche aucun clic, aucune touche ni commande sur son poste. Les positions restent alignées sur l’image après redimensionnement ou passage en plein écran ; les bandes noires ne sont pas une zone de dessin.
 
@@ -418,7 +421,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.5.3 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.6.0 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -430,6 +433,7 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.5.0** | Partage d’écran et annotations entre les deux versions ; indication du verrouillage au format existant |
 | **2.5.1** | Rapport de diagnostic conservé ; réception du cadenas de 2.5.2 sans changement de protocole |
 | **2.5.2** | Verrouillage GNOME et annotations conservés ; un ancien spectateur dessine sur le streamer corrigé sans adaptation du protocole |
+| **2.5.3** | Outils, couleurs et effacement conservés ; le nouveau Trait est reçu comme un tracé, sans champ d’épaisseur inconnu |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -549,7 +553,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.5.3** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.6.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Dessins décalés sur l’écran du streamer | Mettre à jour le poste qui partage en 2.5.3 puis relancer le partage. Les coordonnées et l’accès du spectateur restent compatibles avec 2.5.0 et plus récent. |
 | Le cadenas de session n’apparaît pas | Les clients qui l’affichent doivent être en 2.3.0 ou plus récent. Après mise à jour, lancer [le script de rapport](#créer-un-rapport-de-verrouillage-sans-sudo) sur le PC verrouillé pour identifier la source qui manque. |
 | Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |

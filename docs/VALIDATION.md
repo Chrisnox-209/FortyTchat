@@ -1,4 +1,17 @@
-# Validation locale de FortyTchat 2.5.3
+# Validation locale de FortyTchat 2.6.0
+
+Tests réalisés le **13 novembre 2026** : **370 tests réussis en 74,96 s** sous Python **3.13.14**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**, sans test ignoré. Les exceptions de destruction sont traitées comme erreurs ; un avertissement préexistant concerne un événement synthétique de glisser-déposer. Aucun test n’utilise le profil ou le bureau personnel.
+
+- **Barre sans listes déroulantes** : boutons exclusifs Pointeur, Crayon, Trait, Cercle et Rectangle ; quatre pastilles avec coche et quatre échantillons d’épaisseur. Des glissements réels vérifient l’action, les points, la couleur et la largeur produits. Changer les options en cours de glissement ne modifie pas le trait commencé. Sélection au clavier et noms accessibles vérifiés.
+- **Largeur partagée** : les deux couches rendent la largeur reçue ; les annotations historiques restent à 3 px. Types invalides, bornes dépassées, largeur sur pointeur/effacement et largeur non annoncée sont refusés. Le masque X11 laisse apparaître le bord d’un trait de 12 px sans l’écrêter ; les clics locaux continuent à traverser la couche.
+- **Treize versions réelles archivées**, de 1.8.1 à 2.5.3, soit **39 essais** en direct et via leurs relais historiques. Vers les clients 2.5.x, le nouveau Trait devient un `pen` à deux points et le champ de largeur est retiré avant émission. Les anciens envois sans largeur restent compris ; les échanges de messages, fichiers, groupes, popups et états restent couverts. Des annotations épaisses entre nouveaux clients traversent aussi chacun de ces anciens relais dans une enveloppe chiffrée opaque.
+- **Qt 6.8.3 / Python 3.12.13** : **91 tests ciblés** de partage, annotations et compatibilité réussis en **11,30 s**. Le test de l’application réelle est renforcé ensuite avec un clic sur Rectangle et sur l’épaisseur 10 px : le contrôleur reçoit la capacité, l’active dans la barre et la transmet à l’autre client ; le cas est revérifié sous Qt 6.8 et 6.12.
+- **Lisibilité et rendu** : fenêtre de 420 px, police de 20 px et facteurs 100/125/150/200 %, dans les deux thèmes. Les contrôles restent dans la fenêtre. Les captures du thème sombre, du thème clair et de la fenêtre étroite sont inspectées ; la nouvelle capture du README vient de la véritable interface avec une image de démonstration, sans capture de données personnelles.
+- **Alignement conservé** : les tests natifs de 2.5.3 restent actifs, avec l’ancienne couche 2.5.2, son spectateur archivé, les docks simulés, les facteurs d’échelle et les origines de moniteur décalées ou négatives. L’extension d’épaisseur ne change pas les points normalisés. Les fichiers de profil, les clés et le hello restent identiques ; seule une capacité chiffrée optionnelle autorise le champ supplémentaire entre postes compatibles.
+
+Les vérifications X11 utilisent uniquement un serveur virtuel isolé et l’extraction existante de Xvfb dans `/tmp`. **Le comportement sur le bureau GNOME physique de l’école reste à retester**, notamment les traits épais, l’échelle et le verrouillage réel ; voir `SCHOOL_CHECKLIST.md`.
+
+## Historique : validation 2.5.3
 
 Tests réalisés le **13 novembre 2026** : **358 tests réussis en 74,25 s** sous Python **3.13.14**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**, sans test ignoré. Les exceptions de destruction sont traitées comme erreurs ; l’avertissement préexistant sur un événement de glisser-déposer synthétique reste présent. Xvfb est téléchargé puis extrait uniquement dans `/tmp`, sans sudo ni installation de paquet système.
 
