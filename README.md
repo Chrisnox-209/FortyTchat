@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.5.1</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.5.2</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -21,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.5.1** renforce la recherche de la session verrouillée et ajoute un **script de diagnostic sans sudo**, avec un rapport texte à retourner. Les annotations du partage d’écran, le pointeur coloré et les commandes de mise à jour copiables restent disponibles. Les fonctions et profils antérieurs restent compatibles ; le partage nécessite au moins 2.4.0 chez les deux personnes et les annotations 2.5.0. Le fonctionnement du verrouillage sur le poste réel de l’école reste à confirmer avec ce diagnostic.
+La version **2.5.2** ajoute la **lecture directe du verrouillage dans GNOME Shell**, lorsque le proxy ScreenSaver est absent et que logind ne signale rien. Le script de diagnostic sans sudo, les annotations du partage d’écran et les commandes de mise à jour copiables restent disponibles. Les fonctions et profils antérieurs restent compatibles ; le partage nécessite au moins 2.4.0 chez les deux personnes et les annotations 2.5.0. Le correctif doit encore être confirmé sur le poste physique de l’école.
 
 ## Installer et démarrer
 
@@ -414,7 +414,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.5.1 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.5.2 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -424,6 +424,7 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.4.0** | Échanges précédents et partage d’écran chiffré entre les deux versions |
 | **2.4.1** | Partage d’écran conservé et mise à jour copiable ; aucun événement d’annotation envoyé à ces anciens clients |
 | **2.5.0** | Partage d’écran et annotations entre les deux versions ; indication du verrouillage au format existant |
+| **2.5.1** | Rapport de diagnostic conservé ; réception du cadenas de 2.5.2 sans changement de protocole |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -457,7 +458,9 @@ Quand le bureau signale le verrouillage, la personne reste dans le cluster : un 
 
 La détection lit ensemble GNOME/ScreenSaver et logind, toutes les **deux secondes**, ainsi que les signaux du bureau. Depuis **2.5.1**, logind recherche d’abord la session courante avec `GetSession("auto")`, puis utilise `XDG_SESSION_ID` en secours. Le chemin concret est réévalué et ses changements de propriétés déclenchent une relecture immédiate. Une source répondant « non verrouillé » ne masque pas un verrouillage signalé par une autre. L’état est rafraîchi sur le réseau pour réparer un changement perdu. Aucun enregistrement de frappes et aucune commande de verrouillage ne sont utilisés. Si le bureau ne fournit pas cet état, le statut manuel reste disponible. [Interface GNOME](https://raw.githubusercontent.com/GNOME/gnome-shell/main/data/dbus-interfaces/org.gnome.ScreenSaver.xml), [état de session logind](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
 
-Le créateur confirme que le problème persiste à l’école avec les deux clients à jour, en utilisant le cadenas du menu système. **Le poste physique n’a pas encore été retesté avec 2.5.1.** Les tests relient une vraie lecture D-Bus au cadenas affiché dans une seconde application, mais ne remplacent pas l’essai à l’école.
+Le rapport de l’école du 13 novembre montre que `org.gnome.ScreenSaver` est absent et que logind reste à `false`, sous GNOME/X11. Depuis **2.5.2**, FortyTchat lit aussi directement **`org.gnome.Shell.ScreenShield`**, déjà fourni par GNOME Shell, avec `GetActive` et le signal `ActiveChanged`. Cette interface est exposée par [GNOME 42](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/shellDBus.js) sans dépendre du proxy absent. Aucun sudo, démarrage de service ou changement des paramètres GNOME n’est nécessaire.
+
+Le cas « proxy absent, logind faux » est reproduit avec deux applications et un bus D-Bus privé : le cadenas distant apparaît puis disparaît via ScreenShield. **Le poste physique de l’école reste à retester avec 2.5.2.** Mettre à jour le poste que l’on verrouille suffit pour ce correctif ; les clients 2.3.0 ou plus récents comprennent déjà son état chiffré. Le script ci-dessous conserve les réponses de cette nouvelle source dans le rapport.
 
 ### Créer un rapport de verrouillage, sans sudo
 
@@ -541,7 +544,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.5.1** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.5.2** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Le cadenas de session n’apparaît pas | Les clients qui l’affichent doivent être en 2.3.0 ou plus récent. Après mise à jour, lancer [le script de rapport](#créer-un-rapport-de-verrouillage-sans-sudo) sur le PC verrouillé pour identifier la source qui manque. |
 | Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |
 | Bouton de partage d’écran désactivé | Mettre les deux clients à jour en 2.4.0. Les anciennes conversations restent utilisables. |

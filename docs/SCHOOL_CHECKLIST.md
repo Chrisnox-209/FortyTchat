@@ -2,6 +2,13 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Lecture directe de GNOME Shell (2.5.2)
+
+- Le rapport reçu le 13 novembre, sous Ubuntu 22.04/GNOME/X11, ne montre aucun état verrouillé : `org.gnome.ScreenSaver` est inconnu et logind reste à `false`. La résolution de session fonctionne. Ne pas considérer le seul proxy ou logind comme suffisants sur ce poste.
+- Mettre à jour et redémarrer le client du poste que l’on verrouille. Utiliser le cadenas habituel du menu système. Depuis l’autre client, vérifier le cadenas puis son retrait au déverrouillage, y compris en DND. Le destinataire peut conserver 2.5.1 ; aucun format réseau ne change.
+- Si nécessaire, relancer `sh "$HOME/.FortyTchat/diagnostic-session.sh"` : la ligne `org.gnome.Shell.ScreenShield /org/gnome/ScreenSaver GetActive` doit apparaître et passer à `true` pendant le verrouillage, puis `false` au retour. Retourner le rapport si cette source est elle aussi absente ou reste fausse.
+- Ce cas est reproduit automatiquement sur un bus privé avec deux applications ; la validation physique du poste reste à compléter. Aucun sudo, changement GNOME ou démarrage de proxy n’est effectué.
+
 ## Rapport de verrouillage et reprise de détection (2.5.1)
 
 - Les deux clients sont confirmés à jour ; le verrouillage utilisé à l’école est le cadenas du menu système. Le poste n’était pas disponible pendant la correction : ne pas marquer cet essai réussi sans retour physique.

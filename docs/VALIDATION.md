@@ -1,4 +1,16 @@
-# Validation locale de FortyTchat 2.5.1
+# Validation locale de FortyTchat 2.5.2
+
+Tests réalisés le **13 novembre 2026** : **342 tests réussis, 2 ignorés en 67,95 s** sous Python **3.13.14**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**. Les deux essais natifs de capture/superposition X11 sont explicitement ignorés car Xvfb n’est pas disponible dans cette campagne ; aucun bureau personnel n’est utilisé à leur place. Un avertissement préexistant concerne l’événement de glisser-déposer synthétique. Les exceptions de destruction sont traitées comme erreurs.
+
+- **Rapport de l’école analysé** : Ubuntu 22.04/GNOME/X11, client 2.5.1, proxy `org.gnome.ScreenSaver` inconnu et `LockedHint` toujours faux. La session est résolue et le réseau n’a aucun état verrouillé à recevoir de cette observation. Le rapport d’origine n’est pas inclus dans le dépôt.
+- **Accès GNOME manquant ajouté** : `org.gnome.Shell.ScreenShield` expose le même chemin `/org/gnome/ScreenSaver` et l’interface `org.gnome.ScreenSaver`, avec `GetActive` et `ActiveChanged`. Cette lecture directe, présente dans [GNOME 42](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/shellDBus.js), garde l’interdiction de démarrer un service. Les anciens accès GNOME et logind restent disponibles.
+- **Reproduction du cas rapporté** : sur un bus privé, seul ScreenShield change d’état ; le proxy est absent et logind reste faux. Deux applications réelles échangent l’état chiffré et le cadenas distant apparaît puis disparaît, sans attendre le timer de relecture. Le test vérifie explicitement les trois réponses et l’interface distante.
+- **Diagnostic terminal et rapport shell** : les deux modes reconnaissent ScreenShield quand seul cet accès existe, tout en conservant les tests de l’ancien proxy. Rapports privés, absence d’un secret témoin et absence d’ouverture d’un profil de tchat revérifiés.
+- **57 tests ciblés de verrouillage et de compatibilité** réussis sous Python 3.13/Qt 6.12 en **24,69 s**, puis sous Python **3.12.13**/Qt **6.8.3** en **23,75 s**. Ils comprennent **33 essais avec onze versions archivées**, de 1.8.1 à 2.5.1, en direct et via leurs relais. Aucun module réseau, format de profil ou mécanisme de chiffrement n’est modifié.
+
+README et À propos décrivent désormais l’accès direct et le test à refaire. **Validation physique toujours requise :** le rapport 2.5.1 confirme le défaut de détection, mais un nouvel essai du cadenas réel avec 2.5.2 reste à obtenir. Le correctif est validé sur une reproduction précise du cas, sans prétendre avoir verrouillé le poste de l’école.
+
+## Historique : validation 2.5.1
 
 Tests réalisés le **12 novembre 2026** : **338 tests réussis en 59,07 s** sous Python **3.12.13**, Qt/PySide6 **6.8.3** et PyNaCl **1.6.2**. Les **51 tests ciblés de verrouillage, services du bureau, diagnostic et compatibilité** passent aussi sous Python **3.14.4** et Qt/PySide6 **6.12.0**, en **13,61 s**. Les exceptions de destruction sont traitées comme erreurs. Après ajout du relevé périodique des processus connus, le test de création du rapport est revérifié sous les deux versions de Qt.
 

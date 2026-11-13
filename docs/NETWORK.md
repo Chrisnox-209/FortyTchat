@@ -1,4 +1,4 @@
-# Réseau et chiffrement de FortyTchat 2.5.1
+# Réseau et chiffrement de FortyTchat 2.5.2
 
 ## Groupes durables, rôles et popups (2.1.0)
 
@@ -57,6 +57,8 @@ Les alertes sont locales, désactivables, silencieuses en DND et regroupées lor
 ## Verrouillage de session (2.3.1)
 
 Le moniteur Qt lit en parallèle `GetActive` des services ScreenSaver GNOME/freedesktop/Cinnamon/MATE/Xfce et `LockedHint` de logind. Un service répondant faux ne masque pas un verrouillage rapporté par une autre source. Depuis 2.5.1, `GetSession("auto")` résout d’abord la session courante, y compris pour un lanceur dans une unité utilisateur systemd sans `XDG_SESSION_ID`. Cette variable sert de secours si la résolution automatique échoue. Le chemin concret est réévalué au bout de 30 secondes ou après une erreur et reçoit une souscription `PropertiesChanged`. Le contenu du signal n’est pas interprété : il déclenche une relecture des propriétés, ce qui évite une conversion fragile des listes et variantes sous Qt 6.12. Les callbacks d’une génération arrêtée sont ignorés. Si aucune résolution n’est possible, la lecture de l’alias `session/auto` reste tentée.
+
+Depuis 2.5.2, la liste inclut aussi le service **`org.gnome.Shell.ScreenShield`**, chemin `/org/gnome/ScreenSaver`, interface `org.gnome.ScreenSaver`, méthode `GetActive` et signal `ActiveChanged(bool)`. GNOME Shell expose directement cette interface et possède ce nom, tandis que `org.gnome.ScreenSaver` peut être un proxy distinct non démarré : voir [GNOME 42, ScreenSaverDBus](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/shellDBus.js). Cela couvre le rapport où le proxy est inconnu et `LockedHint` reste faux. Les appels gardent `setAutoStartService(False)` : aucun service, code Shell, extension ou commande de verrouillage n’est lancé. La nouvelle lecture est locale ; aucune trame ni capacité réseau ou donnée de profil n’est ajoutée.
 
 Les appels D-Bus sont asynchrones, bornés à 800 ms et répétés toutes les deux secondes, avec relecture sur les signaux `ActiveChanged` et les propriétés logind de la session résolue. Aucun service de verrouillage n’est démarré. Une absence de toute source conserve l’état précédent. Les tests Qt hors écran désactivent ce moniteur sur le vrai bureau ; des bus privés et deux applications de test vérifient la chaîne complète. `GetSession("auto")` est aussi disponible dans [systemd v249](https://github.com/systemd/systemd/blob/v249/src/login/logind-dbus.c), correspondant à la génération d’Ubuntu 22.04 ; les signaux d’un alias ne remplacent pas ceux du chemin concret.
 
