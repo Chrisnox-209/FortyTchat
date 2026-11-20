@@ -1,4 +1,4 @@
-# Réseau et chiffrement de FortyTchat 2.6.1
+# Réseau et chiffrement de FortyTchat 2.6.2
 
 ## Groupes durables, rôles et popups (2.1.0)
 
@@ -253,3 +253,12 @@ Les messages privés et du général utilisent une enveloppe jaune ; les message
 Les messages et sondages demandent maintenant la priorité **normale** et `suppress-sound=true`. La priorité basse ne produit pas de bannière dans [GNOME 42, `Source.showNotification`](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/messageTray.js#L714-L721). Le chemin du PNG est fourni comme `app_icon` et son URI locale comme `image-path` : ce second indice conserve l’image de l’événement même si le bureau choisit l’icône du fichier desktop pour identifier l’application. Voir la [priorité des images freedesktop](https://specifications.freedesktop.org/notification/latest/icons-and-images.html) et leur [lecture dans GNOME 42](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/notificationDaemon.js#L40-L51). La même image et les mêmes indices sont fournis à `notify-send` lors du secours.
 
 L’application vérifie Ne pas déranger et l’état visible, actif, non réduit de la conversation ; une fenêtre réduite n’est plus considérée comme consultée. Les propres envois, modifications de messages et votes ne créent pas de bannière de nouveau message/sondage. Les corps indiquent la conversation et le groupe sans inclure le contenu des messages/questions. L’échappement GVariant, l’échappement du texte de corps, les arguments séparés sans shell, l’arrêt des processus et la limite de trois commandes simultanées sont conservés. Le mode hors écran n’envoie aucune alerte au bureau personnel ; les essais natifs utilisent un service D-Bus privé.
+
+
+## Détection locale des liens (2.6.2)
+
+Les messages restent exactement les mêmes chaînes de texte dans les événements existants. Aucune trame, capacité, URL enrichie, métadonnée de lien ou modification des profils/clés. Les deux sens d’échange préservent les adresses et leurs paramètres, entre le client actuel et quinze versions archivées de 1.8.1 à 2.6.1, en direct et via les relais historiques. Un destinataire mis à jour peut reconnaître un lien provenant d’un client ancien ; ce dernier garde sa présentation en texte brut.
+
+`src/features/links.py` ne fait que repérer et valider des adresses HTTP/HTTPS et les préfixes www., avec indices exacts dans le message. Les hôtes DNS/LAN, IP et ports sont contrôlés localement sans résolution réseau. La ponctuation extérieure est séparée de l’adresse ; le texte source n’est jamais réécrit. Les blocs de code restent exclus par le découpage déjà utilisé dans `MessageText`.
+
+`LinkText` insère du texte avec `QTextCursor` et des formats d’ancre explicites : aucune balise envoyée n’est interprétée. Les URL restent distinctes des mentions et des remplacements d’emojis pour conserver leur contenu exact. Les liens utilisent [QTextBrowser](https://doc.qt.io/qt-6/qtextbrowser.html) avec `openLinks=false`, `openExternalLinks=false`, ressources désactivées et retour à la ligne au besoin. Un clic ou l’action explicite du menu revalide HTTP/HTTPS avant de demander au navigateur système d’ouvrir l’adresse. Le clic droit copie l’adresse complète ; sélectionner/copier le texte garde le comportement usuel. Rien ne récupère une page ou une miniature en arrière-plan.

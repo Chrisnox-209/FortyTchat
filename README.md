@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.6.1</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.6.2</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -21,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.6.1** ajoute des **bannières Ubuntu pour les messages reçus, les groupes et les nouveaux sondages**, avec une image distincte pour chaque type. Les connexions d’amis utilisent un petit utilisateur façon MSN. Ces alertes restent silencieuses et respectent Ne pas déranger. Elles sont locales : les anciennes versions compatibles peuvent continuer à envoyer leurs messages et sondages sans mise à jour du protocole.
+La version **2.6.2** détecte les **liens cliquables et copiables** dans les messages : `http://`, `https://` et `www.`. Un clic ouvre le navigateur ; un clic droit propose **Ouvrir le lien** et **Copier le lien**. Les messages restent du texte brut chiffré sur le réseau : les anciennes versions continuent à les lire et à en envoyer sans adaptation.
 
 ## Installer et démarrer
 
@@ -133,6 +133,24 @@ Le **#général** réunit les personnes présentes. Cliquer sur une personne ouv
 | `Ctrl+,` | Ouvrir les paramètres |
 
 Le texte et les blocs de code restent du contenu inerte ; aucune commande ni balise envoyée n’est exécutée. Un nouvel arrivant ne reçoit aucun message antérieur. Les collisions de pseudo sont résolues automatiquement ; les destinataires sont identifiés par leur session, pas par leur nom ou leur IP.
+
+### Liens cliquables
+
+Dans le général, les conversations privées et les groupes, les adresses **`http://`**, **`https://`** et **`www.`** sont détectées dans les messages envoyés comme reçus. Elles sont **soulignées**, avec une couleur adaptée au thème :
+
+- **Clic sur le lien** : ouvrir le navigateur par défaut. Une adresse commençant par `www.` utilise HTTPS.
+- **Clic droit sur le lien → Copier le lien** : copier l’adresse complète, avec ses paramètres et son fragment. Le même menu propose **Ouvrir le lien**.
+- **Sélectionner le texte puis Ctrl+C** : copier la sélection habituelle ; le menu propose aussi **Copier la sélection** et **Tout sélectionner**.
+
+Les adresses longues reviennent à la ligne sans raccourcir le lien copié. La ponctuation finale d’une phrase reste en dehors du lien ; les parenthèses équilibrées, paramètres, fragments, domaines internationaux et adresses locales explicites comme `http://localhost:8000` restent utilisables. Survoler un lien affiche sa destination.
+
+<p align="center">
+  <a href="docs/links-2.6.2.png"><img src="docs/links-2.6.2.png" width="570" alt="Conversation avec liens soulignés et menu Ouvrir le lien, Copier le lien, Copier la sélection et Tout sélectionner"></a>
+</p>
+
+Les liens **dans les blocs de code** restent du texte à copier. Les balises HTML ne sont pas interprétées et seuls HTTP/HTTPS sont ouverts par ces liens. L’application ne charge aucune page, image ou aperçu automatiquement : le navigateur s’ouvre après ton clic.
+
+**Compatibilité :** rien ne change dans le message envoyé, le chiffrement ou le protocole. Un ancien client voit l’adresse en texte normal ; un client 2.6.2 la détecte aussi lorsqu’elle vient d’une ancienne version. Mettre à jour seulement le poste où l’on veut cliquer sur les liens suffit.
 
 ### Mentions et blocs de code
 
@@ -437,7 +455,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.6.1 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions testées avec 2.6.2 | Échanges vérifiés en direct et via leur ancien relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -451,6 +469,7 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.5.2** | Verrouillage GNOME et annotations conservés ; un ancien spectateur dessine sur le streamer corrigé sans adaptation du protocole |
 | **2.5.3** | Outils, couleurs et effacement conservés ; le nouveau Trait est reçu comme un tracé, sans champ d’épaisseur inconnu |
 | **2.6.0** | Épaisseurs d’annotation conservées ; messages et sondages déclenchent les nouvelles bannières sur le poste 2.6.1 |
+| **2.6.1** | Bannières et fonctions existantes conservées ; les adresses restent du texte identique entre les versions et sont cliquables sur 2.6.2 |
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -570,7 +589,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.6.1** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.6.2** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Dessins décalés sur l’écran du streamer | Mettre à jour le poste qui partage en 2.5.3 puis relancer le partage. Les coordonnées et l’accès du spectateur restent compatibles avec 2.5.0 et plus récent. |
 | Le cadenas de session n’apparaît pas | Les clients qui l’affichent doivent être en 2.3.0 ou plus récent. Après mise à jour, lancer [le script de rapport](#créer-un-rapport-de-verrouillage-sans-sudo) sur le PC verrouillé pour identifier la source qui manque. |
 | Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |

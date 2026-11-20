@@ -2,6 +2,13 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Liens dans les messages (2.6.2)
+
+- Envoyer et recevoir `https://github.com/Chrisnox-209/FortyTchat`, `www.python.org/doc/` et une adresse locale HTTP avec port, dans le général, en privé et dans un groupe. Vérifier le soulignement, le clic gauche et le menu français Ouvrir le lien / Copier le lien.
+- Copier une adresse avec paramètres/fragments et une URL très longue qui revient à la ligne. L’adresse copiée doit rester complète ; la sélection puis Ctrl+C doit aussi fonctionner. Vérifier les deux thèmes, une petite fenêtre et la mise à l’échelle du bureau.
+- Placer un lien dans un bloc ==== : il reste du code à copier. Un texte ressemblant à des balises HTML doit rester affiché sans interprétation. Rien ne doit ouvrir le navigateur avant un clic.
+- Refaire avec un expéditeur ancien : le poste récent détecte son adresse ; l’ancien poste reçoit le même texte. Les essais automatiques couvrent quinze versions, sans changer le protocole ni les clés.
+
 ## Bannières de messages et sondages (2.6.1)
 
 - Avec la copie 2.6.1 réduite, recevoir un message privé, un message du général, un message de groupe et un nouveau sondage dans le général puis dans le groupe. Vérifier la bannière Ubuntu : enveloppe jaune, enveloppe/utilisateur pour le groupe et ? pour le sondage. Les questions/messages restent dans le tchat ; le groupe est nommé dans la bannière.

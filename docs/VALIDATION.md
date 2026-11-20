@@ -1,4 +1,17 @@
-# Validation locale de FortyTchat 2.6.1
+# Validation locale de FortyTchat 2.6.2
+
+Tests réalisés le **20 novembre 2026** : **548 tests réussis en 94,34 s** sous Python **3.13.14**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**, sans test ignoré. Les exceptions de destruction sont traitées comme erreurs ; l’avertissement préexistant concerne un événement synthétique de glisser-déposer. Aucun navigateur personnel n’est ouvert et les essais natifs utilisent des écrans virtuels isolés.
+
+- **102 cas de détection pure** : HTTP/HTTPS, www., hôtes DNS/LAN, IPv4/IPv6, ports, paramètres, fragments, caractères internationaux, indices exacts, ponctuation et parenthèses. Les schémas alternatifs, contrôles, adresses malformées, e-mails et URI enchâssées ne deviennent pas des liens web. Le module ne fait aucune résolution ni requête réseau.
+- **29 tests d’interface sous Qt 6.12 et Qt 6.8** : clic gauche réel avec QTest et interception de QDesktopServices, menu contextuel avec clic sur ses actions, copie du lien complet et Ctrl+C, URL Unicode, lecture seule, HTML littéral, absence d’ouverture au survol/à l’affichage et liens des blocs ==== conservés comme code. L’ouverture est revalidée et limitée à HTTP/HTTPS. Les ressources du composant de liens sont désactivées.
+- **Adresses longues lisibles** : largeurs de 190 et 280 px, facteurs 100/150/200 %, thèmes sombre/clair et polices de 14/20 px. Les URL reviennent à la ligne sans raccourcir leur cible ou la copie. Le composant reste sans défilement interne et s’adapte à la hauteur du texte. Mentions et remplacement d’emojis restent séparés des URL pour préserver leur contenu exact.
+- **Quinze versions réelles archivées**, de 1.8.1 à 2.6.1 : **60 essais de compatibilité**. Les URL conservent exactement leur texte dans les deux sens en direct et via les anciens relais. Quinze applications Qt reçoivent un lien envoyé par un ancien client, ouvrent sa conversation et vérifient le texte du composant cliquable. Messages, profils, groupes, fichiers, sondages, popups, annotations et bannières restent couverts.
+- **210 tests ciblés sous Python 3.12.13 / Qt 6.8.3** réussis en **16,24 s**, couvrant détection, interface des liens, contenu enrichi, compatibilité et lisibilité des paramètres après actualisation du texte À propos.
+- **Réseau et profils identiques** : les fichiers de configuration, sécurité, client et protocole réseau, ainsi que le découpage des messages/mentions envoyés, restent inchangés. La détection est réservée à la présentation du message. La version publiée réutilise l’annonce de version existante ; aucun nouveau champ, événement ou migration de clé.
+
+La capture du README est produite avec la véritable fenêtre privée et son menu, sur un affichage X11 virtuel contenant uniquement des données de démonstration. Les URL sont interceptées pendant les essais. **À vérifier sur les postes de l’école :** ouverture par le navigateur choisi dans la session et menu du presse-papiers ; voir `SCHOOL_CHECKLIST.md`.
+
+## Historique : validation 2.6.1
 
 Tests réalisés le **13 novembre 2026** : **413 tests réussis en 86,21 s** sous Python **3.13.14**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**, sans test ignoré. Les exceptions de destruction sont traitées comme erreurs ; l’avertissement préexistant concerne un événement synthétique de glisser-déposer. Les profils, bus D-Bus et écrans natifs des tests sont temporaires et isolés.
 
