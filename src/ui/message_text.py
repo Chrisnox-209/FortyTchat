@@ -6,7 +6,9 @@ from PySide6.QtGui import QFontDatabase, QSyntaxHighlighter, QTextCharFormat, QC
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPlainTextEdit, QApplication, QDialog, QLineEdit
 from .widgets import label, button
 from ..features.text import text_parts, MENTION
+from ..features.links import web_links
 from ..features.emojis import emoji_fallback
+from .link_text import LinkText
 
 
 class CodeHighlighter(QSyntaxHighlighter):
@@ -41,6 +43,9 @@ class MessageText(QWidget):
                 code.highlighter = CodeHighlighter(code.document())
                 box.addWidget(code)
             else:
+                if web_links(body):
+                    box.addWidget(LinkText(body.strip('\n'), self))
+                    continue
                 rendered, missing = emoji_fallback(body.strip('\n'), self.font())
                 chunks, offset = [], 0
                 for match in MENTION.finditer(rendered):

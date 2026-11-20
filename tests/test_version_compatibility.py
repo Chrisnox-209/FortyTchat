@@ -16,7 +16,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3'),('2.5.3','90ba8b7'),('2.6.0','1e6b2f2')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3'),('2.5.3','90ba8b7'),('2.6.0','1e6b2f2'),('2.6.1','4cdab2b')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -106,6 +106,12 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             assert frames(1,'message')[-1]['id']==mid
             await old.send('message',new.sid,text='OLD_TO_NEW_SECRET')
             assert frames(0,'message')[-1]['text']=='OLD_TO_NEW_SECRET'
+            link_text='Liens inchangés : https://example.org/a?x=1&y=2#code et www.python.org/doc/.'
+            await new.send('message',old.sid,text=link_text)
+            assert frames(1,'message')[-1]['text']==link_text
+            await old.send('message',new.sid,text=link_text)
+            assert frames(0,'message')[-1]['text']==link_text
+
             offer=await new.offer_file(old.sid,memory=b'MIXED_FILE_SECRET',name='test.txt')
             target=tmp_path/'received.txt';await old.accept_file(offer,new.sid,target)
             await until(target.exists);assert target.read_bytes()==b'MIXED_FILE_SECRET'
@@ -246,12 +252,25 @@ def test_native_notification_selection_from_real_legacy_messages_and_polls(legac
         wait(lambda:len(banners)==1)
         assert banners[-1][1]==dict(kind='message',urgency='normal')
         assert 'PRIVATE_BODY_REMAINS_IN_CHAT' not in str(banners)
+        # The old sender supplies ordinary text; the updated receiver renders the links locally.
+        from src.ui.link_text import LinkText
+        link_text='https://example.org/a?x=1&y=2#part puis www.python.org/doc/'
+        reference=send(client.sid,link_text)
+        wait(lambda:receiver.history.find(peer.sid,reference) is not None)
+        view=receiver.open_private(peer.sid)
+        wait(lambda:bool(view.findChildren(LinkText)))
+        rendered=view.findChildren(LinkText)[0]
+        assert rendered.toPlainText()==link_text
+        assert receiver.history.find(peer.sid,reference).text==link_text
+        receiver.close_private(peer.sid);compat_qt.processEvents()
+        banners.clear()
+
         send('general','GENERAL_COMPAT')
-        wait(lambda:len(banners)==2);assert '#général' in banners[-1][0][1]
+        wait(lambda:len(banners)==1);assert '#général' in banners[-1][0][1]
         receiver.set_status('dnd');send(client.sid,'SILENT_DND')
         wait(lambda:any(m.text=='SILENT_DND' for m in receiver.history.get(peer.sid)))
-        assert len(banners)==2
-        receiver.set_status('online');compat_qt.processEvents();assert len(banners)==2
+        assert len(banners)==1
+        receiver.set_status('online');compat_qt.processEvents();assert len(banners)==1
         if LegacyStore is None:return  # Releases before group/poll support still notify for messages.
         gid=receiver.worker.submit(peer.create_group('Ancien groupe',[client.contact_id])).result(4)
         key=group_key(gid);wait(lambda:key in receiver.groups)
