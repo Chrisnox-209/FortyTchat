@@ -2,6 +2,12 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Cadenas GNOME/X11 (2.7.1)
+
+- Mettre à jour le poste à verrouiller et relancer FortyTchat. Sur un deuxième poste en 2.3.0 ou plus récent, ouvrir sa conversation et garder son nom visible dans la liste.
+- Verrouiller depuis le menu en haut à droite et attendre quelques secondes. Vérifier le cadenas et le texte **Session verrouillée**. Déverrouiller et vérifier le retour du statut précédent. Répéter avec Ne pas déranger.
+- Si le cadenas reste absent, lancer `sh "$HOME/.FortyTchat/diagnostic-session.sh"` sur le poste à verrouiller et répéter pendant les 60 secondes d’observation. Le rapport indique si `GNOME X11 screenShield.locked` change, en plus des réponses D-Bus.
+
 ## Conversations dans une seule fenêtre (2.7.0)
 
 - Depuis le général, cliquer sur deux personnes puis sur un groupe dans la liste de gauche : chaque conversation remplace la zone centrale de la même fenêtre. Revenir au général. Vérifier le repère coloré de la sélection et l’absence de fenêtre de conversation supplémentaire, y compris depuis **Discuter…** dans les amis de l’icône FT.

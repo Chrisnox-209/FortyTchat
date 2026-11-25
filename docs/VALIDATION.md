@@ -1,4 +1,14 @@
-# Validation locale de FortyTchat 2.7.0
+# Validation locale de FortyTchat 2.7.1
+
+Essais réalisés le **25 novembre 2026** avec des profils temporaires, un bus D-Bus privé et des échanges TCP locaux. La suite complète compte **589 tests réussis en 134,56 s** sous Python 3.13.14 et Qt 6.12.0. Les **26 tests ciblés** de verrouillage, de diagnostic et de lisibilité passent en **27,70 s** sous Python 3.12.13 et Qt 6.8.3.
+
+- **Cadenas de bout en bout.** Deux applications échangent l’état chiffré alors que logind et ScreenShield renvoient `false` et que le proxy GNOME est absent. Le test écrit le booléen du témoin GNOME dans le dossier temporaire de l’écran `:0`, puis le retire. La détection périodique affiche et retire le cadenas de l’ami dans la liste et dans la conversation ouverte. Les deux sources D-Bus existantes sont également testées.
+- **Filtrage local.** Un autre affichage, une session Wayland, un affichage X11 distant et un fichier malformé ou symbolique sont exclus. Le rapport indique la valeur de cette lecture et son éventuelle indisponibilité. Les tests ne modifient pas l’état du bureau personnel. Le format du dossier et le cycle du témoin sont vérifiés dans [les sources de GNOME 42](https://github.com/GNOME/gnome-shell/blob/42.9/js/ui/screenShield.js#L547-L573).
+- **Rétrocompatibilité.** Les 68 essais avec 17 versions archivées, de 1.8.1 à 2.7.0, passent. Ils vérifient la réception du cadenas à partir de 2.3.0, le statut Absent sur les versions plus anciennes et les échanges existants en direct et via relais. Les formats réseau, les clés et les profils restent identiques.
+
+Le résultat sur le poste du cluster reste à confirmer avec le cadenas du menu Ubuntu. La [fiche de test sur place](SCHOOL_CHECKLIST.md#cadenas-gnomex11-271) indique aussi comment produire le rapport si le cadenas reste absent.
+
+## Historique de la validation 2.7.0
 
 Les essais des 24 et 25 novembre 2026 utilisent des profils temporaires, des connexions locales et un écran X11 virtuel.
 

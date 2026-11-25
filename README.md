@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.7.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.7.1</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -461,7 +461,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions précédentes | Fonctions compatibles avec 2.7.0, en direct et via leur relais |
+| Versions précédentes | Fonctions compatibles avec 2.7.1, en direct et via leur relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -477,6 +477,7 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.6.0** | Épaisseurs d’annotation conservées ; messages et sondages déclenchent les nouvelles bannières sur le poste 2.6.1 |
 | **2.6.1** | Bannières et fonctions existantes conservées ; les adresses restent du texte identique entre les versions et sont cliquables sur 2.6.2 |
 | **2.6.2** | Liens, bannières et échanges existants conservés ; chaque poste garde sa disposition des conversations |
+| **2.7.0** | Toutes les fonctions existantes, y compris l’affichage du cadenas reçu d’un poste en 2.7.1 |
 
 La navigation unifiée de **2.7.0** est locale : aucun changement du protocole, des profils ou des clés. Un seul poste peut adopter cette présentation. Les résultats des essais et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
 
@@ -514,7 +515,7 @@ La détection lit ensemble GNOME/ScreenSaver et logind, toutes les **deux second
 
 Le rapport de l’école du 13 novembre montre que `org.gnome.ScreenSaver` est absent et que logind reste à `false`, sous GNOME/X11. Depuis **2.5.2**, FortyTchat lit aussi directement **`org.gnome.Shell.ScreenShield`**, déjà fourni par GNOME Shell, avec `GetActive` et le signal `ActiveChanged`. Cette interface est exposée par [GNOME 42](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/shellDBus.js) sans dépendre du proxy absent. Aucun sudo, démarrage de service ou changement des paramètres GNOME n’est nécessaire.
 
-Le cas « proxy absent, logind faux » est reproduit avec deux applications et un bus D-Bus privé : le cadenas distant apparaît puis disparaît via ScreenShield. **Le poste physique de l’école reste à retester avec 2.5.2.** Mettre à jour le poste que l’on verrouille suffit pour ce correctif ; les clients 2.3.0 ou plus récents comprennent déjà son état chiffré. Le script ci-dessous conserve les réponses de cette nouvelle source dans le rapport.
+Depuis **2.7.1**, sous GNOME/X11, FortyTchat lit aussi `screenShield.locked`, le témoin temporaire que GNOME écrit pour l’affichage courant et supprime au déverrouillage. Il peut donc afficher le cadenas chez l’autre personne même si `GetActive` et `LockedHint` restent à `false`. Mettre à jour le poste que l’on verrouille suffit si l’autre utilise déjà 2.3.0 ou plus récent. Le diagnostic affiche cette lecture à la ligne `GNOME X11 screenShield.locked`. Voir [l’écriture du témoin dans GNOME 42](https://github.com/GNOME/gnome-shell/blob/42.9/js/ui/screenShield.js#L547-L573).
 
 ### Créer un rapport de verrouillage, sans sudo
 
@@ -598,7 +599,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.7.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.7.1** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Dessins décalés sur l’écran du streamer | Mettre à jour le poste qui partage en 2.5.3 puis relancer le partage. Les coordonnées et l’accès du spectateur restent compatibles avec 2.5.0 et plus récent. |
 | Le cadenas de session n’apparaît pas | Les clients qui l’affichent doivent être en 2.3.0 ou plus récent. Après mise à jour, lancer [le script de rapport](#créer-un-rapport-de-verrouillage-sans-sudo) sur le PC verrouillé pour identifier la source qui manque. |
 | Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |
