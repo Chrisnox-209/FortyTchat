@@ -1,4 +1,8 @@
-# Réseau et chiffrement de FortyTchat 2.7.1
+# Réseau et chiffrement de FortyTchat 2.8.0
+
+## Mise à jour en un clic (2.8.0)
+
+Le numéro annoncé par un pair sert uniquement au bandeau. Un clic de l’utilisateur déclenche un téléchargement local depuis le dépôt officiel en HTTPS, sans utiliser le numéro annoncé comme cible. La version téléchargée est comparée à celle de l’application installée avant sa fermeture. Le dépôt de travail, le profil et la configuration réseau installée sont conservés. Le code du protocole et les clés restent identiques.
 
 ## Navigation unifiée locale (2.7.0)
 

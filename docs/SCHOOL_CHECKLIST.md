@@ -2,6 +2,11 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Mise à jour en un clic (2.8.0)
+
+- Utiliser **Mettre à jour** dans le bandeau ou dans le menu du général. Si GitHub publie une version plus récente, la fenêtre de suivi doit rester visible pendant la fermeture du tchat et disparaître après sa réouverture. Si la version installée est actuelle, le tchat reste ouvert.
+- Sur une installation de test, refaire avec GitHub inaccessible. Vérifier que le tchat reste ouvert et que le bouton **Copier** apparaît seulement dans **Commande manuelle** après avoir déplié le panneau.
+
 ## Cadenas GNOME/X11 (2.7.1)
 
 - Mettre à jour le poste à verrouiller et relancer FortyTchat. Sur un deuxième poste en 2.3.0 ou plus récent, ouvrir sa conversation et garder son nom visible dans la liste.

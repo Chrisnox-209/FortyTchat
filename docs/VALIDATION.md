@@ -1,4 +1,12 @@
-# Validation locale de FortyTchat 2.7.1
+# Validation locale de FortyTchat 2.8.0
+
+Le 25 novembre 2026, **602 tests** ont réussi sous Qt 6.12.0, dont **72 essais avec 18 versions archivées** de 1.8.1 à 2.7.1 en direct et via relais.
+
+- **Démarrage depuis le bouton.** Le clic lance au plus un programme de mise à jour. Le numéro annoncé par un pair reste limité au bandeau. Le téléchargement HTTPS réel du dépôt officiel a été vérifié dans un dossier temporaire.
+- **Installation et récupération.** Une installation isolée avec un vrai processus local vérifie que le téléchargement précède la fermeture, puis qu’une nouvelle copie se relance. La configuration installée et le profil restent intacts. Une révision identique, plus ancienne ou avec de nouvelles dépendances, ou encore un téléchargement impossible, laisse l’application ouverte. Un échec de remplacement simulé rétablit la copie précédente.
+- **Commande manuelle.** Elle est repliée par défaut. Les essais vérifient les actions d’ouverture et de fermeture du panneau, le bouton Copier, les chemins avec espaces et la lisibilité à 460 × 420 avec une police de 20 px. Les 33 tests ciblés passent sous Qt 6.8.3.
+
+## Historique de la validation 2.7.1
 
 Essais réalisés le **25 novembre 2026** avec des profils temporaires, un bus D-Bus privé et des échanges TCP locaux. La suite complète compte **589 tests réussis en 134,56 s** sous Python 3.13.14 et Qt 6.12.0. Les **26 tests ciblés** de verrouillage, de diagnostic et de lisibilité passent en **27,70 s** sous Python 3.12.13 et Qt 6.8.3.
 
