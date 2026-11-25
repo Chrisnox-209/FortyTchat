@@ -1,4 +1,13 @@
-# Validation locale de FortyTchat 2.8.0
+# Validation locale de FortyTchat 2.9.0
+
+Le 25 novembre 2026, **619 tests** ont réussi sous Python 3.13.14 et Qt 6.12.0 en **162,10 s**. Ils comprennent **76 essais avec 19 versions archivées** de 1.8.1 à 2.8.0, en direct et via relais.
+
+- **Annonces hors Internet.** Deux clients échangent les notes signées en direct et via un relais local. Les essais rejettent un numéro inventé, une signature recopiée sur un autre numéro et un texte altéré. La session fautive est bloquée et ses messages ne sont plus reçus. Une annonce historique sans signature reste compatible avec le tchat.
+- **Nouveautés.** Le bandeau s’affiche uniquement après validation de la version et du texte. Le bouton ouvre une fenêtre de lecture avant l’installation. Un numéro seul ou une signature sans texte ne suffit pas à afficher le bandeau.
+- **Restauration locale.** Le premier démarrage après la mise à jour depuis 2.8.0 crée une copie propre. Une modification du numéro suspend le démarrage et ouvre la restauration. La copie signée permet de remettre la version officielle sans téléchargement et de conserver la configuration. Les essais simulent également le rejet d’une mise à jour téléchargée dont les fichiers ont changé.
+- **Qt 6.8.3.** Les 32 essais ciblés de signature, restauration, installation, compatibilité d’interface et notes passent en 22,17 s. Les 11 essais ciblant les annonces, la restauration et la fermeture des connexions ont été rejoués avec succès sur la version signée finale.
+
+## Historique de la validation 2.8.0
 
 Le 25 novembre 2026, **602 tests** ont réussi sous Qt 6.12.0, dont **72 essais avec 18 versions archivées** de 1.8.1 à 2.7.1 en direct et via relais.
 

@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.8.0</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.9.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -73,7 +73,7 @@ Le module **Qt Multimedia** nécessaire à la capture est installé automatiquem
 
 ## Mettre à jour
 
-Dans le bandeau rouge ou le menu **···** du général, clique sur **Mettre à jour**. FortyTchat récupère la dernière version officielle en HTTPS, puis se ferme, s’installe et se rouvre. Les messages et brouillons en mémoire s’effacent au redémarrage. Le profil, les clés, les groupes et les préférences sont conservés.
+Le bandeau rouge affiche uniquement une version plus récente avec une signature officielle. **Nouveautés** ouvre le détail vérifié, même sans Internet. Pour installer, clique sur **Mettre à jour** dans le bandeau ou dans le menu **···** du général. FortyTchat récupère la dernière version officielle en HTTPS, puis se ferme, s’installe et se rouvre. Les messages et brouillons en mémoire s’effacent au redémarrage. Le profil, les clés, les groupes et les préférences sont conservés.
 
 La mise à jour en un clic est disponible à partir de **2.8.0** pour la copie installée. Elle utilise un dossier temporaire et vérifie la version avant de fermer le tchat. Si la version change les dépendances Python, passe par **Commande manuelle**. Depuis une version plus ancienne, utilise une première fois la commande ci-dessous.
 
@@ -470,7 +470,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions précédentes | Fonctions compatibles avec 2.8.0, en direct et via leur relais |
+| Versions précédentes | Fonctions compatibles avec 2.9.0, en direct et via leur relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -488,6 +488,7 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.6.2** | Liens, bannières et échanges existants conservés ; chaque poste garde sa disposition des conversations |
 | **2.7.0** | Toutes les fonctions existantes, y compris l’affichage du cadenas reçu d’un poste en 2.7.1 |
 | **2.7.1** | Conversations unifiées, cadenas GNOME/X11 et échanges chiffrés. L’ancienne fenêtre de mise à jour reste utilisable |
+| **2.8.0** | Tchat et mise à jour en un clic. Ses annonces non signées sont ignorées par le bandeau 2.9.0 |
 
 La navigation unifiée de **2.7.0** est locale : aucun changement du protocole, des profils ou des clés. Un seul poste peut adopter cette présentation. Les résultats des essais et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
 
@@ -555,7 +556,21 @@ La durée accepte **5 à 120 secondes**. Le mode `~/.local/bin/fortytchat --diag
   <a href="docs/presence-2.3.1.png"><img src="docs/presence-2.3.1.png" width="312" alt="Liste des amis : cadenas sur l’avatar de la session verrouillée, pastille verte pour l’ami disponible"></a>
 </p>
 
-Un **petit bandeau rouge** apparaît lorsqu’un poste compatible annonce une version plus récente. Le bouton **Mettre à jour** ouvre une fenêtre avec le bloc de commandes, un bouton **Copier** et les étapes pour le coller dans un terminal. Le dossier de clonage est modifiable avant copie. Ces instructions sont préparées localement ; un autre poste fournit seulement son numéro de version. Ce changement d’interface ne modifie ni le protocole réseau ni les fichiers de profil. Les anciennes versions conservent leur bouton vers GitHub.
+Un **bandeau rouge** propose les publications signées plus récentes. **Nouveautés** affiche le détail transmis par l’autre poste et vérifié avec la clé publique de FortyTchat. La vérification fonctionne sur le réseau local, sans appeler GitHub.
+
+Une annonce dont la signature est invalide bloque son expéditeur pour cette session. Les anciens clients jusqu’à 2.8.0 peuvent continuer à discuter. Leurs numéros non signés ne déclenchent plus le bandeau sur les postes en 2.9.0 et suivants. Pour protéger chaque poste des fausses annonces, il faut y installer au minimum la 2.9.0.
+
+Au démarrage, si le numéro de version ou les fichiers de l’application ont été modifiés, FortyTchat suspend le tchat et affiche **Restaurer FortyTchat**. La restauration vérifie la copie locale enregistrée à l’installation, remet les fichiers officiels et redémarre. Le profil et les clés personnelles sont conservés. Si la copie locale manque ou est endommagée, la restauration essaie de télécharger une publication signée depuis GitHub.
+
+### Publier une version signée
+
+Le mainteneur met à jour `src/__init__.py` et [RELEASE_NOTES.md](RELEASE_NOTES.md), puis signe les fichiers définitifs avec `tools/sign_release.py`. L’environnement Python utilisé doit être équipé de PyNaCl.
+
+```sh
+python3 tools/sign_release.py --key "$HOME/.config/fortytchat-maintainer/release-signing.key"
+```
+
+Inclure `src/official-release.json` dans la publication. Conserver une copie privée de la clé de publication en dehors du dépôt. La signature atteste que la version et ses nouveautés ont été publiées par le mainteneur. Elle ne prouve pas quel programme un contact exécute sur son propre poste. Pour tester des changements locaux avant signature, lancer l’application avec `--dev` depuis le dossier du projet.
 
 ## Préférences et données conservées
 
@@ -609,7 +624,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.8.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.9.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Dessins décalés sur l’écran du streamer | Mettre à jour le poste qui partage en 2.5.3 puis relancer le partage. Les coordonnées et l’accès du spectateur restent compatibles avec 2.5.0 et plus récent. |
 | Le cadenas de session n’apparaît pas | Les clients qui l’affichent doivent être en 2.3.0 ou plus récent. Après mise à jour, lancer [le script de rapport](#créer-un-rapport-de-verrouillage-sans-sudo) sur le PC verrouillé pour identifier la source qui manque. |
 | Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |

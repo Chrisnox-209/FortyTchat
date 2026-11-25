@@ -1,4 +1,12 @@
-# Réseau et chiffrement de FortyTchat 2.8.0
+# Réseau et chiffrement de FortyTchat 2.9.0
+
+## Publications signées et nouveautés (2.9.0)
+
+La clé publique Ed25519 de publication est embarquée. Le jeton signe le numéro de version, le condensat SHA-256 des fichiers protégés et celui des nouveautés. Le jeton est découpé dans la liste `features` du contrôle chiffré `client_info`, en restant sous les limites historiques. Le champ `release_notes` est ajouté uniquement après réception d’un jeton valide du pair. Les anciens clients continuent à recevoir la structure qu’ils comprennent. Les relais transmettent toujours les enveloppes opaques.
+
+Le poste affiche le bandeau seulement pour une version plus récente avec un jeton valide et ses nouveautés vérifiées. Une signature absente sur une version supérieure à 2.8.0, une signature incorrecte ou des nouveautés modifiées bloquent la session qui envoie l’annonce. Une session redémarrée se vérifie de nouveau. Les annonces historiques sans signature restent compatibles pour les échanges et sont ignorées par le bandeau moderne.
+
+Le démarrage, le téléchargement d’une mise à jour et la restauration vérifient aussi les fichiers locaux couverts par le condensat. La vérification utilise la publication et sa clé publique, même sur un réseau local coupé d’Internet. Elle ne permet pas d’inspecter un poste distant ou de lui imposer l’affichage d’une fenêtre s’il utilise du code modifié.
 
 ## Mise à jour en un clic (2.8.0)
 

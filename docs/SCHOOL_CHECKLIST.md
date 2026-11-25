@@ -2,6 +2,11 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Publications signées (2.9.0)
+
+- Depuis deux publications signées de versions différentes, vérifier que **Nouveautés** affiche le détail sur le poste le plus ancien, même lorsque seul le réseau du cluster est disponible.
+- Sur une copie de test installée, modifier le numéro de version et redémarrer. Vérifier que le tchat reste suspendu. Avec la copie de secours locale, cliquer sur **Restaurer FortyTchat** et vérifier la version, le profil et la réouverture sans Internet.
+
 ## Mise à jour en un clic (2.8.0)
 
 - Utiliser **Mettre à jour** dans le bandeau ou dans le menu du général. Si GitHub publie une version plus récente, la fenêtre de suivi doit rester visible pendant la fermeture du tchat et disparaître après sa réouverture. Si la version installée est actuelle, le tchat reste ouvert.
