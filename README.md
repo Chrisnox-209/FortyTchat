@@ -4,7 +4,7 @@
 
 <h1 align="center">FortyTchat</h1>
 <p align="center"><strong>Ton cluster. Tes amis. Une conversation, maintenant.</strong></p>
-<p align="center">Version <strong>2.6.2</strong> · Ubuntu/Linux · Python 3.10+</p>
+<p align="center">Version <strong>2.7.0</strong> · Ubuntu/Linux · Python 3.10+</p>
 
 <p align="center">
   <a href="#installer-et-démarrer">Installer</a> ·
@@ -21,7 +21,7 @@
 
 Les messages sont **chiffrés de bout en bout** et restent en mémoire jusqu’à l’arrêt complet du processus. Ton profil et tes préférences sont conservés ; les fichiers que tu choisis d’enregistrer restent sur disque.
 
-La version **2.6.2** détecte les **liens cliquables et copiables** dans les messages : `http://`, `https://` et `www.`. Un clic ouvre le navigateur ; un clic droit propose **Ouvrir le lien** et **Copier le lien**. Les messages restent du texte brut chiffré sur le réseau : les anciennes versions continuent à les lire et à en envoyer sans adaptation.
+La version **2.7.0** réunit le **#général, les conversations privées et les groupes dans une seule fenêtre**. Cliquer dans la liste de gauche affiche la conversation au centre. Les noms en gras et les badges rouges signalent les messages non lus ; chaque conversation garde son brouillon, sa réponse en cours et sa position de lecture pendant la session.
 
 ## Installer et démarrer
 
@@ -113,15 +113,21 @@ Le profil, les amis, les groupes, les modèles de notifications et les clés son
 ## Aperçu
 
 <p align="center">
-  <a href="docs/general-2.3.0.png"><img src="docs/general-2.3.0.png" width="880" alt="Général : sondage définitif, ami verrouillé et exemple de bandeau de mise à jour"></a>
+  <a href="docs/unified-chat-2.7.0.png"><img src="docs/unified-chat-2.7.0.png" width="880" alt="FortyTchat 2.7.0 : conversations privées et groupes dans la liste de gauche, conversation sélectionnée au centre et badges rouges de messages non lus"></a>
 </p>
-<p align="center"><em>Le général et les amis, dans le thème anthracite et bleu. Un thème clair est aussi disponible.</em></p>
+<p align="center"><em>Une seule fenêtre pour le général, les amis et les groupes, dans le thème anthracite et bleu. Un thème clair est aussi disponible.</em></p>
 
-Les captures sont réparties ci-dessous, avec chaque fonction. Elles utilisent des profils et textes de démonstration ; les fonctions inchangées gardent leurs captures antérieures. Cliquer sur une image l’ouvre en grand.
+Les captures sont réparties ci-dessous, avec chaque fonction. Elles utilisent des profils et textes de démonstration. Les captures des versions précédentes montrent parfois l’ancienne disposition des conversations ; les fonctions illustrées restent disponibles dans la fenêtre unifiée. Les popups, les réglages et le partage d’écran gardent leurs fenêtres dédiées. Cliquer sur une image l’ouvre en grand.
 
 ## Discuter
 
-Le **#général** réunit les personnes présentes. Cliquer sur une personne ouvre une conversation privée dans une **nouvelle fenêtre indépendante**, sans rechercher son pseudo. Plusieurs conversations peuvent rester ouvertes.
+Le **#général** réunit les personnes présentes. Cliquer sur une personne ou un groupe dans la **liste de gauche** affiche sa conversation **au centre de la même fenêtre**. Revenir sur **général** retrouve le salon du cluster. La conversation sélectionnée a un fond et un repère colorés.
+
+Les conversations non lues apparaissent **en gras**, avec un **badge rouge de 1 à 99, puis 99+**. Le survol indique le nombre exact. Pour les amis, le badge regroupe les non-lus de leurs sessions ; ils restent visibles hors ligne.
+
+En passant d’une conversation à une autre, tu retrouves ton **brouillon**, le **message auquel tu réponds** et ta **position de lecture**. Ces éléments restent en mémoire pendant la session. Seule la conversation sélectionnée est considérée comme consultée lorsque la fenêtre principale est visible, active et non réduite.
+
+Si deux sessions d’un ami fusionnent après sa reconnexion, **··· → Brouillons récupérés** permet de retrouver l’autre texte et sa citation.
 
 | Raccourci | Action |
 | --- | --- |
@@ -174,11 +180,11 @@ Le bloc garde ses retours à la ligne, utilise une police à chasse fixe et prop
 | --- | --- |
 | **✓ Envoyé**, gris | Envoi lancé, confirmation de réception en attente |
 | **✓✓ Livré**, gris | Réception confirmée par l’application du destinataire |
-| **✓✓ Vu**, bleu | Message affiché dans la zone visible de sa conversation active |
+| **✓✓ Vu**, bleu | Message visible dans la conversation sélectionnée, avec la fenêtre principale active et non réduite |
 | **! Non confirmé** | Confirmation absente ; le message a pu être reçu |
 | **○ Local** | Aucun autre participant : message visible uniquement ici |
 
-Une fenêtre fermée, minimisée, inactive ou un message hors de la zone visible n’envoie pas « Vu ». Dans le général, les compteurs concernent les destinataires présents lors de l’envoi ; les deux coches deviennent bleues quand tous ont confirmé la lecture. Le survol détaille les confirmations.
+Une autre conversation sélectionnée, la fenêtre principale masquée, minimisée ou inactive, ou un message hors de la zone visible n’envoie pas « Vu ». Les autres conversations gardent leurs non-lus. Dans le général, les compteurs concernent les destinataires présents lors de l’envoi ; les deux coches deviennent bleues quand tous ont confirmé la lecture. Le survol détaille les confirmations.
 
 **Paramètres → Général → Partager les confirmations de lecture** permet de désactiver l’envoi des « Vu ». La livraison reste confirmée et les confirmations déjà partagées restent visibles. Les deux clients doivent prendre en charge la lecture (**1.6.0 minimum**) ; un ancien client chiffré continue à recevoir les messages. Les états sont chiffrés, conservés en mémoire et ne constituent pas une garantie de lecture attentive.
 
@@ -209,7 +215,7 @@ Ajouter une personne avec **☆** dans sa conversation ou **clic droit → Ajout
 
 ### Depuis l’icône FT
 
-**Clic droit sur l’icône → Amis en ligne → nom de l’ami → Envoyer une popup…** ouvre directement l’éditeur, sans ouvrir une conversation. **Discuter…** ouvre son tchat privé. Le clic droit sur un ami dans la liste du tchat propose les mêmes actions.
+**Clic droit sur l’icône → Amis en ligne → nom de l’ami → Envoyer une popup…** ouvre directement l’éditeur, sans ouvrir une conversation. **Discuter…** affiche son tchat privé dans la fenêtre principale. Le clic droit sur un ami dans la liste du tchat propose les mêmes actions.
 
 <p align="center">
   <a href="docs/tray-friends-1.8.0.png"><img src="docs/tray-friends-1.8.0.png" width="640" alt="Menu FT : amis en ligne et hors ligne, puis Discuter ou Envoyer une popup"></a>
@@ -227,7 +233,7 @@ Les bannières utilisent le service natif de notifications via `gdbus`, avec `no
 
 ### Messages et sondages en notification
 
-Quand la conversation concernée est fermée, réduite ou en arrière-plan, une **bannière Ubuntu silencieuse** t’avertit :
+Quand une autre conversation est sélectionnée, ou que la fenêtre principale est masquée, réduite ou inactive, une **bannière Ubuntu silencieuse** t’avertit :
 
 | Connexion d’un ami | Message reçu | Message de groupe | Nouveau sondage |
 | :---: | :---: | :---: | :---: |
@@ -235,7 +241,7 @@ Quand la conversation concernée est fermée, réduite ou en arrière-plan, une 
 
 L’enveloppe concerne les messages privés et le **#général**. Pour les groupes, la bannière indique aussi le nom du groupe. Le **?** signale la création d’un sondage dans le général ou dans un groupe ; les votes successifs ne déclenchent pas d’alerte. Les mentions gardent leur indication dans le titre, avec l’image de la conversation concernée.
 
-**Ne pas déranger** masque les alertes de messages et sondages. Une conversation déjà affichée au premier plan reste silencieuse. Tes propres envois n’affichent pas de bannière ; les alertes masquées ne sont pas rejouées ensuite. Le texte des messages et des questions reste dans le tchat : la bannière indique l’expéditeur et la conversation, sans aperçu du contenu.
+**Ne pas déranger** masque les alertes de messages et sondages. La conversation sélectionnée reste silencieuse lorsque la fenêtre principale est visible, active et non réduite ; les autres conversations peuvent toujours déclencher une bannière. Tes propres envois n’affichent pas de bannière ; les alertes masquées ne sont pas rejouées ensuite. Le texte des messages et des questions reste dans le tchat : la bannière indique l’expéditeur et la conversation, sans aperçu du contenu.
 
 Les images sont fournies avec l’application, sans téléchargement. `gdbus` transmet l’image du type d’événement et `notify-send` sert de secours. Les alertes utilisent la priorité normale pour demander une bannière, sans son ; Ubuntu garde la main sur leur emplacement et sur ses réglages de notifications. GNOME 42 [n’affiche pas de bannière pour la priorité basse](https://github.com/GNOME/gnome-shell/blob/gnome-42/js/ui/messageTray.js#L714-L721). La miniature est transmise dans `image-path`, conformément au [service de notifications](https://specifications.freedesktop.org/notification/latest/icons-and-images.html), pour la distinguer de l’icône de l’application.
 
@@ -255,7 +261,7 @@ Les images sont fournies avec l’application, sans téléchargement. `gdbus` tr
 
 Le menu **Paramètres du groupe** sépare les onglets **Réglages** et **Membres**, avec des champs lisibles et défilables. Les changements de présence ne remplacent plus une durée en cours de saisie ; un message confirme l’enregistrement ou explique un refus.
 
-Le groupe dispose de sa **fenêtre indépendante** : messages, fichiers, captures, citations, réactions, mentions, saisie en direct et sondages. Son menu **··· → Paramètres du groupe** permet de le gérer.
+Cliquer sur le groupe dans la liste affiche ses messages **au centre de la fenêtre principale** : fichiers, captures, citations, réactions, mentions, saisie en direct et sondages restent disponibles. Son menu **··· → Paramètres du groupe** permet de le gérer.
 
 <p align="center">
   <a href="docs/group-chat-2.3.0.png"><img src="docs/group-chat-2.3.0.png" width="590" alt="Groupe privé : photo, mention, bloc de code et sondage à vote définitif"></a>
@@ -279,7 +285,7 @@ Dans **Membres**, les avatars et badges **CRÉATEUR**, **ADMIN** et **MEMBRE** r
   <a href="docs/group-members-2.3.0.png"><img src="docs/group-members-2.3.0.png" width="470" alt="Liste des membres avec avatars, rôles et indication de session verrouillée"></a>
 </p>
 
-Les groupes sont **retrouvés après redémarrage** : nom, miniature de photo, membres, rôles, adhésion et délai de popup sont conservés dans le profil. Le créateur confirme l’accès des membres qui redémarrent ; en son absence, leur groupe apparaît en attente de restauration. **Les messages et les votes ne sont jamais sauvegardés ni retransmis.** Fermer la fenêtre garde le groupe actif ; **Quitter le groupe** arrête ses échanges et conserve ce choix au démarrage suivant. Limite : **32 groupes de 32 membres**.
+Les groupes sont **retrouvés après redémarrage** : nom, miniature de photo, membres, rôles, adhésion et délai de popup sont conservés dans le profil. Le créateur confirme l’accès des membres qui redémarrent ; en son absence, leur groupe apparaît en attente de restauration. **Les messages et les votes ne sont jamais sauvegardés ni retransmis.** Sélectionner une autre conversation ou fermer la fenêtre principale garde le groupe actif ; **Quitter le groupe** arrête ses échanges et conserve ce choix au démarrage suivant. Limite : **32 groupes de 32 membres**.
 
 Chaque message garde une copie chiffrée distincte par destinataire. Un membre retiré ne reçoit plus les nouveaux échanges des clients ayant reçu le retrait ; les fichiers de groupe en cours sont arrêtés. Un retrait ne peut pas effacer un message ou un fichier déjà reçu. Les empreintes restent accessibles dans les conversations individuelles.
 
@@ -335,7 +341,7 @@ Le sélecteur propose **3 781 emojis**, **neuf catégories** et une recherche fr
 
 ## Wizz et pauses
 
-**Wizz** ouvre la conversation au dernier message et la fait vibrer pendant **2,8 secondes**, sans son. Un seul envoi toutes les **42 minutes**, tous destinataires confondus. Sous X11 la fenêtre bouge ; sous Wayland son contenu vibre, car le bureau contrôle le placement et la mise au premier plan.
+**Wizz** sélectionne la conversation dans la fenêtre principale, montre son dernier message et la fait vibrer pendant **2,8 secondes**, sans son. Un seul envoi toutes les **42 minutes**, tous destinataires confondus. Sous X11 la fenêtre bouge ; sous Wayland son contenu vibre, car le bureau contrôle le placement et la mise au premier plan.
 
 **On fait une pause ?** affiche une carte bleue au centre de l’écran, valable **2 minutes**, même en Ne pas déranger. Les réponses **« yessss !! »** et **« Non je bosse !! »** reviennent à l’expéditeur en bleu ou en rouge. Fermer une pause classique signale une invitation non confirmée.
 
@@ -356,7 +362,7 @@ Dans une conversation, cliquer sur **✦**, ou choisir **Envoyer une popup…** 
 2. Cliquer sur **Paramétrer la réponse** : une **nouvelle fenêtre** affiche le titre et les réponses proposées.
 3. Choisir **Oui**, **Non** ou **Personnalisée**, puis écrire le texte du bouton : c’est aussi le texte qui sera renvoyé. **+ Ajouter une réponse** permet d’en proposer jusqu’à trois ; **×** en retire une. Le petit emoji à droite permet de changer l’animation.
 4. Pour une simple information, cocher **Un seul bouton, sans réponse** et choisir son texte, par exemple **Bien reçu !**. Cliquer dessus fermera la popup sans envoyer de message à l’expéditeur.
-5. Cliquer sur **Valider**, puis **Envoyer** dans la fenêtre principale. **Annuler** conserve les anciens réglages. L’**Aperçu** permet de voir la popup avant l’envoi.
+5. Cliquer sur **Valider**, puis **Envoyer** dans l’éditeur de popup. **Annuler** conserve les anciens réglages. L’**Aperçu** permet de voir la popup avant l’envoi.
 
 <table>
 <tr>
@@ -455,7 +461,7 @@ Les PNG, JPEG et WebP compatibles de moins de **10 Mo** affichent une miniature 
 
 Les versions chiffrées précédentes restent compatibles pour leurs fonctions existantes :
 
-| Versions testées avec 2.6.2 | Échanges vérifiés en direct et via leur ancien relais |
+| Versions précédentes | Fonctions compatibles avec 2.7.0, en direct et via leur relais |
 | --- | --- |
 | **1.8.1 et 2.0.0** | Général, privé, fichiers, popups privées et présence |
 | **2.1.0 et 2.2.0** | Échanges précédents, groupes, renommage, popups collectives et lecture des anciens sondages |
@@ -470,6 +476,9 @@ Les versions chiffrées précédentes restent compatibles pour leurs fonctions e
 | **2.5.3** | Outils, couleurs et effacement conservés ; le nouveau Trait est reçu comme un tracé, sans champ d’épaisseur inconnu |
 | **2.6.0** | Épaisseurs d’annotation conservées ; messages et sondages déclenchent les nouvelles bannières sur le poste 2.6.1 |
 | **2.6.1** | Bannières et fonctions existantes conservées ; les adresses restent du texte identique entre les versions et sont cliquables sur 2.6.2 |
+| **2.6.2** | Liens, bannières et échanges existants conservés ; chaque poste garde sa disposition des conversations |
+
+La navigation unifiée de **2.7.0** est locale : aucun changement du protocole, des profils ou des clés. Un seul poste peut adopter cette présentation. Les résultats des essais et leurs limites sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
 
 Les nouvelles fonctions ne sont pas envoyées dans un format inconnu aux anciennes versions. Un ancien groupe ou sondage conserve les capacités de sa version d’origine. Pour les notifications collectives, le format est adapté au destinataire ; une version ancienne peut recevoir la carte en privé. Le chiffrement reste actif sur toutes ces routes.
 
@@ -535,7 +544,7 @@ La durée accepte **5 à 120 secondes**. Le mode `~/.local/bin/fortytchat --diag
   <a href="docs/presence-2.3.1.png"><img src="docs/presence-2.3.1.png" width="312" alt="Liste des amis : cadenas sur l’avatar de la session verrouillée, pastille verte pour l’ami disponible"></a>
 </p>
 
-Un **petit bandeau rouge** apparaît lorsqu’un poste compatible annonce une version plus récente. Le bouton **Mettre à jour** ouvre une fenêtre avec le bloc de commandes, un bouton **Copier** et les étapes pour le coller dans un terminal. Le dossier de clonage est modifiable avant copie. Ces instructions sont préparées localement ; un autre poste fournit seulement son numéro de version. Ce changement d’interface ne modifie ni le protocole réseau ni les fichiers de profil. Les anciennes versions conservent leur bouton vers GitHub. La capture d’aperçu utilise une version future de démonstration pour montrer le bandeau.
+Un **petit bandeau rouge** apparaît lorsqu’un poste compatible annonce une version plus récente. Le bouton **Mettre à jour** ouvre une fenêtre avec le bloc de commandes, un bouton **Copier** et les étapes pour le coller dans un terminal. Le dossier de clonage est modifiable avant copie. Ces instructions sont préparées localement ; un autre poste fournit seulement son numéro de version. Ce changement d’interface ne modifie ni le protocole réseau ni les fichiers de profil. Les anciennes versions conservent leur bouton vers GitHub.
 
 ## Préférences et données conservées
 
@@ -567,7 +576,7 @@ Les onglets Général et À propos sont défilables pour rester lisibles sur les
 
 Les chemins XDG absolus personnalisés sont respectés. Une seule instance fonctionne par utilisateur et session graphique. Une entrée de démarrage désactivée ou supprimée n’est pas réactivée à la réinstallation. Une politique de session peut empêcher XDG Autostart ; le programme ne la contourne pas. Après déplacement des sources, relancer une entrée toujours activée actualise ses chemins. [Spécification XDG Autostart](https://specifications.freedesktop.org/autostart/latest/).
 
-Aucun fichier de conversation ni historique serveur. La mémoire est bornée à **200 messages par conversation**, **64 conversations** et **4 000 messages** en tout ; chaque fenêtre affiche au plus les 180 derniers. Les messages déjà reçus chez d’autres participants restent dans leur mémoire jusqu’à leur propre arrêt. Le système peut utiliser du swap et un destinataire peut copier ou capturer ses messages ; aucun contrôle de ces copies n’est revendiqué.
+Aucun fichier de conversation ni historique serveur. La mémoire est bornée à **200 messages par conversation**, **64 conversations** et **4 000 messages** en tout ; chaque conversation affiche au plus les 180 derniers. Les brouillons, réponses en cours et positions de lecture restent aussi en mémoire et disparaissent à l’arrêt complet. Les messages déjà reçus chez d’autres participants restent dans leur mémoire jusqu’à leur propre arrêt. Le système peut utiliser du swap et un destinataire peut copier ou capturer ses messages ; aucun contrôle de ces copies n’est revendiqué.
 
 ## Désinstaller
 
@@ -589,7 +598,7 @@ Une nouvelle installation créera alors une autre identité que tes contacts dev
 
 | Problème | À vérifier |
 | --- | --- |
-| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.6.2** dans le titre des paramètres. Les onglets défilent avec la molette. |
+| Ancien design ou texte tronqué | Quitter complètement, [mettre à jour](#mettre-à-jour), puis vérifier **2.7.0** dans le titre des paramètres. Les onglets défilent avec la molette. |
 | Dessins décalés sur l’écran du streamer | Mettre à jour le poste qui partage en 2.5.3 puis relancer le partage. Les coordonnées et l’accès du spectateur restent compatibles avec 2.5.0 et plus récent. |
 | Le cadenas de session n’apparaît pas | Les clients qui l’affichent doivent être en 2.3.0 ou plus récent. Après mise à jour, lancer [le script de rapport](#créer-un-rapport-de-verrouillage-sans-sudo) sur le PC verrouillé pour identifier la source qui manque. |
 | Outils d’annotation absents | Mettre les deux clients en 2.5.0. Le partage avec 2.4 reste disponible sans annotations. Sous Wayland, regarder l’aperçu du streamer pour les dessins. |

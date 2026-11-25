@@ -1,4 +1,17 @@
-# Validation locale de FortyTchat 2.6.2
+# Validation locale de FortyTchat 2.7.0
+
+Les essais des 24 et 25 novembre 2026 utilisent des profils temporaires, des connexions locales et un écran X11 virtuel.
+
+Sous Python 3.13.14 et Qt 6.12.0, la suite complète compte **583 tests réussis en 129,74 s**. Les **10 tests de navigation** ont aussi été rejoués avec succès après le dernier ajustement du sous-menu des brouillons pour Qt 6.8. Sous Python 3.12.13 et Qt 6.8.3, les **127 tests ciblés** de navigation, de lisibilité, de notifications et de compatibilité passent en **49,18 s**.
+
+- **Navigation et brouillons.** Le général, les conversations privées et les groupes partagent la même fenêtre. Les changements de conversation conservent les messages, le texte en cours, la citation et la position de lecture. En cas de fusion de deux sessions d’un ami, le menu de la conversation permet de retrouver les deux brouillons. Le Wizz restaure la fenêtre et sélectionne la conversation concernée. Les réglages suivent la fermeture de leur page de groupe.
+- **Non-lus et confirmations.** Les badges distinguent les conversations et restent lisibles jusqu’à `99+`. Les essais vérifient les bannières pendant la lecture d’une autre conversation et les confirmations « Vu » lorsque le message est à l’écran dans la conversation active. Ils couvrent aussi la fenêtre réduite, masquée ou inactive et les paramètres au premier plan.
+- **Lisibilité.** Le général, une conversation privée et un groupe sont vérifiés dans les deux thèmes à 900 × 580 et 1120 × 780, avec des polices de 14 et 20 px. La capture du README provient de l’application avec des données de démonstration.
+- **Rétrocompatibilité.** 64 essais couvrent seize versions chiffrées archivées de 1.8.1 à 2.6.2, en direct et via leurs relais. Les tests échangent messages, fichiers, groupes, sondages, popups et partages selon les fonctions prises en charge par chaque version. Le protocole, les formats des profils et la gestion des clés restent identiques à ceux de 2.6.2.
+
+La présentation et la mise au premier plan sous GNOME restent à vérifier sur les postes de l’école avec [la fiche de test](SCHOOL_CHECKLIST.md).
+
+## Historique de la validation 2.6.2
 
 Tests réalisés le **20 novembre 2026** : **548 tests réussis en 94,34 s** sous Python **3.13.14**, Qt/PySide6 **6.12.0** et PyNaCl **1.6.2**, sans test ignoré. Les exceptions de destruction sont traitées comme erreurs ; l’avertissement préexistant concerne un événement synthétique de glisser-déposer. Aucun navigateur personnel n’est ouvert et les essais natifs utilisent des écrans virtuels isolés.
 

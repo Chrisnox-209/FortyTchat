@@ -2,19 +2,30 @@
 
 Une version précédente de FortyTchat a été testée en cluster par son créateur. Cette fiche sert à vérifier les améliorations sur place et à consigner les résultats. Les essais automatisés locaux sont décrits dans `VALIDATION.md`.
 
+## Conversations dans une seule fenêtre (2.7.0)
+
+- Depuis le général, cliquer sur deux personnes puis sur un groupe dans la liste de gauche : chaque conversation remplace la zone centrale de la même fenêtre. Revenir au général. Vérifier le repère coloré de la sélection et l’absence de fenêtre de conversation supplémentaire, y compris depuis **Discuter…** dans les amis de l’icône FT.
+- Dans chaque conversation, préparer un brouillon et une réponse à un message, puis remonter dans les messages. Passer par plusieurs autres conversations et revenir : retrouver le bon texte, la bonne citation et la position de lecture, sans mélanger les destinataires.
+- Recevoir dans une conversation non sélectionnée : nom en gras et badge rouge de 1 à 99, puis 99+. Survoler pour lire le nombre exact. Répéter pour le général, un groupe et un ami disposant de plusieurs sessions ; les comptes de cet ami doivent rester regroupés hors ligne puis après reconnexion.
+- Garder une conversation sélectionnée et la fenêtre principale active, visible et non réduite : elle seule est consultée. Un message reçu dans une autre conversation doit conserver son non-lu et déclencher sa bannière si Ne pas déranger est désactivé. Sélectionner ensuite cette conversation pour la consulter.
+- Minimiser, masquer ou désactiver la fenêtre principale ; essayer aussi avec les paramètres au premier plan. Recevoir un message : aucun « Vu » à l’arrière-plan. Revenir dans la conversation concernée, avec le message visible et le partage des confirmations activé : « Vu » peut être envoyé. Un message plus bas, hors de la zone visible, doit rester sans confirmation de lecture.
+- Vérifier la liste et les noms longs dans les deux thèmes, sur une petite fenêtre et aux échelles 100 %, 150 % et 200 % : badges, noms, avatars et cadenas ne doivent pas se chevaucher. Contrôler les annonces de non-lus avec les outils d’accessibilité disponibles.
+- Envoyer messages, fichiers, réponses, réactions, sondages et liens depuis leurs conversations respectives. Vérifier les amis, blocages, empreintes et groupes restaurés après redémarrage, sans migration ni nouvelle vérification des clés. Refaire les échanges compatibles avec un poste en 2.6.2 ; sa disposition peut rester différente.
+- Ouvrir une popup, les réglages et un partage d’écran : leurs fenêtres dédiées restent disponibles. Fermer la fenêtre principale garde l’application active ; quitter complètement efface les messages et brouillons en mémoire, tout en conservant les profils et clés.
+
 ## Liens dans les messages (2.6.2)
 
 - Envoyer et recevoir `https://github.com/Chrisnox-209/FortyTchat`, `www.python.org/doc/` et une adresse locale HTTP avec port, dans le général, en privé et dans un groupe. Vérifier le soulignement, le clic gauche et le menu français Ouvrir le lien / Copier le lien.
 - Copier une adresse avec paramètres/fragments et une URL très longue qui revient à la ligne. L’adresse copiée doit rester complète ; la sélection puis Ctrl+C doit aussi fonctionner. Vérifier les deux thèmes, une petite fenêtre et la mise à l’échelle du bureau.
 - Placer un lien dans un bloc ==== : il reste du code à copier. Un texte ressemblant à des balises HTML doit rester affiché sans interprétation. Rien ne doit ouvrir le navigateur avant un clic.
-- Refaire avec un expéditeur ancien : le poste récent détecte son adresse ; l’ancien poste reçoit le même texte. Les essais automatiques couvrent quinze versions, sans changer le protocole ni les clés.
+- Refaire avec un expéditeur ancien : le poste récent détecte son adresse ; l’ancien poste reçoit le même texte. La validation de 2.6.2 couvrait quinze versions, sans changer le protocole ni les clés ; consulter `VALIDATION.md` pour les résultats actuels.
 
 ## Bannières de messages et sondages (2.6.1)
 
-- Avec la copie 2.6.1 réduite, recevoir un message privé, un message du général, un message de groupe et un nouveau sondage dans le général puis dans le groupe. Vérifier la bannière Ubuntu : enveloppe jaune, enveloppe/utilisateur pour le groupe et ? pour le sondage. Les questions/messages restent dans le tchat ; le groupe est nommé dans la bannière.
+- Avec la fenêtre principale réduite, recevoir un message privé, un message du général, un message de groupe et un nouveau sondage dans le général puis dans le groupe. Vérifier la bannière Ubuntu : enveloppe jaune, enveloppe/utilisateur pour le groupe et ? pour le sondage. Les questions/messages restent dans le tchat ; le groupe est nommé dans la bannière.
 - Reconnecter un ami : sa bannière doit utiliser les deux utilisateurs vert/bleu. Les règles anti-doublon existantes doivent rester actives.
-- Garder la conversation concernée au premier plan, puis activer Ne pas déranger : les messages et sondages concernés restent silencieux. Désactiver Ne pas déranger ne doit pas rejouer les alertes masquées. Aucun son n’est demandé.
-- Refaire avec un expéditeur en ancienne version, puis essayer les bannières avec notify-send absent : gdbus doit suffire. Les tests automatisés couvrent quatorze versions et un bus privé ; la présentation finale et les réglages Ubuntu doivent être vérifiés sur le poste réel.
+- Garder la conversation concernée sélectionnée et la fenêtre principale active et non réduite, puis activer Ne pas déranger : les messages et sondages concernés restent silencieux. Sans DND, une autre conversation doit pouvoir déclencher sa bannière. Désactiver Ne pas déranger ne doit pas rejouer les alertes masquées. Aucun son n’est demandé.
+- Refaire avec un expéditeur en ancienne version, puis essayer les bannières avec notify-send absent : gdbus doit suffire. La validation de 2.6.1 couvrait quatorze versions et un bus privé ; la présentation finale et les réglages Ubuntu doivent être vérifiés sur le poste réel.
 
 ## Barre de dessin et compatibilité (2.6.0)
 
@@ -151,7 +162,7 @@ Ne pas scanner le `/16`, modifier le pare-feu ou réutiliser un port de service 
 ## Envoyé, livré et vu
 
 - Envoyer un message privé sans ouvrir la conversation chez le destinataire : deux coches grises après réception, pas de « Vu ».
-- Ouvrir la conversation chez le destinataire : deux coches bleues. Vérifier aussi une fenêtre minimisée, inactive et un nouveau message reçu pendant une lecture plus haut dans le tchat.
+- Sélectionner la conversation chez le destinataire avec la fenêtre principale active et non réduite : deux coches bleues pour un message visible. Vérifier aussi une autre conversation sélectionnée, la fenêtre principale minimisée ou inactive et un nouveau message reçu pendant une lecture plus haut dans le tchat : aucune lecture ne doit être confirmée à tort.
 - Désactiver **Partager les confirmations de lecture**, recevoir un message visible : rester à « Livré » chez l’auteur. Réactiver puis consulter : « Vu » peut être confirmé ; les anciennes confirmations déjà envoyées ne sont pas retirées.
 - Dans le général, vérifier les compteurs par destinataire et les coches bleues seulement après lecture par tous les destinataires de l’envoi. Un nouveau participant ne reçoit aucun ancien message ni ancien statut.
 - Essayer un client chiffré 1.5.0 : messages et livraison disponibles, lecture indisponible. Aucun repli en clair.
@@ -216,14 +227,17 @@ Un test réussi sur deux machines ne valide pas à lui seul 200 postes ni plusie
 
 | Vérification | Date / postes | Résultat réel |
 | --- | --- | --- |
-| IPv4/interface/masque | À compléter | À vérifier en 2.2.0 |
-| Découverte même zone | À compléter | À vérifier en 2.2.0 |
-| Découverte entre zones | À compléter | À vérifier en 2.2.0 |
-| TCP général et privé | À compléter | À vérifier en 2.2.0 |
-| Empreintes comparées, identité conservée | À compléter | À vérifier en 2.2.0 |
-| Contenu chiffré TCP et relais | À compléter | À vérifier en 2.2.0 |
+| Navigation général/privés/groupes dans une fenêtre | À compléter | À vérifier en 2.7.0 |
+| Brouillons, réponses et défilement par conversation | À compléter | À vérifier en 2.7.0 |
+| Non-lus, bannières et « Vu » de la seule conversation consultée | À compléter | À vérifier en 2.7.0 |
+| IPv4/interface/masque | À compléter | À vérifier en 2.7.0 |
+| Découverte même zone | À compléter | À vérifier en 2.7.0 |
+| Découverte entre zones | À compléter | À vérifier en 2.7.0 |
+| TCP général et privé | À compléter | À vérifier en 2.7.0 |
+| Empreintes comparées, identité conservée | À compléter | À vérifier en 2.7.0 |
+| Contenu chiffré TCP et relais | À compléter | À vérifier en 2.7.0 |
 | TLS/relais autorisé | À compléter | Aucun déploiement présumé |
-| Amis de barre et alertes de connexion | À compléter | À vérifier sur la session école en 2.2.0 |
-| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 2.2.0 |
-| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 2.2.0 |
-| Autostart après connexion | À compléter | À vérifier sur la session école en 2.2.0 |
+| Amis de barre et alertes de connexion | À compléter | À vérifier sur la session école en 2.7.0 |
+| Badge et barre Ubuntu | À compléter | À vérifier sur la session école en 2.7.0 |
+| Wizz/Wayland et notifications silencieuses | À compléter | À vérifier sur la session école en 2.7.0 |
+| Autostart après connexion | À compléter | À vérifier sur la session école en 2.7.0 |
