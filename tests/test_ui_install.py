@@ -109,15 +109,20 @@ def test_full_controller_real_tcp_unread_settings_and_no_history(qt, tmp_path, m
         controller.worker.submit(peer.send('message', client.sid, text='GUI_SECRET_TRANSIENT')).result(4)
         process_until(qt, lambda: controller.window.sidebar.unread.get(peer.sid) == 1)
         assert '1' in controller.tray.icon.toolTip()
-        # Click the actual online row: a separate native window must open.
+        # Click the actual online row: select a page in the shared main window.
         row = next(controller.window.sidebar.list.item(i) for i in range(controller.window.sidebar.list.count())
                    if (controller.window.sidebar.list.item(i).data(Qt.ItemDataRole.UserRole) or {}).get('sid') == peer.sid)
         controller.window.sidebar.list.itemClicked.emit(row)
         assert peer.sid in controller.private_windows
         direct = controller.private_windows[peer.sid]
-        assert direct is not controller.window and direct.isWindow()
+        assert direct is not controller.window and not direct.isWindow()
+        assert direct.window() is controller.window
         assert direct.current == peer.sid and controller.window.current == 'general'
+        assert controller.window.active_target == peer.sid
         assert direct.isVisible()
+        if QApplication.platformName() in ('offscreen','minimal'):
+            QApplication.setActiveWindow(controller.window)
+        process_until(qt,lambda:not controller.window.sidebar.unread)
         assert not controller.window.sidebar.unread
         assert '1 non lu' not in controller.tray.icon.toolTip()
         assert controller.history.get(peer.sid)[0].text == 'GUI_SECRET_TRANSIENT'

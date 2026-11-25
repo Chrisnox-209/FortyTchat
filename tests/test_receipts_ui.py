@@ -56,7 +56,7 @@ def test_real_ui_delivery_read_hidden_minimized_scrolled_and_disabled(tmp_path, 
         until(qt, lambda: state(mid) == 'read')
         assert '✓✓ Vu' in av.chat.delivery_labels[mid].text()
         assert '#69b6ff' in av.chat.delivery_labels[mid].styleSheet()
-        bv.showMinimized(); settle(qt, .1)
+        b.window.showMinimized(); settle(qt, .1)
         minimized = send('READ_SECRET_MINIMIZED')
         until(qt, lambda: state(minimized) == 'delivered')
         settle(qt)
@@ -92,7 +92,7 @@ def test_real_ui_delivery_read_hidden_minimized_scrolled_and_disabled(tmp_path, 
         try:
             until(qt, lambda: state(disabled) == 'read')
         except AssertionError:
-            raise AssertionError((qt.activeWindow() is bv, bv.isVisible(), bv.isMinimized(), bv.isActiveWindow(),
+            raise AssertionError((qt.activeWindow() is b.window, bv.isVisible(), b.window.isMinimized(), b.window.isActiveWindow(),
                                   disabled in bv.chat.visible_incoming(), bc.read_receipts,
                                   bc.receipts.incoming.get(disabled),
                                   a.history.find(bc.sid, disabled).delivery_recipients))

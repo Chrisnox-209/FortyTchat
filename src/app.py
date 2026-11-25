@@ -101,6 +101,7 @@ class Application(QObject, CollaborationController, ScreenShareController):
         self.window.chat_selected_callback = self.update_badge
         self.window.sidebar.list.setProperty('light', self.preferences.theme == 'light')
         self.window.private_requested.connect(self.open_private)
+        self.window.viewed.connect(self.mark_viewed)
         self.window.avatar_requested.connect(self.show_avatar_picker)
         self.window.friend_requested.connect(self.change_friend)
         self.tray = Tray(icon, self)
@@ -173,7 +174,7 @@ class Application(QObject, CollaborationController, ScreenShareController):
         if args.dev:
             startup_errors.append(f'Profil de développement « {args.dev} » : port TCP dynamique, démarrage automatique non modifié.')
         if startup_errors:
-            QTimer.singleShot(150, lambda: self.window.show_notice('\n'.join(startup_errors)))
+            QTimer.singleShot(150, self, lambda: self.window.show_notice('\n'.join(startup_errors)))
 
     def activate(self):
         if hasattr(self, 'window'):
@@ -193,8 +194,7 @@ class Application(QObject, CollaborationController, ScreenShareController):
         return self.window if target == 'general' else self.private_windows.get(target) or self.group_windows.get(target)
 
     def is_viewed(self, target):
-        view = self.view_for(target)
-        return bool(view and view.isVisible() and not view.isMinimized() and view.isActiveWindow())
+        return self.window.is_conversation_viewed(target)
 
     def notify_chat(self, target, nickname, *, poll=False, mentioned=False):
         if self.preferences.dnd or self.is_viewed(target):
@@ -241,6 +241,7 @@ class Application(QObject, CollaborationController, ScreenShareController):
         view = PrivateWindow(sid, nickname, self.history.get(sid), self.icon_path, self.wizz_deadline)
         view.contact_id = contact_id
         self.private_windows[sid] = view
+        self.window.add_conversation(sid, view)
         view.set_peer(peer, sid in self.window.sidebar.blocked or contact_id in self.preferences.blocked_contacts)
         view.set_friend(contact_id in self.preferences.friends)
         view.send_requested.connect(self.send_message)
@@ -421,11 +422,11 @@ class Application(QObject, CollaborationController, ScreenShareController):
     def refresh_receipts(self):
         if self.stopping or not self.preferences.read_receipts:
             return
-        view = self.qt.activeWindow()
-        if not view or (view is not self.window and view not in self.private_windows.values() and view not in self.group_windows.values()):
-            return
-        if not view.isVisible() or view.isMinimized() or not view.isActiveWindow():
-            return
+        if self.qt.activeWindow() is not self.window:return
+        target = self.window.active_target
+        if not self.is_viewed(target):return
+        view = self.view_for(target)
+        if view is None:return
         references = view.chat.visible_incoming()
         if references:
             self.worker.mark_read(references)
@@ -452,9 +453,11 @@ class Application(QObject, CollaborationController, ScreenShareController):
         self.close_card_editors(target=sid)
         view = self.private_windows.pop(sid, None)
         if view:
+            self.window.remove_conversation(sid)
             view.deleteLater()
 
     def mark_viewed(self, sid):
+        if not self.is_viewed(sid):return
         self.window.sidebar.unread.pop(sid, None)
         self.window.sidebar.refresh()
         self.update_badge()
@@ -487,9 +490,9 @@ class Application(QObject, CollaborationController, ScreenShareController):
                     if message.sender in changed:
                         message.avatar = changed[message.sender].get('avatar', -1)
                         message.avatar_image = changed[message.sender].get('avatar_image', '')
-            self.window.chat.reset(self.history.get('general'), 'general')
+            self.window.chat.refresh_messages(self.history.get('general'), 'general')
             for sid, view in self.private_windows.items():
-                view.chat.reset(self.history.get(sid), sid)
+                view.chat.refresh_messages(self.history.get(sid), sid)
         self.window.set_peers(self.latest_peers)
         self.refresh_blocked_state()
         self.group_names.update({self.preferences.contact_id:self.preferences.nickname,**{p['contact_id']:p['nick'] for p in self.latest_peers}})
@@ -543,16 +546,22 @@ class Application(QObject, CollaborationController, ScreenShareController):
             self.window.known_names[new_sid] = self.window.known_names.pop(old_sid)
         view = self.private_windows.get(old_sid)
         if view:
+            view.composer.stop_typing()
             existing = self.private_windows.get(new_sid)
             if existing and existing is not view:
+                existing.recover_drafts(view)
+                if existing.recovered_drafts:
+                    existing.show_notice('Brouillons conservés dans ··· → Brouillons récupérés.')
+                if self.window.active_target == old_sid:self.window.show_conversation(new_sid, existing)
                 view.close()
                 view = existing
             else:
                 self.private_windows.pop(old_sid, None)
                 view.current = new_sid
                 self.private_windows[new_sid] = view
-            view.chat.reset(self.history.get(new_sid), new_sid)
-            if view.isActiveWindow():
+                self.window.rename_conversation(old_sid, new_sid)
+            view.chat.refresh_messages(self.history.get(new_sid), new_sid)
+            if self.is_viewed(new_sid):
                 sidebar.unread.pop(new_sid, None)
         self.update_badge()
 
@@ -652,8 +661,7 @@ class Application(QObject, CollaborationController, ScreenShareController):
             if self.settings:
                 self.settings.update_network(data)
         elif kind == 'notice':
-            active = self.qt.activeWindow()
-            (active if isinstance(active, PrivateWindow) else self.window).show_notice(data['text'])
+            (self.window.active_view() or self.window).show_notice(data['text'])
         elif kind == 'security_verified':
             dialog = self.security_dialogs.get(data['sid'])
             if dialog:
@@ -733,6 +741,7 @@ class Application(QObject, CollaborationController, ScreenShareController):
         elif kind == 'wizz':
             self.system_message(target, f'ϟ {nickname} t’a envoyé un Wizz !')
             view = self.open_private(target)
+            if view is None:return
             view.chat.wizz()
             view.show_notice(f'ϟ Wizz de {nickname} !')
             self.notifications.show(f'{nickname} t’a envoyé un Wizz !')
@@ -1045,6 +1054,8 @@ class Application(QObject, CollaborationController, ScreenShareController):
         self.stopping = True
         self.close_screen_sharing_ui()
         self.session_monitor.stop()
+        self.tray.timer.stop()
+        self.peer_timer.stop()
         self.typing_timer.stop()
         self.file_queue_timer.stop()
         self.file_queue.clear()

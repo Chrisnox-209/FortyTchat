@@ -1,4 +1,4 @@
-"""One compact native window per private conversation; all messages stay in RAM."""
+"""Private conversation page with messages and drafts kept in memory."""
 import time
 from PySide6.QtCore import Qt, Signal, QTimer, QEvent
 from PySide6.QtGui import QIcon, QCursor, QKeySequence, QShortcut
@@ -26,6 +26,7 @@ class PrivateWindow(QMainWindow):
         super().__init__()
         self.current, self.nickname, self.blocked = sid, nickname, False
         self.contact_id, self.is_friend = '', False
+        self.recovered_drafts = []
         self.setWindowTitle(f'{nickname} · FortyTchat')
         self.setWindowIcon(QIcon(icon_path))
         self.resize(600, 740)
@@ -51,19 +52,24 @@ class PrivateWindow(QMainWindow):
         head.addLayout(title, 1)
         self.friend_button = button('☆', 'flat', 'Ajouter aux amis', 38)
         self.friend_button.setStyleSheet('font-size: 22px; padding: 3px;')
+        self.friend_button.setMinimumHeight(40)
         self.friend_button.clicked.connect(lambda: self.friend_requested.emit(self.contact_id, not self.is_friend))
         head.addWidget(self.friend_button)
         self.security_button = button('🔒', 'flat', 'Vérifier le chiffrement et les empreintes', 38)
+        self.security_button.setStyleSheet('padding:2px;')
+        self.security_button.setMinimumHeight(40)
         self.security_button.clicked.connect(lambda: self.security_requested.emit(self.current))
         head.addWidget(self.security_button)
         from pathlib import Path
         self.screen_button=button('', 'flat', 'Partager mon écran',38)
+        self.screen_button.setMinimumHeight(40)
         self.screen_button.setIcon(QIcon(str(Path(icon_path).parent/'screen.svg')))
         self.screen_button.setAccessibleName('Partager mon écran')
         self.screen_button.setEnabled(False)
         self.screen_button.clicked.connect(lambda:self.screen_requested.emit(self.current))
         head.addWidget(self.screen_button)
         more = button('···', 'flat', 'Options de la conversation')
+        more.setMinimumHeight(40)
         more.clicked.connect(self.menu)
         head.addWidget(more)
         box.addWidget(header)
@@ -94,7 +100,8 @@ class PrivateWindow(QMainWindow):
         note.setAlignment(Qt.AlignmentFlag.AlignCenter)
         footer_box.addWidget(note)
         box.addWidget(footer)
-        QShortcut(QKeySequence('Ctrl+W'), self, activated=self.close)
+        close_shortcut = QShortcut(QKeySequence('Ctrl+W'), self, activated=self.close)
+        close_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.composer.update_actions()
 
     def set_peer(self, peer, blocked=False):
@@ -147,16 +154,51 @@ class PrivateWindow(QMainWindow):
             self.send_button.setEnabled(True)
 
     def menu(self):
+        menu = self.build_menu()
+        menu.exec(QCursor.pos())
+        menu.deleteLater()
+
+    def build_menu(self):
         menu = QMenu(self)
         if self.contact_id:
             menu.addAction('Retirer des amis' if self.is_friend else 'Ajouter aux amis',
                            lambda: self.friend_requested.emit(self.contact_id, not self.is_friend))
         menu.addAction('Débloquer cet utilisateur' if self.blocked else 'Bloquer cet utilisateur',
                        lambda: self.block_requested.emit(self.current, not self.blocked))
+        if self.recovered_drafts:
+            drafts = QMenu('Brouillons récupérés', menu)
+            menu.addMenu(drafts)
+            for index, (text, _) in enumerate(self.recovered_drafts):
+                preview = ' '.join(text.split())
+                title = (preview[:60] + '…' if len(preview) > 60 else preview) or 'Réponse en cours'
+                drafts.addAction(title, lambda checked=False, index=index: self.select_recovered_draft(index))
         menu.addAction('Fermer la conversation', self.close)
-        menu.exec(QCursor.pos())
+        return menu
+
+    def recover_drafts(self, previous):
+        drafts = [previous.composer.draft(), *previous.recovered_drafts]
+        for draft in drafts:
+            if not any(draft):
+                continue
+            if not any(self.composer.draft()):
+                self.composer.restore_draft(draft)
+            else:
+                self.recovered_drafts.append(draft)
+
+    def select_recovered_draft(self, index):
+        current = self.composer.draft()
+        draft = self.recovered_drafts.pop(index)
+        if any(current):
+            self.recovered_drafts.append(current)
+        self.composer.restore_draft(draft)
+        self.input.setFocus()
 
     def open_window(self):
+        host = getattr(self, 'chat_host', None)
+        if host:
+            host.show_conversation(self.current, self)
+            host.open_window()
+            return
         self.showNormal()
         self.raise_()
         self.activateWindow()
@@ -165,6 +207,7 @@ class PrivateWindow(QMainWindow):
 
     def changeEvent(self, event):
         super().changeEvent(event)
+        if getattr(self, 'chat_host', None):return
         if event.type() == QEvent.Type.ActivationChange and self.isActiveWindow():
             self.viewed.emit(self.current)
 

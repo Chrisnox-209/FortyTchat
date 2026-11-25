@@ -98,7 +98,7 @@ class ChatView(QFrame):
 
     def bottom(self):
         self.follow_bottom = True
-        QTimer.singleShot(0, lambda: self.scroll.verticalScrollBar().setValue(self.scroll.verticalScrollBar().maximum()))
+        QTimer.singleShot(0, self, lambda: self.scroll.verticalScrollBar().setValue(self.scroll.verticalScrollBar().maximum()))
 
     def scroll_position_changed(self, value):
         self.follow_bottom = value >= self.scroll.verticalScrollBar().maximum() - 70
@@ -238,7 +238,7 @@ class ChatView(QFrame):
         self.reset(messages, target)
         if not follow:
             self.follow_bottom = False
-            QTimer.singleShot(0, lambda:self.scroll.verticalScrollBar().setValue(previous))
+            QTimer.singleShot(0, self, lambda:self.scroll.verticalScrollBar().setValue(previous))
 
     def message_menu(self, reference):
         entry = self.message_rows.get(reference)
@@ -260,7 +260,7 @@ class ChatView(QFrame):
         super().resizeEvent(event)
         if hasattr(self, 'bubbles'):
             self.adjust_bubbles()
-            QTimer.singleShot(0, self.adjust_bubbles)
+            QTimer.singleShot(0, self, self.adjust_bubbles)
 
     def update_transfer(self, metadata):
         entry = self.file_cards.get(metadata['id'])
@@ -329,5 +329,5 @@ class ChatView(QFrame):
     def wizz(self):
         from .attention import shake_window
         self.bottom()
-        QTimer.singleShot(80, self.bottom)
+        QTimer.singleShot(80, self, self.bottom)
         self.animation = shake_window(self.window(), self.window().centralWidget())

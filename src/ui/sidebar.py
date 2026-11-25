@@ -1,8 +1,8 @@
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import Qt, Signal, QSize, QRectF
 from PySide6.QtGui import QColor, QPainter, QFont
 from PySide6.QtWidgets import (QFrame, QVBoxLayout, QHBoxLayout, QListWidget,
                                QListWidgetItem, QStyledItemDelegate, QStyle, QMenu)
-from .widgets import Avatar, button, color_for, label, paint_avatar
+from .widgets import Avatar, button, label, paint_avatar
 from .theme import colors
 from ..features.friends import friend_key, friend_rows, online_contact
 
@@ -27,7 +27,10 @@ class PeerDelegate(QStyledItemDelegate):
             painter.setBrush(QColor(c['selected'] if selected else c['hover']))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(r, 21, 21)
-        from PySide6.QtCore import QRectF
+        if selected:
+            painter.setBrush(QColor(c['accent']))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(QRectF(r.x()+1, r.center().y()-16, 4, 32), 2, 2)
         avatar_rect = QRectF(r.x()+12, r.y()+12, 49, 49)
         if data['sid'] == 'general':
             painter.setBrush(QColor('#b1d4fa'))
@@ -39,25 +42,34 @@ class PeerDelegate(QStyledItemDelegate):
         else:
             paint_avatar(painter, avatar_rect, data['nick'], data.get('online', False), data.get('avatar', -1), data.get('avatar_image', ''), data.get('locked', False))
         unread = data.get('unread', 0)
-        available = r.width() - 111
-        painter.setFont(QFont('DejaVu Sans', 11, QFont.Weight.Medium))
+        badge_text = ('99+' if unread > 99 else str(unread)) if unread > 0 else ''
+        badge_font = QFont('DejaVu Sans', 9, QFont.Weight.Bold)
+        painter.setFont(badge_font)
+        badge_width = max(24, painter.fontMetrics().horizontalAdvance(badge_text)+12) if badge_text else 0
+        trailing_width = badge_width or (22 if data.get('friend') else 0)
+        text_left = r.x()+75
+        text_right = r.right()-12-trailing_width-(10 if trailing_width else 0)
+        available = max(0, text_right-text_left)
+        painter.setFont(QFont('DejaVu Sans', 11, QFont.Weight.Bold if unread > 0 else QFont.Weight.Medium))
         name = painter.fontMetrics().elidedText(data['nick'], Qt.TextElideMode.ElideRight, available)
-        painter.setPen(QColor(c['text']))
-        painter.drawText(r.x()+75, r.y()+15, available, 21, Qt.AlignmentFlag.AlignVCenter, name)
+        painter.setPen(QColor(c['text'] if unread > 0 or selected else c['muted']))
+        painter.drawText(text_left, r.y()+15, available, 21, Qt.AlignmentFlag.AlignVCenter, name)
         painter.setFont(QFont('DejaVu Sans', 9))
         painter.setPen(QColor(c['muted']))
         detail = painter.fontMetrics().elidedText(data.get('detail', ''), Qt.TextElideMode.ElideRight, available)
-        painter.drawText(r.x()+75, r.y()+42, available, 18, Qt.AlignmentFlag.AlignVCenter, detail)
-        if unread:
-            painter.setBrush(QColor(c['accent']))
+        painter.drawText(text_left, r.y()+42, available, 18, Qt.AlignmentFlag.AlignVCenter, detail)
+        if badge_text:
+            badge_rect = QRectF(r.right()-12-badge_width, r.center().y()-12, badge_width, 24)
+            painter.setBrush(QColor('#c63150'))
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawEllipse(r.right()-30, r.y()+26, 24, 24)
+            painter.drawRoundedRect(badge_rect, 12, 12)
             painter.setPen(QColor('white'))
-            painter.drawText(r.right()-30, r.y()+26, 24, 24, Qt.AlignmentFlag.AlignCenter, str(min(unread, 99)))
-        elif data['sid'] != 'general':
+            painter.setFont(badge_font)
+            painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, badge_text)
+        elif data.get('friend'):
             painter.setPen(QColor(c['subtle']))
             painter.setFont(QFont('DejaVu Sans', 12))
-            painter.drawText(r.right()-28, r.y()+23, 22, 27, Qt.AlignmentFlag.AlignCenter, '★' if data.get('friend') else '↗')
+            painter.drawText(r.right()-34, r.y()+23, 22, 27, Qt.AlignmentFlag.AlignCenter, '★')
         painter.restore()
 
 
@@ -77,6 +89,7 @@ class Sidebar(QFrame):
         self.setFixedWidth(312)
         self.peers, self.conversations, self.unread = {}, {}, {}
         self.blocked, self.current = set(), 'general'
+        self.current_contact = ''
         self.popup_available = None
         self.groups = {}
         self.blocked_contacts = blocked_contacts if blocked_contacts is not None else {}
@@ -101,6 +114,7 @@ class Sidebar(QFrame):
         heading.addWidget(create_group)
         layout.addLayout(heading)
         self.list = QListWidget()
+        self.list.setAccessibleName('Conversations')
         self.list.setMouseTracking(True)
         self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.list.setItemDelegate(PeerDelegate(self.list))
@@ -191,9 +205,13 @@ class Sidebar(QFrame):
                                              'online': online, 'locked': locked, 'avatar': avatar, 'avatar_image': avatar_image,
                                              'contact_id': contact_id, 'friend': friend, 'unread': unread})
         item.setSizeHint(QSize(280, 82))
-        item.setToolTip(nick + ' · ' + detail + (f' · session {sid[:8]}' if sid != 'general' else ''))
+        unread_info = (f'{unread} message non lu' if unread == 1 else f'{unread} messages non lus') if unread > 0 else 'Aucun message non lu'
+        description = detail + ' · ' + unread_info
+        item.setData(Qt.ItemDataRole.AccessibleTextRole, nick + ' · ' + description)
+        item.setData(Qt.ItemDataRole.AccessibleDescriptionRole, description)
+        item.setToolTip(nick + ' · ' + description + (f' · session {sid[:8]}' if sid != 'general' else ''))
         self.list.addItem(item)
-        if sid == self.current:
+        if sid == self.current or (friend and contact_id and contact_id == self.current_contact):
             self.list.setCurrentItem(item)
 
     def refresh(self):

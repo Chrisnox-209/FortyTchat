@@ -103,7 +103,7 @@ class GroupWindow(PrivateWindow):
         menu.addAction('Paramètres du groupe', lambda:self.manage_requested.emit(self.room['id']))
         if self.room['state'] == 'joined':
             menu.addAction('Quitter le groupe', self.leave)
-        menu.addAction('Fermer la fenêtre', self.close)
+        menu.addAction('Fermer la conversation', self.close)
         menu.exec(QCursor.pos())
         menu.deleteLater()
 

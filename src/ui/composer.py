@@ -125,6 +125,7 @@ class Composer(QFrame):
         box.setContentsMargins(12, 5, 12, 12)
         box.setSpacing(4)
         self.reply_to, self.reply_preview = '', None
+        self.reply_details = ()
         self.reply_banner = QFrame()
         self.reply_box = QHBoxLayout(self.reply_banner)
         self.reply_box.setContentsMargins(4, 4, 4, 0)
@@ -145,7 +146,10 @@ class Composer(QFrame):
         self.input.image_pasted.connect(self.image_pasted)
         edit_row = QHBoxLayout()
         edit_row.addWidget(self.input, 1)
+        self.counter = label('', 'caption')
+        edit_row.addWidget(self.counter, 0, Qt.AlignmentFlag.AlignBottom)
         self.code_button = button('</>', 'flat', 'Insérer un bloc de code · Ctrl+Maj+C', 38)
+        self.code_button.setStyleSheet('padding:0;')
         self.code_button.setAccessibleName('Insérer un bloc de code')
         self.code_button.clicked.connect(self.input.insert_code)
         edit_row.addWidget(self.code_button)
@@ -153,7 +157,7 @@ class Composer(QFrame):
         actions = QHBoxLayout()
         actions.setSpacing(8)
         emoji = button('☺', 'flat', 'Choisir un emoji', 34)
-        emoji.setStyleSheet('font-size: 24px;')
+        emoji.setStyleSheet('font-size:24px; padding:0;')
         emoji.clicked.connect(self.emojis)
         actions.addWidget(emoji)
         self.file_button = button('＋', 'flat', 'Joindre un fichier (20 Mio maximum)', 34)
@@ -175,9 +179,7 @@ class Composer(QFrame):
         self.poll_button.setVisible(not private)
         actions.addWidget(self.poll_button)
         actions.addStretch()
-        self.counter = label('', 'caption')
-        actions.addWidget(self.counter)
-        self.send_button = button('Envoyer  ↗', 'primary', 'Entrée : envoyer · Maj + Entrée : nouvelle ligne')
+        self.send_button = button('Envoyer', 'primary', 'Entrée : envoyer · Maj + Entrée : nouvelle ligne')
         self.send_button.clicked.connect(self.submit)
         actions.addWidget(self.send_button)
         box.addLayout(actions)
@@ -196,6 +198,7 @@ class Composer(QFrame):
     def set_reply(self, reference, nickname, text):
         self.clear_reply()
         self.reply_to = reference
+        self.reply_details = (reference, nickname, text[:160])
         self.reply_preview = ReplyPreview(reference, nickname, text)
         self.reply_box.insertWidget(0, self.reply_preview, 1)
         self.reply_banner.show()
@@ -203,11 +206,23 @@ class Composer(QFrame):
 
     def clear_reply(self):
         self.reply_to = ''
+        self.reply_details = ()
         if self.reply_preview:
             self.reply_box.removeWidget(self.reply_preview)
             self.reply_preview.deleteLater()
             self.reply_preview = None
         self.reply_banner.hide()
+
+    def draft(self):
+        return self.input.toPlainText(), self.reply_details
+
+    def restore_draft(self, draft):
+        text, reply = draft
+        self.input.setPlainText(text)
+        if reply:
+            self.set_reply(*reply)
+        else:
+            self.clear_reply()
 
     def stop_typing(self):
         if self.typing_active:

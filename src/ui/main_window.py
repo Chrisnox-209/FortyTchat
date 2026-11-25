@@ -2,7 +2,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal, QTimer, QSize, QEvent
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QCursor
-from PySide6.QtWidgets import QMainWindow, QWidget, QFrame, QHBoxLayout, QVBoxLayout, QMenu
+from PySide6.QtWidgets import QMainWindow, QWidget, QFrame, QHBoxLayout, QVBoxLayout, QMenu, QStackedWidget
 from .sidebar import Sidebar
 from .chat_view import ChatView
 from .composer import Composer, ComposeEdit
@@ -21,6 +21,7 @@ class MainWindow(QMainWindow):
     block_requested = Signal(str, bool)
     status_requested = Signal(str)
     quitting = Signal()
+    viewed = Signal(str)
 
     def __init__(self, preferences, history, icon_path):
         super().__init__()
@@ -30,6 +31,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(900, 580)
         self.preferences, self.history = preferences, history
         self.current, self.peers, self.known_names = 'general', {}, {}
+        self.active_target, self.conversation_pages = 'general', {}
         self.quitting_now, self.tray_available = False, False
         root = QWidget()
         self.setCentralWidget(root)
@@ -66,6 +68,7 @@ class MainWindow(QMainWindow):
         chats = rail_button('chats.svg', 'Chat général', lambda: self.select_chat('general'))
         chats.setCheckable(True)
         chats.setChecked(True)
+        self.general_button = chats
         rail_box.addWidget(chats)
         rail_box.addWidget(rail_button('online.svg', 'Utilisateurs en ligne', self.sidebar.focus_online))
         rail_box.addStretch()
@@ -113,6 +116,7 @@ class MainWindow(QMainWindow):
         self.notice_timer.setSingleShot(True)
         self.notice_timer.timeout.connect(self.notice.hide)
         self.chat = ChatView()
+        self.chat.reset(history.get('general'), 'general')
         pane_box.addWidget(self.chat, 1)
         footer = QWidget()
         footer_box = QVBoxLayout(footer)
@@ -133,7 +137,17 @@ class MainWindow(QMainWindow):
         details.addWidget(label('↵ Envoyer  ·  ⇧↵ Nouvelle ligne', 'caption'))
         footer_box.addLayout(details)
         pane_box.addWidget(footer)
-        body.addWidget(pane, 1)
+        # Keep each conversation's widgets alive while switching. The general
+        # controls retain their fixed target; only the visible page changes.
+        pane_box.removeWidget(self.update_banner);pane_box.removeWidget(self.notice)
+        self.general_page = pane
+        self.pages = QStackedWidget();self.pages.addWidget(self.general_page)
+        conversations = QFrame();conversations.setObjectName('mainPane')
+        conversations_box = QVBoxLayout(conversations)
+        conversations_box.setContentsMargins(0, 0, 0, 0);conversations_box.setSpacing(0)
+        conversations_box.addWidget(self.update_banner);conversations_box.addWidget(self.notice)
+        conversations_box.addWidget(self.pages, 1)
+        body.addWidget(conversations, 1)
         QShortcut(QKeySequence('Ctrl+,'), self, activated=lambda: self.settings_requested.emit(0))
         QShortcut(QKeySequence('Ctrl+Q'), self, activated=self.quitting.emit)
         QShortcut(QKeySequence('Ctrl+K'), self, activated=self.sidebar.focus_online)
@@ -142,13 +156,67 @@ class MainWindow(QMainWindow):
         if sid != 'general':
             self.private_requested.emit(sid)
             return
-        self.sidebar.current = 'general'
-        self.sidebar.unread.pop('general', None)
+        self.show_conversation('general')
+
+    def active_view(self):
+        return self if self.active_target == 'general' else self.conversation_pages.get(self.active_target)
+
+    def add_conversation(self, target, view):
+        if target in self.conversation_pages:
+            return self.conversation_pages[target]
+        view.chat_host = self
+        view.setParent(self.pages, Qt.WindowType.Widget)
+        self.conversation_pages[target] = view
+        self.pages.addWidget(view)
+        view.windowTitleChanged.connect(lambda title, page=view:self.setWindowTitle(title) if self.active_view() is page else None)
+        return view
+
+    def show_conversation(self, target, view=None):
+        if view is not None:self.add_conversation(target, view)
+        page = self.general_page if target == 'general' else self.conversation_pages.get(target)
+        if page is None:return False
+        old = self.active_view()
+        if old is not None and self.active_target != target:old.composer.stop_typing()
+        self.active_target = target
+        self.pages.setCurrentWidget(page)
+        page.show()
+        self.general_button.setChecked(target == 'general')
+        active = self.active_view()
+        self.sidebar.current = target
+        self.sidebar.current_contact = getattr(active, 'contact_id', '')
         self.sidebar.refresh()
-        self.chat.reset(self.history.get('general'), 'general')
-        self.input.setFocus()
-        if hasattr(self, 'chat_selected_callback'):
-            self.chat_selected_callback()
+        self.setWindowTitle('FortyTchat — le cluster, en direct' if target == 'general' else page.windowTitle())
+        active.input.setFocus()
+        self.mark_active_viewed()
+        return True
+
+    def is_conversation_viewed(self, target):
+        page = self.general_page if target == 'general' else self.conversation_pages.get(target)
+        return bool(target == self.active_target and page is not None and self.pages.currentWidget() is page and page.isVisible()
+                    and self.isVisible() and not self.isMinimized() and self.isActiveWindow())
+
+    def mark_active_viewed(self):
+        if not self.is_conversation_viewed(self.active_target):return
+        self.sidebar.unread.pop(self.active_target, None)
+        self.viewed.emit(self.active_target)
+        self.sidebar.refresh()
+        if hasattr(self, 'chat_selected_callback'):self.chat_selected_callback()
+
+    def remove_conversation(self, target):
+        page = self.conversation_pages.get(target)
+        if page is None:return
+        page.composer.stop_typing()
+        if self.active_target == target:self.show_conversation('general')
+        self.conversation_pages.pop(target, None)
+        self.pages.removeWidget(page)
+
+    def rename_conversation(self, old_target, new_target):
+        page = self.conversation_pages.pop(old_target, None)
+        if page is None:return
+        self.conversation_pages[new_target] = page
+        if self.active_target == old_target:
+            self.active_target = new_target;self.sidebar.current = new_target
+            self.sidebar.refresh()
 
     def set_peers(self, peers):
         self.peers = {p['sid']: p for p in peers}
@@ -196,24 +264,19 @@ class MainWindow(QMainWindow):
         menu.exec(QCursor.pos())
 
     def open_window(self):
-        self.showNormal()
+        self.showNormal() if self.isMinimized() else self.show()
         self.raise_()
         self.activateWindow()
         if self.windowHandle():
             self.windowHandle().requestActivate()
-        self.input.setFocus()
-        self.sidebar.unread.pop('general', None)
-        self.sidebar.refresh()
-        if hasattr(self, 'chat_selected_callback'):
-            self.chat_selected_callback()
+        active = self.active_view()
+        if active is not None:active.input.setFocus()
+        self.mark_active_viewed()
 
     def changeEvent(self, event):
         super().changeEvent(event)
-        if event.type() == QEvent.Type.ActivationChange and self.isActiveWindow() and hasattr(self, 'sidebar'):
-            self.sidebar.unread.pop('general', None)
-            self.sidebar.refresh()
-            if hasattr(self, 'chat_selected_callback'):
-                self.chat_selected_callback()
+        if event.type() == QEvent.Type.ActivationChange and hasattr(self, 'pages'):
+            self.mark_active_viewed()
 
     def closeEvent(self, event):
         if self.quitting_now:

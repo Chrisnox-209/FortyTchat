@@ -50,8 +50,13 @@ def test_dnd_and_current_conversation_suppress_messages_and_polls(dnd,viewed):
 @pytest.mark.parametrize('visible,active,minimized,expected',[(True,True,False,True),(True,True,True,False),
     (False,True,False,False),(True,False,False,False)])
 def test_minimized_or_inactive_window_is_not_a_viewed_conversation(visible,active,minimized,expected):
-    view=SimpleNamespace(isVisible=lambda:visible,isActiveWindow=lambda:active,isMinimized=lambda:minimized)
-    assert Application.is_viewed(SimpleNamespace(view_for=lambda t:view),'general') is expected
+    from src.ui.main_window import MainWindow
+    page=SimpleNamespace(isVisible=lambda:visible)
+    host=SimpleNamespace(active_target='general',general_page=page,conversation_pages={},
+        pages=SimpleNamespace(currentWidget=lambda:page),isVisible=lambda:visible,
+        isActiveWindow=lambda:active,isMinimized=lambda:minimized)
+    host.is_conversation_viewed=lambda target:MainWindow.is_conversation_viewed(host,target)
+    assert Application.is_viewed(SimpleNamespace(window=host),'general') is expected
 
 
 @pytest.mark.parametrize('backend',['gdbus','notify-send'])

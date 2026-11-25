@@ -16,7 +16,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3'),('2.5.3','90ba8b7'),('2.6.0','1e6b2f2'),('2.6.1','4cdab2b')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3'),('2.5.3','90ba8b7'),('2.6.0','1e6b2f2'),('2.6.1','4cdab2b'),('2.6.2','48a58ed')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -263,6 +263,7 @@ def test_native_notification_selection_from_real_legacy_messages_and_polls(legac
         assert rendered.toPlainText()==link_text
         assert receiver.history.find(peer.sid,reference).text==link_text
         receiver.close_private(peer.sid);compat_qt.processEvents()
+        receiver.window.hide()  # General is now a page of the same restored host.
         banners.clear()
 
         send('general','GENERAL_COMPAT')

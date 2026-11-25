@@ -44,6 +44,7 @@ class CollaborationController:
             self.collaboration_dialogs.discard(dialog)
             dialog.deleteLater()
         dialog.finished.connect(done)
+        dialog.destroyed.connect(lambda *_: self.collaboration_dialogs.discard(dialog))
         dialog.show()
         return dialog
 
@@ -76,6 +77,7 @@ class CollaborationController:
             return self.group_windows[key]
         view = GroupWindow(room, self.history.get(key), self.icon_path)
         self.group_windows[key] = view
+        self.window.add_conversation(key, view)
         view.set_group(room, self.group_names)
         self.bind_interactions(view)
         for poll in self.history.get(key):
@@ -109,6 +111,7 @@ class CollaborationController:
     def close_group_window(self, key):
         view = self.group_windows.pop(key, None)
         if view:
+            self.window.remove_conversation(key)
             view.deleteLater()
 
     def show_poll_editor(self, target):
@@ -268,9 +271,10 @@ class CollaborationController:
             self.window.sidebar.groups = self.groups
             self.group_names.update({self.preferences.contact_id:self.preferences.nickname,
                                      **{p['contact_id']:p['nick'] for p in self.latest_peers}})
-            for key, view in self.group_windows.items():
+            for key, view in list(self.group_windows.items()):
                 if key in self.groups:
                     view.set_group(self.groups[key], self.group_names)
+                else:self.close_group_window(key)
             for dialog in self.collaboration_dialogs:
                 if isinstance(dialog, GroupManager) and group_key(dialog.room['id']) in self.groups:
                     dialog.set_group(self.groups[group_key(dialog.room['id'])])
