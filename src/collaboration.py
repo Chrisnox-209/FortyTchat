@@ -194,7 +194,8 @@ class CollaborationController:
     def refresh_blocked_state(self):
         sidebar = self.window.sidebar
         sidebar.blocked = self.session_blocks | {p['sid'] for p in self.latest_peers
-                                                if p['contact_id'] in self.preferences.blocked_contacts}
+                                                if p.get('release_quarantined')
+                                                or p['contact_id'] in self.preferences.blocked_contacts}
         sidebar.refresh()
         for sid, view in self.private_windows.items():
             view.set_peer(self.window.peers.get(sid), sid in sidebar.blocked or view.contact_id in self.preferences.blocked_contacts)
@@ -260,8 +261,10 @@ class CollaborationController:
         elif kind=='peer_version':
             version=version_tuple(data['version'])
             current=version_tuple(__version__)
-            if version and version>current and version>version_tuple(getattr(self,'newer_version',__version__)):
-                self.newer_version=data['version'];self.window.show_update_banner(data['version'])
+            if (data.get('verified') is True and data.get('notes') and version and version > current
+                    and version > version_tuple(getattr(self, 'newer_version', __version__))):
+                self.newer_version = data['version']
+                self.window.show_update_banner(data['version'], data['notes'])
         elif kind == 'group_update_result':
             for dialog in self.collaboration_dialogs:
                 if isinstance(dialog, GroupManager) and dialog.room['id'] == data['reference']:

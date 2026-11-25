@@ -9,6 +9,30 @@ from ..features.updates import DEFAULT_REPOSITORY, update_command
 from .widgets import button, label
 
 
+class ReleaseNotesDialog(QDialog):
+    def __init__(self, version, notes, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f'Nouveautés · FortyTchat {version}')
+        self.resize(570, 350)
+        box = QVBoxLayout(self)
+        box.setContentsMargins(22, 22, 22, 18)
+        box.addWidget(label(f'Nouveautés de FortyTchat {version}', 'title', True))
+        self.notes = QPlainTextEdit()
+        self.notes.setReadOnly(True)
+        self.notes.setAccessibleName('Nouveautés vérifiées de la mise à jour')
+        self.notes.setPlainText(notes)
+        box.addWidget(self.notes, 1)
+        actions = QHBoxLayout()
+        close = button('Fermer', 'soft')
+        close.clicked.connect(self.reject)
+        actions.addWidget(close)
+        actions.addStretch()
+        install = button('Mettre à jour', 'primary')
+        install.clicked.connect(self.accept)
+        actions.addWidget(install)
+        box.addLayout(actions)
+
+
 class UpdateDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -223,9 +223,11 @@ def validate(data):
                     if not isinstance(choices,list) or len(choices)>8 or any(type(i) is not int or not 0<=i<8 for i in choices) or len(set(choices))!=len(choices):raise ProtocolError('Vote invalide')
                 elif type(data['option']) is not int or not -1<=data['option']<8:raise ProtocolError('Vote invalide')
         if kind=='client_info':
+            from ..features.releases import valid_notes
             from ..features.versions import version_tuple
             features=data.get('features')
-            if (set(data)-{'locked'}!={'v','type','id','from','to','version','features'} or 'locked' in data and type(data['locked']) is not bool or not version_tuple(data.get('version'))
+            if (set(data)-{'locked', 'release_notes'}!={'v','type','id','from','to','version','features'} or 'locked' in data and type(data['locked']) is not bool or not version_tuple(data.get('version'))
+                    or 'release_notes' in data and not valid_notes(data['release_notes'])
                     or not isinstance(features,list) or len(features)>16 or any(not isinstance(f,str) or len(f)>32 for f in features)):
                 raise ProtocolError('Version annoncée invalide')
         if kind in READ_EVENTS:

@@ -132,19 +132,22 @@ class RelayServer:
         except (OSError, ConnectionError, ProtocolError, SecurityError, asyncio.TimeoutError):
             pass
         finally:
+            # stop() can cancel this handler while the output task is winding down.
+            writer.close()
             if handshaking:
                 self.handshakes -= 1
             if connection:
                 sid = connection.hello['sid']
                 self.clients.pop(sid, None)
                 self.broadcast({'v': 1, 'type': 'bye', 'sid': sid})
-            if pump:
-                pump.cancel()
-                await asyncio.gather(pump, return_exceptions=True)
-            writer.close()
-            with contextlib.suppress(OSError):
-                await writer.wait_closed()
-            self.handlers.discard(task)
+            try:
+                if pump:
+                    pump.cancel()
+                    await asyncio.gather(pump, return_exceptions=True)
+                with contextlib.suppress(OSError):
+                    await writer.wait_closed()
+            finally:
+                self.handlers.discard(task)
 
     async def stop(self):
         self.closing = True

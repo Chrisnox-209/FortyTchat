@@ -107,6 +107,11 @@ class MainWindow(QMainWindow):
         self.update_text=label('',wrap=True);update_box.addWidget(self.update_text,1)
         self.update_dialog=None
         self.start_update = None
+        self.update_details = ('', '')
+        self.update_details_button = button('Nouveautés')
+        self.update_details_button.clicked.connect(self.open_update_details)
+        self.update_details_button.hide()
+        update_box.addWidget(self.update_details_button)
         self.update_button=button('Mettre à jour')
         self.update_button.setToolTip('Installer la dernière version et redémarrer FortyTchat')
         self.update_button.clicked.connect(self.open_update);update_box.addWidget(self.update_button)
@@ -232,9 +237,20 @@ class MainWindow(QMainWindow):
         self.sidebar.refresh()
         self.members.setText(f'{len(peers) + 1} participants' if peers else 'Vous seul·e')
 
-    def show_update_banner(self,version):
+    def show_update_banner(self, version, notes=''):
         self.update_text.setText(f'Une mise à jour est disponible : FortyTchat {version} a été détecté sur le cluster.')
+        self.update_details = (version, notes)
+        self.update_details_button.setVisible(bool(notes))
         self.update_banner.show()
+
+    def open_update_details(self):
+        from .update import ReleaseNotesDialog
+        version, notes = self.update_details
+        if notes:
+            dialog = ReleaseNotesDialog(version, notes, self)
+            if dialog.exec():
+                self.open_update()
+            dialog.deleteLater()
 
     def open_update(self):
         if self.start_update is not None and self.start_update():

@@ -292,3 +292,66 @@ def test_collision_converges_without_changing_session_ids():
             await a.stop()
             await b.stop()
     asyncio.run(scenario())
+
+
+def test_relay_closes_writer_before_waiting_for_its_output_task():
+    async def scenario():
+        draining = asyncio.Event()
+        release = asyncio.Event()
+        server = RelayServer()
+        remote_writers = []
+        original_pump = server.pump
+
+        async def pump(connection):
+            remote_writers.append(connection.writer)
+            try:
+                await original_pump(connection)
+            finally:
+                draining.set()
+                await release.wait()
+
+        server.pump = pump
+        port = await server.start(port=0)
+        client = ChatClient('Alice42', discovery=False)
+        client.port = 39742
+        reader, writer = await asyncio.open_connection('127.0.0.1', port)
+        try:
+            writer.write(encode(client.hello()))
+            await writer.drain()
+            assert (await read_frame(reader, 3))['type'] == 'pong'
+            writer.close()
+            await writer.wait_closed()
+            await asyncio.wait_for(draining.wait(), 3)
+            assert remote_writers[0].is_closing()
+        finally:
+            release.set()
+            writer.close()
+            await asyncio.wait_for(server.stop(), 3)
+
+    asyncio.run(scenario())
+
+
+def test_cancelled_connect_closes_writer_when_connection_just_completed(monkeypatch):
+    from src.networking.client import open_connection
+
+    async def scenario():
+        closed = []
+
+        class Writer:
+            def close(self):
+                closed.append('close')
+
+            async def wait_closed(self):
+                closed.append('wait')
+
+        async def complete_while_cancelling(*args, **kwargs):
+            caller.cancel()
+            return None, Writer()
+
+        monkeypatch.setattr(asyncio, 'open_connection', complete_while_cancelling)
+        caller = asyncio.create_task(open_connection('127.0.0.1', 1, 3))
+        with pytest.raises(asyncio.CancelledError):
+            await caller
+        assert closed == ['close', 'wait']
+
+    asyncio.run(scenario())

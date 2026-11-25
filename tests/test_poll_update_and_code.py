@@ -75,7 +75,23 @@ def test_higher_authenticated_peer_version_opens_local_copy_instructions(monkeyp
     major,minor,patch=map(int,__version__.split('.'))
     future=f'{major}.{minor+1}.0'
     CollaborationController.collaboration_event(controller,'peer_version',{'version':future})
+    assert window.update_banner.isHidden()
+    notes = '• Nouveau menu.\n• Correction du tchat.'
+    CollaborationController.collaboration_event(controller,'peer_version',{'version':future,'verified':True})
+    assert window.update_banner.isHidden()
+    CollaborationController.collaboration_event(controller,'peer_version',{'version':future,'verified':True,'notes':notes})
     assert not window.update_banner.isHidden() and future in window.update_text.text()
+    from src.ui.update import ReleaseNotesDialog
+    opened_notes = []
+
+    def inspect_dialog(dialog):
+        assert dialog.notes.isReadOnly()
+        opened_notes.append(dialog.notes.toPlainText())
+        return 0
+
+    monkeypatch.setattr(ReleaseNotesDialog, 'exec', inspect_dialog)
+    window.update_details_button.click()
+    assert opened_notes == [notes] and window.update_dialog is None
     CollaborationController.collaboration_event(controller,'peer_version',{'version':'2.3.1'})
     assert future in window.update_text.text()
     opened=[];monkeypatch.setattr(QDesktopServices,'openUrl',lambda url:opened.append(url.toString()) or True)

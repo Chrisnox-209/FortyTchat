@@ -11,6 +11,7 @@ SOURCE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SOURCE))
 
 from src.features.updates import installed_app
+from src.features.releases import verified_tree
 from src.features.versions import version_tuple
 from tools.diagnose_session import read_version
 from tools.install_user import install_app
@@ -51,7 +52,7 @@ def restart(app):
         pass  # The graphical application is still running.
 
 
-def update(app, status):
+def update(app, status, *, restore=False):
     if app.resolve() != installed_app().resolve() or not (app / 'main.py').is_file():
         raise UpdateError('La mise à jour automatique requiert la copie installée de FortyTchat.')
     lock_path = app.parent / '.update.lock'
@@ -63,17 +64,27 @@ def update(app, status):
             raise UpdateError('Une mise à jour est déjà en cours.') from exc
 
         with tempfile.TemporaryDirectory(prefix='fortytchat-update-') as scratch:
-            release = Path(scratch) / 'release'
-            status('Téléchargement depuis GitHub…')
-            fetch_release(release)
-            available = read_version(release / 'src' / '__init__.py')
+            recovery = app.parent / 'recovery'
+            local = verified_tree(recovery) if restore else None
+            if local is not None:
+                release, proof = recovery, local
+                status('Vérification de la copie locale…')
+            else:
+                release = Path(scratch) / 'release'
+                status('Téléchargement depuis GitHub…')
+                fetch_release(release)
+                proof = verified_tree(release)
+            if proof is None:
+                raise UpdateError('La signature ou les fichiers de la publication sont invalides.')
+            available = proof.version
             current = version_tuple(read_version(app / 'src' / '__init__.py'))
             version = version_tuple(available)
-            if current is None or version is None or not (release / 'main.py').is_file():
-                raise UpdateError('Impossible de vérifier la version à installer.')
-            if version <= current:
-                return False
-            if (app / 'requirements.txt').read_bytes() != (release / 'requirements.txt').read_bytes():
+            if not restore:
+                if current is None:
+                    raise UpdateError('Version locale invalide. Utilise Restaurer FortyTchat.')
+                if version <= current:
+                    return False
+            if local is None and (app / 'requirements.txt').read_bytes() != (release / 'requirements.txt').read_bytes():
                 raise UpdateError('Cette version demande de nouvelles dépendances. Utilise la commande manuelle.')
 
             status(f'Installation de FortyTchat {available}…')
@@ -82,8 +93,14 @@ def update(app, status):
             except OSError as exc:
                 raise UpdateError('FortyTchat n’a pas pu se fermer. Ferme-le depuis son icône puis réessaie.') from exc
             try:
-                install_app(release, app.parent)
+                def verify_copy(path):
+                    if verified_tree(path) != proof:
+                        raise OSError('Copie installée différente de la publication signée')
+
+                install_app(release, app.parent, verify=verify_copy)
             except OSError as exc:
+                if restore:
+                    raise UpdateError('Restauration interrompue. Vérifie l’espace disponible puis réessaie.') from exc
                 try:
                     restart(app)
                 except OSError:
@@ -97,6 +114,7 @@ def update(app, status):
 
 
 def main():
+    restore = '--restore' in sys.argv[1:]
     from PySide6.QtCore import Qt, QThread, QTimer, Signal
     from PySide6.QtWidgets import QApplication
     from src.ui.theme import apply_theme
@@ -109,7 +127,9 @@ def main():
 
         def run(self):
             try:
-                installed = update(SOURCE, self.progress.emit)
+                app = installed_app()
+                from_backup = restore and SOURCE == (app.parent / 'recovery').resolve()
+                installed = update(app if from_backup else SOURCE, self.progress.emit, restore=restore)
                 self.result.emit(installed, 'Tu as déjà la dernière version disponible.')
             except UpdateError as exc:
                 self.result.emit(False, str(exc))
@@ -121,6 +141,8 @@ def main():
     apply_theme(qt, ConfigStore().preferences.theme)
     dialog = UpdateDialog()
     dialog.set_busy(True)
+    if restore:
+        dialog.setWindowTitle('Restaurer · FortyTchat')
     dialog.status.setText('Préparation de la mise à jour…')
     worker = Worker()
     worker.progress.connect(dialog.status.setText, Qt.ConnectionType.QueuedConnection)

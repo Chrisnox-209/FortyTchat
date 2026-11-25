@@ -31,42 +31,66 @@ def atomic_write(path, text, mode=0o600):
             os.unlink(temporary)
 
 
-def install_app(source, destination):
+def replace_tree(stage, target):
+    backup = target.with_name('.previous-' + target.name)
+    if backup.exists():
+        shutil.rmtree(backup)
+    if target.exists():
+        target.rename(backup)
+    try:
+        stage.rename(target)
+    except OSError:
+        if backup.exists():
+            backup.rename(target)
+        raise
+    if backup.exists():
+        shutil.rmtree(backup, ignore_errors=True)
+
+
+def save_recovery(source, target, verify):
+    """Keep a verified copy of the app apart from the user's preferences."""
+    with tempfile.TemporaryDirectory(prefix='.recovery-', dir=target.parent) as scratch:
+        snapshot = Path(scratch) / 'release'
+        snapshot.mkdir()
+        copy_application(source, snapshot)
+        verify(snapshot)
+        replace_tree(snapshot, target)
+
+
+def copy_application(source, stage):
+    # Explicit allowlist excludes working copies, credentials and configuration.
+    for name in ('src', 'assets', 'docs', 'tools', 'tests'):
+        source_dir = source / name
+        if source_dir.is_dir():
+            shutil.copytree(source_dir, stage / name,
+                            ignore=shutil.ignore_patterns('__pycache__', '.pytest_cache'), symlinks=False)
+    for name in ('main.py', 'install.sh', 'uninstall.sh', 'diagnostic-session.sh', 'requirements.txt',
+                 'requirements-dev.txt', 'README.md', 'RELEASE_NOTES.md', 'network.example.json'):
+        source_file = source / name
+        if source_file.is_file():
+            shutil.copy2(source_file, stage / name)
+
+
+def install_app(source, destination, *, verify=None):
     """Stage the application before replacing the installed tree."""
     app_dir = destination / 'app'
     if source != app_dir:
         stage = Path(tempfile.mkdtemp(prefix='.app-', dir=destination))
-        backup = destination / '.previous-app'
         try:
-            # Explicit allowlist excludes working copies, credentials and personal files.
-            for name in ('src', 'assets', 'docs', 'tools', 'tests'):
-                source_dir = source / name
-                if source_dir.is_dir():
-                    shutil.copytree(source_dir, stage / name,
-                                    ignore=shutil.ignore_patterns('__pycache__', '.pytest_cache'), symlinks=False)
-            for name in ('main.py', 'install.sh', 'uninstall.sh', 'diagnostic-session.sh', 'requirements.txt', 'requirements-dev.txt', 'README.md', 'network.example.json'):
-                source_file = source / name
-                if source_file.is_file():
-                    shutil.copy2(source_file, stage / name)
-            deployment = source / 'network.json'
+            copy_application(source, stage)
+            recovery = destination / 'recovery'
+            if verify is not None:
+                verify(stage)
+                if source != recovery:
+                    save_recovery(stage, recovery, verify)
+            deployment = app_dir / 'network.json' if verify is not None else source / 'network.json'
             if not deployment.is_file():
-                deployment = app_dir / 'network.json'
+                deployment = source / 'network.json' if verify is not None else app_dir / 'network.json'
             if deployment.is_file():
                 shutil.copy2(deployment, stage / 'network.json')
             elif (stage / 'network.example.json').is_file():
                 shutil.copy2(stage / 'network.example.json', stage / 'network.json')
-            if backup.exists():
-                shutil.rmtree(backup)
-            if app_dir.exists():
-                app_dir.rename(backup)
-            try:
-                stage.rename(app_dir)
-            except OSError:
-                if backup.exists():
-                    backup.rename(app_dir)
-                raise
-            if backup.exists():
-                shutil.rmtree(backup, ignore_errors=True)
+            replace_tree(stage, app_dir)
         finally:
             if stage.exists():
                 shutil.rmtree(stage)
@@ -94,7 +118,14 @@ def install(args):
         subprocess.run([str(interpreter), '-m', 'pip', 'install', '--disable-pip-version-check',
                         '-r', str(SOURCE / 'requirements.txt')], check=True)
     app_dir = destination / 'app'
-    install_app(SOURCE, destination)
+
+    def verify(path):
+        subprocess.run([str(interpreter), '-c',
+                        'import sys; from pathlib import Path; from src.features.releases import verified_tree; '
+                        'sys.exit(None if verified_tree(Path(sys.argv[1])) else "Publication FortyTchat invalide.")',
+                        str(path)], cwd=SOURCE, check=True)
+
+    install_app(SOURCE, destination, verify=verify)
     config = ConfigStore()
     autostart = Autostart(app_dir, interpreter=str(interpreter))
     autostart.initialize(config)

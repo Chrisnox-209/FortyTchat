@@ -7,6 +7,7 @@ import ssl
 import random
 import time
 import io
+from pathlib import Path
 
 from ..features.file_transfer import FileTransfers, FILE_EVENTS, CHUNK_SIZE, disk, fingerprint, open_source
 from ..features.break_request import Invitations, BreakRateLimit
@@ -14,7 +15,8 @@ from ..features.wizz import Cooldown, SeenMessages, TokenBucket, WIZZ_INTERVAL
 from ..features.social import SOCIAL_EVENTS, SocialOrder
 from ..features.cards import CARD_EVENTS, allowed_reply
 from ..features.receipts import ReceiptLedger, READ_EVENTS, READ_BATCH
-from ..features.versions import modern_caps, room_capable
+from ..features.versions import modern_caps, room_capable, version_tuple
+from ..features.releases import FEATURE_PARTS, LEGACY_MAX, MARKER, advertised_release, load_release
 from .. import __version__
 from ..features.collaboration import CAPABILITY, COLLAB_EVENTS, GROUP_EVENTS, group_id, chat_target
 from .collaboration import CollaborationNetwork
@@ -29,6 +31,24 @@ from .protocol import MAX_FRAME, MAX_PEERS, EVENTS, ProtocolError, ack, encode, 
 from ..features.screen_share import SCREEN_EVENTS, FEATURE as SCREEN_FEATURE
 from ..features.screen_annotations import FEATURE as ANNOTATION_FEATURE, WIDTH_FEATURE
 from .screen_share import ScreenSharing
+
+
+async def open_connection(host, port, timeout, **options):
+    """Close sockets that finish connecting just as their caller is cancelled."""
+    connecting = asyncio.create_task(asyncio.open_connection(host, port, **options))
+    try:
+        return await asyncio.wait_for(asyncio.shield(connecting), timeout)
+    except (asyncio.CancelledError, asyncio.TimeoutError):
+        connecting.cancel()
+        try:
+            _, writer = await connecting
+        except (asyncio.CancelledError, OSError, ValueError):
+            pass
+        else:
+            writer.close()
+            with contextlib.suppress(OSError, asyncio.TimeoutError):
+                await asyncio.wait_for(writer.wait_closed(), 1)
+        raise
 
 
 class ChatClient(CollaborationNetwork):
@@ -67,6 +87,7 @@ class ChatClient(CollaborationNetwork):
         self._last_reply = 0.0
         self.persist_wizz = persist_wizz
         self.peers, self.blocked = {}, set()
+        self.release = load_release(Path(__file__).resolve().parents[2])
         self.info_attempts={}
         self.info_tasks={}
         self.blocked_contacts = set(blocked_contacts)
@@ -251,12 +272,22 @@ class ChatClient(CollaborationNetwork):
         if not force and now-self.info_attempts.get(peer.sid,-100)<10:return
         self.info_attempts[peer.sid]=now
         locked=self.screen_locked
+        send_notes = peer.release_verified
         async def publish():
             try:
-                await self._send_to(peer,event('client_info',self.sid,peer.sid,version=__version__,features=['poll_final','equals_code','version_notice','screen_lock','close_label',SCREEN_FEATURE,ANNOTATION_FEATURE,WIDTH_FEATURE],locked=locked))
+                features = ['poll_final', 'equals_code', 'version_notice', 'screen_lock',
+                            'close_label', SCREEN_FEATURE, ANNOTATION_FEATURE, WIDTH_FEATURE]
+                payload = {}
+                if self.release and self.release.version == __version__:
+                    features.extend(self.release.features())
+                    if send_notes:
+                        payload['release_notes'] = self.release.notes
+                await self._send_to(peer, event('client_info', self.sid, peer.sid,
+                                                version=__version__, features=features, locked=locked, **payload))
             finally:
                 self.info_tasks.pop(peer.sid,None)
-                if not self._closing and self.peers.get(peer.sid) is peer and self.screen_locked!=locked:
+                if (not self._closing and self.peers.get(peer.sid) is peer
+                        and (self.screen_locked != locked or peer.release_verified != send_notes)):
                     self.queue_client_info(peer,force=True)
         self.info_tasks[peer.sid]=self.task(publish())
 
@@ -375,7 +406,7 @@ class ChatClient(CollaborationNetwork):
             if peer:
                 peer.avatar_image = ''
                 self.emit_peers()
-        else:
+        elif not getattr(self.peers.get(sid), 'release_quarantined', False):
             self.blocked.remove(sid) if sid in self.blocked else None
             self.avatar_attempts.pop(sid, None)
             if sid in self.peers:
@@ -464,11 +495,24 @@ class ChatClient(CollaborationNetwork):
         if kind in SCREEN_EVENTS:return self.screens.receive(peer,frame)
         if kind=='client_info':
             if not modern_caps(peer.caps) or not peer.control_bucket.allow():return False,'Information de version indisponible'
-            first=not peer.version
-            peer.version,peer.features=frame['version'],tuple(frame['features'])
+            version, features = frame['version'], frame['features']
+            proof = advertised_release(version, features)
+            notes = frame.get('release_notes')
+            if ((proof is None and (MARKER in features or version_tuple(version) > LEGACY_MAX))
+                    or (notes is not None and (proof is None or not proof.matches_notes(notes)))):
+                peer.release_quarantined = True
+                self.block(sender)
+                self.emit('notice', text=f'{peer.nick} bloqué pour cette session : annonce de version non authentique.')
+                return False, 'Signature de publication invalide'
+            first = not peer.version or (proof is not None and not peer.release_verified)
+            peer.release_verified |= proof is not None
+            peer.version = version
+            peer.features = tuple(features[:-(FEATURE_PARTS + 1)] if proof else features)
             peer.locked=frame.get('locked',False)
             if first:self.queue_client_info(peer,force=True)
-            self.seen.add(frame['id']);self.emit('peer_version',version=peer.version,peer=peer.sid);self.emit_peers()
+            self.seen.add(frame['id'])
+            self.emit('peer_version', version=version, peer=peer.sid, verified=proof is not None, notes=notes)
+            self.emit_peers()
             return True,''
         if frame.get('group') and not self.group_access(peer, frame['group']):
             return False, 'Membre de groupe non autorisé'
@@ -625,7 +669,7 @@ class ChatClient(CollaborationNetwork):
                 writer = None
                 try:
                     frame = self.crypto.seal(peer, original)
-                    reader, writer = await asyncio.wait_for(asyncio.open_connection(peer.host, peer.port, limit=MAX_FRAME), 3)
+                    reader, writer = await open_connection(peer.host, peer.port, 3, limit=MAX_FRAME)
                     self.connections.add(writer)
                     if peer.sid in self.blocked or (original.get('group') and not self.group_access(peer, original['group'])):
                         return False
@@ -985,8 +1029,8 @@ class ChatClient(CollaborationNetwork):
             writer = None
             try:
                 context = (ssl.create_default_context() if self.tls is True else self.tls) or None
-                reader, writer = await asyncio.wait_for(asyncio.open_connection(
-                    self.relay_host, self.relay_port, ssl=context, limit=MAX_FRAME), 4)
+                reader, writer = await open_connection(self.relay_host, self.relay_port, 4,
+                                                       ssl=context, limit=MAX_FRAME)
                 writer.write(encode(self.hello()))
                 await writer.drain()
                 # The first frame is the server's authoritative hello acknowledgment.

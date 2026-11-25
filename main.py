@@ -60,6 +60,14 @@ def main():
     qt.setOrganizationName('FortyTchat')
     qt.setDesktopFileName('fr.fortytchat.FortyTchat')
     qt.setQuitOnLastWindowClosed(False)
+    release = None
+    if not args.dev:
+        from src.features.releases import verified_tree
+        from src.features.updates import installed_app
+        release = verified_tree(root, __version__)
+        if release is None:
+            from src.ui.recovery import recovery_dialog
+            return recovery_dialog(root)
     from src.app import Application, AlreadyRunning
     from src.security import SecurityError
     try:
@@ -73,6 +81,20 @@ def main():
     except OSError:
         print('Impossible d’initialiser la session utilisateur FortyTchat.', file=sys.stderr)
         return 1
+    if release is not None and root == installed_app().resolve():
+        recovery = root.parent / 'recovery'
+        if verified_tree(recovery) != release:
+            # Installations upgraded by the 2.8.0 button have no snapshot yet.
+            from tools.install_user import save_recovery
+
+            def verify_copy(path):
+                if verified_tree(path) != release:
+                    raise OSError('Copie de secours invalide')
+
+            try:
+                save_recovery(root, recovery, verify_copy)
+            except OSError:
+                app.window.show_notice('La copie de secours hors ligne n’a pas pu être enregistrée.')
     signal.signal(signal.SIGINT, lambda *_: app.quit())
     signal.signal(signal.SIGTERM, lambda *_: app.quit())
     timer = QTimer()
