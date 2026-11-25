@@ -1,9 +1,52 @@
 """Read-only lock detection for GNOME/logind and other Linux desktops."""
 import os
+from pathlib import Path
+import re
+import stat
+import sys
 import time
 
 from PySide6.QtCore import QObject, Signal, Slot, SLOT, QTimer
 from PySide6.QtWidgets import QApplication
+
+
+def gnome_x11_lock_state():
+    """Read GNOME 42's per-display ScreenShield recovery state, if available."""
+    desktops = os.environ.get('XDG_CURRENT_DESKTOP', '').casefold().split(':')
+    display = os.environ.get('DISPLAY', '')
+    if ('gnome' not in desktops or os.environ.get('XDG_SESSION_TYPE') != 'x11'
+            or not re.fullmatch(r':[0-9]+(?:\.[0-9]+)?', display)):
+        return None, 'Hors session GNOME/X11 locale'
+
+    runtime = Path(os.environ.get('XDG_RUNTIME_DIR') or f'/run/user/{os.getuid()}')
+    if not runtime.is_absolute():
+        return None, 'Dossier de session indisponible'
+    # GNOME 42 shell-global.c derives this directory from XDisplayName(NULL).
+    byte_order = 'LE' if sys.byteorder == 'little' else 'BE'
+    shell = runtime / 'gnome-shell'
+    directory = shell / f'runtime-state-{byte_order}.{display}'
+    try:
+        # A child can name the X screen explicitly even if Shell used just :N.
+        if '.' in display and not directory.is_dir():
+            directory = shell / f'runtime-state-{byte_order}.{display.split(".")[0]}'
+        marker = directory / 'screenShield.locked'
+        try:
+            fd = os.open(marker, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        except FileNotFoundError:
+            return (False, '') if directory.is_dir() else (None, 'État GNOME indisponible')
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_size != 1:
+                return None, 'Témoin GNOME invalide'
+            value = os.read(fd, 2)
+        finally:
+            os.close(fd)
+    except OSError:
+        return None, 'État GNOME illisible'
+    # GNOME writes a serialized GVariant boolean and removes it at unlock.
+    if value in (b'\x00', b'\x01'):
+        return value == b'\x01', ''
+    return None, 'Témoin GNOME invalide'
 
 
 class SessionLockMonitor(QObject):
@@ -168,6 +211,10 @@ class SessionLockMonitor(QObject):
             if remaining:
                 return
             self.busy = False
+            value, error = gnome_x11_lock_state()
+            self.readings['GNOME X11 screenShield.locked'] = {'value': value, 'error': error}
+            if type(value) is bool:
+                results.append(value)
             if results:
                 self.observe(any(results))
             self.diagnostic.emit({'locked':self.value,'session_path':self.session_path,

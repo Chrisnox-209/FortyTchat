@@ -7,7 +7,7 @@ import sys
 import pytest
 from PySide6.QtWidgets import QApplication
 from PySide6.QtDBus import QDBusObjectPath
-from src.ui.session_lock import SessionLockMonitor
+from src.ui.session_lock import SessionLockMonitor, gnome_x11_lock_state
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -33,6 +33,7 @@ def test_lookup_uses_current_session_then_environment_fallback(monkeypatch,envir
 
 
 def test_unknown_sources_do_not_invent_an_unlock(monkeypatch):
+    monkeypatch.delenv('XDG_CURRENT_DESKTOP', raising=False)
     app=QApplication.instance() or QApplication([])
     monitor=SessionLockMonitor();monitor.stopped=False;monitor.value=True;reports=[]
     monitor.diagnostic.connect(reports.append)
@@ -41,6 +42,35 @@ def test_unknown_sources_do_not_invent_an_unlock(monkeypatch):
     assert monitor.value is True and reports[-1]['locked'] is True
     assert not monitor.busy
     monitor.stop();monitor.deleteLater();app.processEvents()
+
+
+def test_gnome_marker_is_limited_to_local_gnome_x11_display(monkeypatch, tmp_path):
+    byte_order = 'LE' if sys.byteorder == 'little' else 'BE'
+    monkeypatch.setenv('XDG_CURRENT_DESKTOP', 'ubuntu:GNOME')
+    monkeypatch.setenv('XDG_SESSION_TYPE', 'x11')
+    monkeypatch.setenv('DISPLAY', ':0.0')
+    monkeypatch.setenv('XDG_RUNTIME_DIR', str(tmp_path))
+    directory = tmp_path / 'gnome-shell' / f'runtime-state-{byte_order}.:0'
+    other = directory.with_name(f'runtime-state-{byte_order}.:1')
+    other.mkdir(parents=True)
+    (other / 'screenShield.locked').write_bytes(b'\x01')
+    assert gnome_x11_lock_state()[0] is None
+    directory.mkdir()
+    assert gnome_x11_lock_state() == (False, '')
+    marker = directory / 'screenShield.locked'
+    marker.write_bytes(b'\x01')
+    assert gnome_x11_lock_state() == (True, '')
+    monkeypatch.setenv('DISPLAY', 'localhost:0')
+    assert gnome_x11_lock_state()[0] is None
+    monkeypatch.setenv('DISPLAY', ':0')
+    monkeypatch.setenv('XDG_SESSION_TYPE', 'wayland')
+    assert gnome_x11_lock_state()[0] is None
+    monkeypatch.setenv('XDG_SESSION_TYPE', 'x11')
+    marker.write_bytes(b'garbage')
+    assert gnome_x11_lock_state()[0] is None
+    marker.unlink()
+    marker.symlink_to(other / marker.name)
+    assert gnome_x11_lock_state()[0] is None
 
 
 @pytest.fixture
@@ -55,19 +85,20 @@ def private_bus():
 def run_on_bus(address,code,tmp_path):
     result=subprocess.run([sys.executable,'-c',code],cwd=ROOT,
         env={**os.environ,'QT_QPA_PLATFORM':'offscreen','DBUS_SESSION_BUS_ADDRESS':address,
-             'DBUS_SYSTEM_BUS_ADDRESS':address,'XDG_SESSION_ID':'',
+             'DBUS_SYSTEM_BUS_ADDRESS':address,'XDG_SESSION_ID':'', 'XDG_CURRENT_DESKTOP':'',
+             'XDG_RUNTIME_DIR':str(tmp_path/'runtime'),
              'XDG_CONFIG_HOME':str(tmp_path/'config'),'XDG_DATA_HOME':str(tmp_path/'data')},
         capture_output=True,text=True,timeout=20)
     assert result.returncode==0,result.stdout+result.stderr
 
 
-@pytest.mark.parametrize('source',['logind','screenshield'])
+@pytest.mark.parametrize('source',['logind','screenshield','gnome-x11-marker'])
 def test_real_dbus_without_session_id_drives_remote_gui_cadenas_and_unlock(private_bus,tmp_path,source):
     run_on_bus(private_bus, 'SOURCE='+repr(source)+'\n'+r'''
-import time,uuid
+import os,sys,time,uuid
 from pathlib import Path
 from types import SimpleNamespace
-from PySide6.QtCore import QObject,Slot,Signal,Property,ClassInfo,QMetaType
+from PySide6.QtCore import QObject,Slot,Signal,Property,ClassInfo,QMetaType,Qt
 from PySide6.QtDBus import QDBusConnection,QDBusObjectPath,QDBusMessage,QDBusVariant,QDBusArgument
 from PySide6.QtWidgets import QApplication
 from src.app import Application
@@ -97,9 +128,14 @@ flags=QDBusConnection.RegisterOption.ExportAllSlots|QDBusConnection.RegisterOpti
 assert bus.registerObject('/org/freedesktop/login1',manager,flags)
 assert bus.registerObject('/org/freedesktop/login1/session/_35',session,flags)
 shield=ScreenShield()
-if SOURCE=='screenshield':
+if SOURCE in ('screenshield','gnome-x11-marker'):
     assert bus.registerService('org.gnome.Shell.ScreenShield')
     assert bus.registerObject('/org/gnome/ScreenSaver',shield,QDBusConnection.RegisterOption.ExportAllSlots|QDBusConnection.RegisterOption.ExportAllSignals)
+if SOURCE=='gnome-x11-marker':
+    os.environ.update(XDG_CURRENT_DESKTOP='ubuntu:GNOME', XDG_SESSION_TYPE='x11', DISPLAY=':0')
+    byte_order='LE' if sys.byteorder=='little' else 'BE'
+    marker=Path(os.environ['XDG_RUNTIME_DIR'])/'gnome-shell'/f'runtime-state-{byte_order}.:0'/'screenShield.locked'
+    marker.parent.mkdir(parents=True)
 NetworkConfig.load=classmethod(lambda cls,path:NetworkConfig(mode='relay',relay_host=''))
 root=Path.cwd()
 apps=[Application(root,SimpleNamespace(dev='lock-'+uuid.uuid4().hex[:10],background=True,insecure_local_relay=None)) for _ in range(2)]
@@ -118,7 +154,13 @@ try:
     b.worker.loop.call_soon_threadsafe(b.worker.client.observe,a.worker.client.hello(),'127.0.0.1')
     until(lambda:a.worker.client.sid in b.window.peers)
     sid=a.worker.client.sid;direct=b.open_private(sid)
-    monitor.start(test_bus=True);monitor.timer.stop()
+    b.change_friend(a.worker.client.contact_id, True)
+    def friend_row():
+        listing=b.window.sidebar.list
+        return next(row for index in range(listing.count())
+                    if (row:=listing.item(index).data(Qt.ItemDataRole.UserRole)).get('sid')==sid and row.get('friend'))
+    monitor.start(test_bus=True)
+    if SOURCE!='gnome-x11-marker':monitor.timer.stop()
     until(lambda:monitor.value is False and not monitor.busy)
     assert monitor.session_path.endswith('/_35') and monitor.logind_subscription==monitor.session_path
     session.locked=SOURCE=='logind'
@@ -126,9 +168,10 @@ try:
     invalidated=QDBusArgument();invalidated.beginArray(QMetaType.Type.QString);invalidated.endArray()
     change.setArguments(['org.freedesktop.login1.Session',{'LockedHint':QDBusVariant(True)},invalidated])
     if SOURCE=='logind':assert bus.send(change)
-    else:
+    elif SOURCE=='screenshield':
         shield.active=True;shield.ActiveChanged.emit(True)
-    until(lambda:direct.avatar.locked and b.window.peers[sid]['locked'])
+    else:marker.write_bytes(b'\x01')
+    until(lambda:direct.avatar.locked and b.window.peers[sid]['locked'] and friend_row()['locked'])
     assert a.screen_locked and 'verrouillée' in direct.status_label.text()
     if SOURCE=='screenshield':
         # Same failure shape as the school report: proxy absent and logind false.
@@ -136,12 +179,19 @@ try:
         assert reports[-1]['sources']['org.gnome.Shell.ScreenShield /org/gnome/ScreenSaver GetActive']['value'] is True
         assert reports[-1]['sources']['org.gnome.ScreenSaver /org/gnome/ScreenSaver GetActive']['value'] is None
         assert reports[-1]['sources']['org.freedesktop.login1 /org/freedesktop/login1/session/_35 Get']['value'] is False
+    if SOURCE=='gnome-x11-marker':
+        readings=reports[-1]['sources']
+        assert readings['GNOME X11 screenShield.locked']['value'] is True
+        assert readings['org.gnome.Shell.ScreenShield /org/gnome/ScreenSaver GetActive']['value'] is False
+        assert readings['org.freedesktop.login1 /org/freedesktop/login1/session/_35 Get']['value'] is False
+        assert friend_row()['detail']=='Session verrouillée'
     session.locked=False
     change.setArguments(['org.freedesktop.login1.Session',{'LockedHint':QDBusVariant(False)},invalidated])
     if SOURCE=='logind':assert bus.send(change)
-    else:
+    elif SOURCE=='screenshield':
         shield.active=False;shield.ActiveChanged.emit(False)
-    until(lambda:not direct.avatar.locked and not b.window.peers[sid]['locked'])
+    else:marker.unlink()
+    until(lambda:not direct.avatar.locked and not b.window.peers[sid]['locked'] and not friend_row()['locked'])
     assert not a.screen_locked and direct.avatar.online
     assert reports[-1]['locked'] is False
 finally:
