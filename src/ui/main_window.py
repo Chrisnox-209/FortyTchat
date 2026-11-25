@@ -106,7 +106,9 @@ class MainWindow(QMainWindow):
         update_box=QHBoxLayout(self.update_banner);update_box.setContentsMargins(16,10,16,10)
         self.update_text=label('',wrap=True);update_box.addWidget(self.update_text,1)
         self.update_dialog=None
+        self.start_update = None
         self.update_button=button('Mettre à jour')
+        self.update_button.setToolTip('Installer la dernière version et redémarrer FortyTchat')
         self.update_button.clicked.connect(self.open_update);update_box.addWidget(self.update_button)
         self.update_banner.hide();pane_box.addWidget(self.update_banner)
         self.notice = label('', 'notice', True)
@@ -235,9 +237,13 @@ class MainWindow(QMainWindow):
         self.update_banner.show()
 
     def open_update(self):
+        if self.start_update is not None and self.start_update():
+            return
         from .update import UpdateDialog
         if self.update_dialog is None:
             self.update_dialog=UpdateDialog(self)
+            if self.start_update is not None:
+                self.update_dialog.status.setText('Le programme de mise à jour n’a pas pu démarrer.')
         self.update_dialog.show()
         self.update_dialog.raise_()
         self.update_dialog.activateWindow()
@@ -253,6 +259,7 @@ class MainWindow(QMainWindow):
 
     def chat_menu(self):
         menu = QMenu(self)
+        menu.addAction('Mettre à jour', self.open_update)
         menu.addAction('Paramètres', lambda: self.settings_requested.emit(0))
         menu.addAction('Quitter complètement', self.quitting.emit)
         menu.exec(QCursor.pos())

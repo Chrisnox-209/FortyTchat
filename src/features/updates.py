@@ -1,8 +1,17 @@
-"""Locally generated update instructions; never accept commands from a peer."""
+"""Location of the installed app and locally generated update instructions."""
+import os
+from pathlib import Path
 import shlex
 
 
 DEFAULT_REPOSITORY = '~/.FortyTchat'
+
+
+def installed_app():
+    data = Path(os.environ.get('XDG_DATA_HOME', ''))
+    if not data.is_absolute():
+        data = Path.home() / '.local' / 'share'
+    return data / 'fortytchat' / 'app'
 
 
 def update_command(repository=DEFAULT_REPOSITORY):

@@ -34,6 +34,9 @@ def test_copy_is_plain_text_feedback_is_visible_and_path_change_resets_it(monkey
     copied = []
     monkeypatch.setattr(QApplication, 'clipboard', lambda: SimpleNamespace(setText=copied.append))
     dialog = UpdateDialog(); dialog.show(); qt.processEvents()
+    assert dialog.manual.isHidden() and not dialog.copy_button.isVisible()
+    dialog.disclosure.click()
+    assert dialog.manual.isVisible() and dialog.copy_button.isVisible()
     assert dialog.repository.text() == DEFAULT_REPOSITORY
     assert dialog.code.isReadOnly()
     dialog.copy_button.click()
@@ -46,6 +49,8 @@ def test_copy_is_plain_text_feedback_is_visible_and_path_change_resets_it(monkey
     dialog.repository.setText('relative')
     assert not dialog.copy_button.isEnabled() and not dialog.code.toPlainText()
     dialog.copy_button.click(); assert len(copied) == 2
+    dialog.disclosure.click()
+    assert dialog.manual.isHidden() and not dialog.copy_button.isVisible()
     dialog.close(); dialog.deleteLater(); qt.processEvents()
 
 
@@ -54,7 +59,8 @@ def test_update_controls_stay_accessible_with_large_text(theme,font_size):
     qt = QApplication.instance() or QApplication([])
     dialog = UpdateDialog()
     dialog.setStyleSheet(stylesheet(theme) + f'\nQWidget {{font-size:{font_size}px;}}')
-    dialog.resize(460, 420); dialog.show(); qt.processEvents()
+    dialog.show(); dialog.disclosure.click()
+    dialog.resize(460, 420); qt.processEvents()
     assert dialog.code.width() > 300 and dialog.code.height() > 70
     assert dialog.rect().contains(dialog.copy_button.mapTo(dialog, dialog.copy_button.rect().topLeft()))
     assert dialog.rect().contains(dialog.copy_button.mapTo(dialog, dialog.copy_button.rect().bottomRight()))

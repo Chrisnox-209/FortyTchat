@@ -2,6 +2,8 @@
 import time
 import ssl
 from pathlib import Path
+import subprocess
+import sys
 
 from PySide6.QtCore import QObject, Signal, QTimer, QSignalBlocker, QStandardPaths
 from PySide6.QtWidgets import QApplication, QFileDialog
@@ -18,6 +20,7 @@ from .features.friends import MAX_FRIENDS, FriendPresence, contact_from_key, fri
 from .features.social import TypingState, PendingReactions, preview
 from .features.cards import CardTemplates, answer_card
 from .features.receipts import update_recipient
+from .features.updates import installed_app
 from .avatar_data import avatar_hash, AvatarError
 from .instance import SingleInstance
 from .memory import Conversations, Message
@@ -98,6 +101,9 @@ class Application(QObject, CollaborationController, ScreenShareController):
         self.qt = QApplication.instance()
         apply_theme(self.qt, self.preferences.theme)
         self.window = MainWindow(self.preferences, self.history, icon)
+        self.update_process = None
+        if not args.dev and self.root.resolve() == installed_app().resolve():
+            self.window.start_update = self.start_update
         self.window.chat_selected_callback = self.update_badge
         self.window.sidebar.list.setProperty('light', self.preferences.theme == 'light')
         self.window.private_requested.connect(self.open_private)
@@ -175,6 +181,22 @@ class Application(QObject, CollaborationController, ScreenShareController):
             startup_errors.append(f'Profil de développement « {args.dev} » : port TCP dynamique, démarrage automatique non modifié.')
         if startup_errors:
             QTimer.singleShot(150, self, lambda: self.window.show_notice('\n'.join(startup_errors)))
+
+    def start_update(self):
+        if self.update_process is not None and self.update_process.poll() is None:
+            return True
+        updater = self.root / 'tools' / 'update_user.py'
+        if not updater.is_file():
+            return False
+        try:
+            self.update_process = subprocess.Popen(
+                [sys.executable, str(updater)],
+                cwd=self.root.parent, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, start_new_session=True,
+            )
+        except OSError:
+            return False
+        return True
 
     def activate(self):
         if hasattr(self, 'window'):

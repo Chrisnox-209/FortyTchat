@@ -31,6 +31,47 @@ def atomic_write(path, text, mode=0o600):
             os.unlink(temporary)
 
 
+def install_app(source, destination):
+    """Stage the application before replacing the installed tree."""
+    app_dir = destination / 'app'
+    if source != app_dir:
+        stage = Path(tempfile.mkdtemp(prefix='.app-', dir=destination))
+        backup = destination / '.previous-app'
+        try:
+            # Explicit allowlist excludes working copies, credentials and personal files.
+            for name in ('src', 'assets', 'docs', 'tools', 'tests'):
+                source_dir = source / name
+                if source_dir.is_dir():
+                    shutil.copytree(source_dir, stage / name,
+                                    ignore=shutil.ignore_patterns('__pycache__', '.pytest_cache'), symlinks=False)
+            for name in ('main.py', 'install.sh', 'uninstall.sh', 'diagnostic-session.sh', 'requirements.txt', 'requirements-dev.txt', 'README.md', 'network.example.json'):
+                source_file = source / name
+                if source_file.is_file():
+                    shutil.copy2(source_file, stage / name)
+            deployment = source / 'network.json'
+            if not deployment.is_file():
+                deployment = app_dir / 'network.json'
+            if deployment.is_file():
+                shutil.copy2(deployment, stage / 'network.json')
+            elif (stage / 'network.example.json').is_file():
+                shutil.copy2(stage / 'network.example.json', stage / 'network.json')
+            if backup.exists():
+                shutil.rmtree(backup)
+            if app_dir.exists():
+                app_dir.rename(backup)
+            try:
+                stage.rename(app_dir)
+            except OSError:
+                if backup.exists():
+                    backup.rename(app_dir)
+                raise
+            if backup.exists():
+                shutil.rmtree(backup, ignore_errors=True)
+        finally:
+            if stage.exists():
+                shutil.rmtree(stage)
+
+
 def install(args):
     value = os.environ.get('XDG_DATA_HOME', '')
     data_home = Path(value) if value and Path(value).is_absolute() else Path.home() / '.local' / 'share'
@@ -53,42 +94,7 @@ def install(args):
         subprocess.run([str(interpreter), '-m', 'pip', 'install', '--disable-pip-version-check',
                         '-r', str(SOURCE / 'requirements.txt')], check=True)
     app_dir = destination / 'app'
-    if SOURCE != app_dir:
-        stage = Path(tempfile.mkdtemp(prefix='.app-', dir=destination))
-        backup = destination / '.previous-app'
-        try:
-            # Explicit allowlist excludes working copies, credentials and personal files.
-            for name in ('src', 'assets', 'docs', 'tools', 'tests'):
-                source_dir = SOURCE / name
-                if source_dir.is_dir():
-                    shutil.copytree(source_dir, stage / name,
-                                    ignore=shutil.ignore_patterns('__pycache__', '.pytest_cache'), symlinks=False)
-            for name in ('main.py', 'install.sh', 'uninstall.sh', 'diagnostic-session.sh', 'requirements.txt', 'requirements-dev.txt', 'README.md', 'network.example.json'):
-                source_file = SOURCE / name
-                if source_file.is_file():
-                    shutil.copy2(source_file, stage / name)
-            deployment = SOURCE / 'network.json'
-            if not deployment.is_file():
-                deployment = app_dir / 'network.json'
-            if deployment.is_file():
-                shutil.copy2(deployment, stage / 'network.json')
-            elif (stage / 'network.example.json').is_file():
-                shutil.copy2(stage / 'network.example.json', stage / 'network.json')
-            if backup.exists():
-                shutil.rmtree(backup)
-            if app_dir.exists():
-                app_dir.rename(backup)
-            try:
-                stage.rename(app_dir)
-            except OSError:
-                if backup.exists():
-                    backup.rename(app_dir)
-                raise
-            if backup.exists():
-                shutil.rmtree(backup)
-        finally:
-            if stage.exists():
-                shutil.rmtree(stage)
+    install_app(SOURCE, destination)
     config = ConfigStore()
     autostart = Autostart(app_dir, interpreter=str(interpreter))
     autostart.initialize(config)
