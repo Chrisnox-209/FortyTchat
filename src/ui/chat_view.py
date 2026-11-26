@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, Signal, QRect, QPoint
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QVBoxLayout, QScrollArea,
-                               QWidget, QGraphicsOpacityEffect, QApplication)
+                               QWidget, QGraphicsOpacityEffect, QApplication, QSizePolicy)
 from PySide6.QtWidgets import QMenu
 from PySide6.QtGui import QCursor
 from .widgets import Avatar, label
@@ -26,9 +26,10 @@ class ChatView(QFrame):
         super().__init__()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(26, 19, 26, 0)
-        layout.setSpacing(15)
+        layout.setSpacing(0)
         privacy = label('◈  Juste entre vous. Aucun historique conservé.' if private else '◈  Ici, les conversations sont éphémères. Profite du moment.', 'privacy', True)
         layout.addWidget(privacy)
+        layout.addSpacing(15)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -43,6 +44,11 @@ class ChatView(QFrame):
         self.scroll.verticalScrollBar().rangeChanged.connect(self.scroll_range_changed)
         layout.addWidget(self.scroll, 1)
         self.typing = TypingIndicator()
+        # Showing the dots must leave the message viewport and scroll position intact.
+        typing_policy = self.typing.sizePolicy()
+        typing_policy.setVerticalPolicy(QSizePolicy.Policy.Fixed)
+        typing_policy.setRetainSizeWhenHidden(True)
+        self.typing.setSizePolicy(typing_policy)
         layout.addWidget(self.typing)
         self.rows = []
         self.bubbles = []

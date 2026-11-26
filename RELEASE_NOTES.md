@@ -1,4 +1,2 @@
-• Annonces de mise à jour signées : un faux numéro de version ne déclenche plus le bandeau.
-• Bouton Nouveautés : consulte le détail vérifié de la version avant de l’installer, même hors Internet.
-• Restauration : si les fichiers ont été modifiés, FortyTchat peut remettre sa copie officielle locale sans effacer ton profil.
-• Les versions précédentes gardent leurs conversations et leurs fonctions compatibles.
+• Les trois points de saisie s’affichent dans leur propre espace, sous les messages.
+• Quand ils apparaissent ou disparaissent, le dernier message reste lisible et le défilement garde sa position.

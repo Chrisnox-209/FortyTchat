@@ -1,5 +1,5 @@
 {
-  "version": "2.9.0",
-  "proof": "epSSRaoGe7/G8k6RpGsxh7iDqUEIN9vF1GGeNQrFr+kjRZFXKqX2zNtKDZ9ZNiaiORUr1YdWtL4X4Grn8eAUM/zpN/t5xFS2XyuBkxPGXSGOd0zx9OPCYH6C3P3+M87DeOe5b8VuU94kmFrwmozi5Jw55Ye7pouDGxH8HDRmBwY=",
-  "notes": "• Annonces de mise à jour signées : un faux numéro de version ne déclenche plus le bandeau.\n• Bouton Nouveautés : consulte le détail vérifié de la version avant de l’installer, même hors Internet.\n• Restauration : si les fichiers ont été modifiés, FortyTchat peut remettre sa copie officielle locale sans effacer ton profil.\n• Les versions précédentes gardent leurs conversations et leurs fonctions compatibles."
+  "version": "2.9.1",
+  "proof": "yg5ibK3uDBAM0ZQP9l5GmNOR8+BzyRlVpBYmY2mxWaIOsqhJbe8mUnrXNxTTjFQOKxZndH4LZ6akfqkImZ/KFya/7zsdQli+2FRWwPG/bGMrViSnABGi039OhBJc9obVDnspJ0eXhscBGwq/g4CI+8iQbXwc8DGR07hrp8hWCw0=",
+  "notes": "• Les trois points de saisie s’affichent dans leur propre espace, sous les messages.\n• Quand ils apparaissent ou disparaissent, le dernier message reste lisible et le défilement garde sa position."
 }

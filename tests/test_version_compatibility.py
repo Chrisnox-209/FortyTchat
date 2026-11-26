@@ -16,7 +16,7 @@ from src.features.collaboration import group_key
 from src.features.cards import answer_card
 
 
-@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3'),('2.5.3','90ba8b7'),('2.6.0','1e6b2f2'),('2.6.1','4cdab2b'),('2.6.2','48a58ed'),('2.7.0','66c3891'),('2.7.1','b0150fa'),('2.8.0','91fd29c')])
+@pytest.fixture(scope='module',params=[('1.8.1','5244fc7'),('2.0.0','4a5238e'),('2.1.0','cb2a586'),('2.2.0','e80222a'),('2.3.0','048c736'),('2.3.1','e103145'),('2.3.2','a0fc3c5'),('2.4.0','15e7018'),('2.4.1','dc289e1'),('2.5.0','f38e596'),('2.5.1','86fcab8'),('2.5.2','6f537a3'),('2.5.3','90ba8b7'),('2.6.0','1e6b2f2'),('2.6.1','4cdab2b'),('2.6.2','48a58ed'),('2.7.0','66c3891'),('2.7.1','b0150fa'),('2.8.0','91fd29c'),('2.9.0','2543190')])
 def legacy(request,tmp_path_factory):
     version,commit=request.param
     repo=Path(os.environ.get('FORTYTCHAT_COMPAT_REPO',Path(__file__).resolve().parents[1]))
@@ -29,6 +29,11 @@ def legacy(request,tmp_path_factory):
             if member.isfile() and parts[0]=='src' and '..' not in parts:
                 destination=package.joinpath(*parts[1:]);destination.parent.mkdir(parents=True,exist_ok=True)
                 destination.write_bytes(archive.extractfile(member).read())
+    # Signed clients look for the manifest at the production path, even when imported under an alias.
+    manifest = package / 'official-release.json'
+    if manifest.is_file():
+        (root / 'src').mkdir()
+        (root / 'src' / manifest.name).write_bytes(manifest.read_bytes())
     sys.path.insert(0,str(root))
     module=importlib.import_module(package.name+'.networking.client')
     relay=importlib.import_module(package.name+'.networking.relay')
@@ -61,6 +66,12 @@ def test_real_older_release_chat_files_groups_popups_and_legacy_polls(legacy,rel
             if relay:await until(lambda:len(new.peers)==len(old.peers)==1)
             else:new.observe(old.hello(),'127.0.0.1');old.observe(new.hello(),'127.0.0.1')
             assert old.peers[new.sid].contact_id==new.contact_id
+            if release >= (2, 9, 0):
+                await until(lambda: any(kind == 'peer_version' and data['verified'] and data['notes'] == new.release.notes
+                                        for kind, data in logs[1]))
+                await old.send('typing', new.sid, active=True)
+                await until(lambda: bool(frames(0, 'typing')))
+                assert frames(0, 'typing')[-1]['active'] is True
             if release < (2,4,0):
                 assert await new.screens.offer(old.sid) is None
             else:

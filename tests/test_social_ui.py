@@ -4,13 +4,17 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication, QPushButton
 
 from src.app import Application
 from src.identity import session_id
+from src.memory import Message
 from src.networking.client import ChatClient
 from src.networking.settings import NetworkConfig
+from src.ui.chat_view import ChatView
 from src.ui.social import ReplyPreview
+from src.ui.theme import stylesheet
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,6 +33,58 @@ def until(qt, predicate, timeout=7):
         if time.monotonic() > end: raise AssertionError('Interaction Qt non terminée')
         time.sleep(.01)
     qt.processEvents()
+
+
+@pytest.mark.parametrize('theme,font_size', [('dark', 14), ('light', 20)])
+def test_typing_indicator_preserves_the_message_viewport_and_scroll(qt, theme, font_size):
+    chat = ChatView(private=True)
+    chat.setStyleSheet(stylesheet(theme) + f'\nQWidget {{font-size: {font_size}px;}}')
+    chat.resize(500, 300)
+    messages = [Message('a', 'Alice42', f'Message {index}', id=str(index)) for index in range(12)]
+    chat.reset(messages, 'private')
+    chat.show()
+    try:
+        qt.processEvents()
+        qt.processEvents()
+        bar = chat.scroll.verticalScrollBar()
+        assert bar.maximum() > 0 and bar.value() == bar.maximum()
+        viewport = chat.scroll.viewport()
+        viewport_size = viewport.size()
+        maximum = bar.maximum()
+        last = chat.message_rows[messages[-1].id][0]
+
+        def message_fully_visible(row):
+            top = row.mapTo(viewport, QPoint()).y()
+            return 0 <= top and top + row.height() <= viewport.height()
+
+        assert message_fully_visible(last)
+        chat.typing.set_typers(['Alice42'])
+        qt.processEvents()
+        assert chat.typing.dots.isVisible() and chat.typing.dots.timer.isActive()
+        assert viewport.size() == viewport_size
+        assert bar.value() == bar.maximum() == maximum
+        assert message_fully_visible(last)
+        assert viewport.mapTo(chat, QPoint(0, viewport.height())).y() <= chat.typing.y()
+
+        another = Message('b', 'Bob42', 'Un message reçu pendant la saisie', id='latest')
+        chat.append(another, animate=False)
+        qt.processEvents()
+        qt.processEvents()
+        assert chat.typing.dots.isVisible()
+        assert message_fully_visible(chat.message_rows[another.id][0])
+
+        bar.setValue(0)
+        chat.typing.set_typers(['Alice42', 'Bob42'])
+        qt.processEvents()
+        assert bar.value() == 0 and viewport.size() == viewport_size
+        chat.typing.set_typers([])
+        qt.processEvents()
+        assert not chat.typing.isVisible() and not chat.typing.dots.timer.isActive()
+        assert bar.value() == 0 and viewport.size() == viewport_size
+    finally:
+        chat.close()
+        chat.deleteLater()
+        qt.processEvents()
 
 
 def test_real_ui_reply_reactions_typing_and_ephemeral_storage(qt, tmp_path, monkeypatch):
