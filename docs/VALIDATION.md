@@ -1,4 +1,13 @@
-# Validation locale de FortyTchat 2.9.0
+# Validation locale de FortyTchat 2.9.1
+
+Le 26 novembre 2026, les essais reproduisent une perte de **43 pixels** dans la zone des messages de 2.9.0 à l’apparition des trois points. En 2.9.1, cette zone et la position de lecture gardent les mêmes dimensions pendant que l’indicateur change. Un nouveau message reste entièrement visible au bas de la conversation pendant l’animation.
+
+- **Qt 6.8.3**. Les sept essais de saisie en direct, de mise en page compacte et de confirmations de lecture passent dans les thèmes sombre et clair.
+- **Qt 6.12.0**. Les 96 essais ciblés de saisie, de transfert et de rétrocompatibilité passent, dont 80 échanges avec 20 versions archivées. Une 2.9.0 reçoit les nouveautés signées de la 2.9.1 et lui envoie l’état de saisie en direct et via son relais.
+
+La campagne complète a réussi **624 tests sur 625**. Un avertissement Python à la destruction d’une connexion a fait échouer un test de transfert de fichier vide en direct avec les avertissements traités comme erreurs. Ce test a réussi dans la campagne ciblée avec le même réglage.
+
+## Historique de la validation 2.9.0
 
 Le 25 novembre 2026, **619 tests** ont réussi sous Python 3.13.14 et Qt 6.12.0 en **162,10 s**. Ils comprennent **76 essais avec 19 versions archivées** de 1.8.1 à 2.8.0, en direct et via relais.
 
